@@ -12,7 +12,7 @@ export default defineConfig({
       }
     })
   ],
-  base: process.env.NODE_ENV === 'production' ? '/crypto-arbitrage-miniapp/' : './',
+  base: process.env.NODE_ENV === 'production' ? '/tg_arbitrage/' : './',
   root: '.',
   publicDir: 'public',
   build: {
