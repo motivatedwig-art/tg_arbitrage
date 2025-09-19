@@ -1,0 +1,222 @@
+{
+  "design_system": {
+    "app_type": "Cryptocurrency Wallet",
+    "design_philosophy": "Premium dark-mode fintech interface with sophisticated visual hierarchy",
+    "overall_style": "Modern, professional, data-rich with emphasis on trust and clarity"
+  },
+  "color_palette": {
+    "primary_colors": {
+      "background_primary": "#1C1C1E",
+      "background_secondary": "#2C2C2E",
+      "surface_elevated": "#3A3A3C",
+      "accent_yellow": "#FFD60A",
+      "accent_green": "#30D158",
+      "accent_red": "#FF453A"
+    },
+    "neutral_colors": {
+      "text_primary": "#FFFFFF",
+      "text_secondary": "#8E8E93",
+      "text_tertiary": "#636366",
+      "separator": "#38383A",
+      "overlay": "rgba(0, 0, 0, 0.4)"
+    },
+    "status_colors": {
+      "positive": "#30D158",
+      "negative": "#FF453A",
+      "neutral": "#8E8E93",
+      "warning": "#FF9F0A"
+    }
+  },
+  "typography": {
+    "display_numbers": {
+      "font_family": "SF Pro Display",
+      "font_weight": "600-700",
+      "font_size": "48-56px",
+      "color": "white",
+      "characteristics": "Large, bold numbers for balance display"
+    },
+    "heading_primary": {
+      "font_family": "SF Pro Text",
+      "font_weight": "600",
+      "font_size": "20-24px",
+      "color": "white",
+      "characteristics": "Section headers and navigation titles"
+    },
+    "heading_secondary": {
+      "font_family": "SF Pro Text",
+      "font_weight": "500",
+      "font_size": "16-18px",
+      "color": "white",
+      "characteristics": "Card titles and list item headers"
+    },
+    "body_text": {
+      "font_family": "SF Pro Text",
+      "font_weight": "400",
+      "font_size": "14-16px",
+      "color": "#8E8E93",
+      "characteristics": "Supporting text and descriptions"
+    },
+    "small_text": {
+      "font_family": "SF Pro Text",
+      "font_weight": "400",
+      "font_size": "12-14px",
+      "color": "#8E8E93",
+      "characteristics": "Labels and secondary information"
+    },
+    "monospace_numbers": {
+      "font_family": "SF Mono",
+      "font_weight": "500",
+      "characteristics": "Cryptocurrency values and precise numbers"
+    }
+  },
+  "layout_patterns": {
+    "screen_structure": {
+      "status_bar": "Dark theme with white text",
+      "header": "Clean with minimal navigation elements",
+      "main_content": "Full-width with consistent padding",
+      "bottom_navigation": "Tab bar with icon + text labels",
+      "spacing": "16px base unit with 24px section spacing"
+    },
+    "card_layouts": {
+      "hero_card": {
+        "style": "Large rounded card with textured background",
+        "background": "Geometric pattern overlay on dark surface",
+        "padding": "24px",
+        "border_radius": "16px",
+        "content_hierarchy": "Label → Large value → Change indicator"
+      },
+      "list_item_card": {
+        "style": "Horizontal layout with icon + content + value",
+        "background": "Transparent or subtle surface",
+        "padding": "16px",
+        "separator": "Thin line between items"
+      }
+    }
+  },
+  "component_library": {
+    "navigation": {
+      "tab_bar": {
+        "position": "Bottom fixed",
+        "background": "Dark surface with separator line",
+        "active_state": "Yellow accent indicator",
+        "inactive_state": "Gray icons and text",
+        "layout": "5 equal-width tabs with icon + label"
+      },
+      "top_navigation": {
+        "style": "Minimal with profile avatar and actions",
+        "background": "Transparent over main content",
+        "elements": "Avatar + title + action buttons"
+      }
+    },
+    "cards": {
+      "balance_card": {
+        "background": "Dark with geometric texture pattern",
+        "text_hierarchy": "Small label → Large balance → Change percentage",
+        "visual_effects": "Subtle geometric pattern overlay",
+        "border_radius": "16px"
+      },
+      "asset_list_item": {
+        "layout": "Icon + Name/Value + Price + Change%",
+        "icon": "Circular colored brand icons",
+        "alignment": "Left icon, center content, right values",
+        "separator": "Hairline between items"
+      }
+    },
+    "action_buttons": {
+      "circular_action": {
+        "style": "Large circular buttons with icons",
+        "background": "Dark elevated surface",
+        "size": "64px diameter",
+        "icon": "White simple icons",
+        "label": "Text below button"
+      },
+      "primary_cta": {
+        "background": "Yellow accent color",
+        "text_color": "Black",
+        "border_radius": "24px",
+        "padding": "16px 24px",
+        "typography": "Medium weight"
+      }
+    },
+    "data_display": {
+      "percentage_badge": {
+        "positive": "Green background with white text",
+        "negative": "Red background with white text",
+        "neutral": "Gray background",
+        "style": "Rounded corners, compact padding"
+      },
+      "value_display": {
+        "primary_value": "Large white text",
+        "secondary_value": "Smaller gray text",
+        "currency_symbol": "Consistent sizing with value"
+      }
+    }
+  },
+  "visual_treatments": {
+    "backgrounds": {
+      "primary": "Deep dark (#1C1C1E)",
+      "cards": "Elevated dark surfaces with optional textures",
+      "texture_patterns": "Subtle geometric wave/dot patterns",
+      "gradients": "Minimal use, primarily for accent elements"
+    },
+    "elevation": {
+      "cards": "Subtle shadow or border treatment",
+      "overlays": "Semi-transparent dark backgrounds",
+      "depth": "Achieved through color variation rather than shadows"
+    },
+    "iconography": {
+      "style": "Clean, minimal line icons and filled circles",
+      "cryptocurrency_icons": "Colorful circular brand logos",
+      "system_icons": "Monochrome white/gray line icons",
+      "consistency": "Uniform sizing and visual weight"
+    }
+  },
+  "interaction_patterns": {
+    "navigation_flow": {
+      "primary": "Bottom tab navigation",
+      "secondary": "Top navigation for contextual actions",
+      "gestures": "Standard iOS swipe and tap patterns"
+    },
+    "data_presentation": {
+      "list_views": "Vertical scrolling with consistent item height",
+      "loading_states": "Skeleton screens or subtle shimmer",
+      "empty_states": "Clean illustrations with actionable text"
+    },
+    "feedback": {
+      "color_coding": "Green positive, red negative, yellow accents",
+      "status_indicators": "Percentage badges and color-coded text",
+      "interactive_states": "Subtle opacity changes and highlights"
+    }
+  },
+  "responsive_behavior": {
+    "mobile_optimization": "iPhone-first design approach",
+    "content_scaling": "Fixed layouts with consistent spacing",
+    "touch_targets": "Minimum 44px for all interactive elements",
+    "safe_areas": "Proper handling of notch and home indicator"
+  },
+  "accessibility_considerations": {
+    "contrast": "High contrast white text on dark backgrounds",
+    "color_dependency": "Information not solely conveyed through color",
+    "text_sizing": "Support for dynamic text sizing",
+    "focus_states": "Clear focus indicators for navigation"
+  },
+  "data_visualization": {
+    "financial_data": {
+      "large_numbers": "Prominent display with clear hierarchy",
+      "percentage_changes": "Color-coded with clear positive/negative indicators",
+      "currency_formatting": "Consistent decimal places and symbols",
+      "real_time_updates": "Smooth transitions for changing values"
+    },
+    "list_formatting": {
+      "asset_lists": "Icon + name + price + change in consistent layout",
+      "sorting": "Implied sorting by market cap or performance",
+      "grouping": "Clear section headers when needed"
+    }
+  },
+  "brand_elements": {
+    "visual_identity": "Professional, trustworthy fintech aesthetic",
+    "accent_colors": "Yellow as primary brand accent",
+    "voice": "Clear, precise, data-focused communication",
+    "trust_indicators": "Security-focused UI patterns and clear value display"
+  }
+}

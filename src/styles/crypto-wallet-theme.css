@@ -1,0 +1,501 @@
+/* Crypto Wallet Design System Implementation */
+
+:root {
+  /* Primary Colors */
+  --bg-primary: #1C1C1E;
+  --bg-secondary: #2C2C2E;
+  --surface-elevated: #3A3A3C;
+  --accent-yellow: #FFD60A;
+  --accent-green: #30D158;
+  --accent-red: #FF453A;
+  
+  /* Neutral Colors */
+  --text-primary: #FFFFFF;
+  --text-secondary: #8E8E93;
+  --text-tertiary: #636366;
+  --separator: #38383A;
+  --overlay: rgba(0, 0, 0, 0.4);
+  
+  /* Status Colors */
+  --positive: #30D158;
+  --negative: #FF453A;
+  --neutral: #8E8E93;
+  --warning: #FF9F0A;
+  
+  /* Typography */
+  --font-family-display: 'SF Pro Display', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-family-text: 'SF Pro Text', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-family-mono: 'SF Mono', 'Menlo', 'Monaco', 'Consolas', monospace;
+  
+  /* Spacing */
+  --spacing-base: 16px;
+  --spacing-section: 24px;
+  --border-radius-card: 16px;
+  --border-radius-button: 24px;
+  
+  /* Shadows and elevation */
+  --shadow-card: 0 4px 16px rgba(0, 0, 0, 0.15);
+  --shadow-elevated: 0 8px 32px rgba(0, 0, 0, 0.25);
+  
+  /* Override Telegram theme variables with our design system */
+  --tg-theme-bg-color: var(--bg-primary);
+  --tg-theme-text-color: var(--text-primary);
+  --tg-theme-hint-color: var(--text-secondary);
+  --tg-theme-button-color: var(--accent-yellow);
+  --tg-theme-button-text-color: #000000;
+  --tg-theme-link-color: var(--accent-yellow);
+}
+
+/* Base styling */
+html, body {
+  font-family: var(--font-family-text);
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Typography classes based on design system */
+.display-numbers {
+  font-family: var(--font-family-display);
+  font-weight: 600;
+  font-size: 48px;
+  color: var(--text-primary);
+  line-height: 1.1;
+}
+
+.heading-primary {
+  font-family: var(--font-family-text);
+  font-weight: 600;
+  font-size: 22px;
+  color: var(--text-primary);
+  line-height: 1.2;
+}
+
+.heading-secondary {
+  font-family: var(--font-family-text);
+  font-weight: 500;
+  font-size: 17px;
+  color: var(--text-primary);
+  line-height: 1.3;
+}
+
+.body-text {
+  font-family: var(--font-family-text);
+  font-weight: 400;
+  font-size: 15px;
+  color: var(--text-secondary);
+  line-height: 1.4;
+}
+
+.small-text {
+  font-family: var(--font-family-text);
+  font-weight: 400;
+  font-size: 13px;
+  color: var(--text-secondary);
+  line-height: 1.3;
+}
+
+.monospace-numbers {
+  font-family: var(--font-family-mono);
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Card layouts based on design system */
+.hero-card {
+  background: linear-gradient(135deg, var(--bg-secondary) 0%, var(--surface-elevated) 100%);
+  border-radius: var(--border-radius-card);
+  padding: var(--spacing-section);
+  position: relative;
+  overflow: hidden;
+}
+
+.hero-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><pattern id="pattern" x="0" y="0" width="20" height="20" patternUnits="userSpaceOnUse"><circle cx="10" cy="10" r="1" fill="%23FFFFFF" opacity="0.1"/></pattern></defs><rect width="100" height="100" fill="url(%23pattern)"/></svg>') repeat;
+  pointer-events: none;
+}
+
+.list-item-card {
+  background: var(--bg-secondary);
+  border-radius: 12px;
+  padding: var(--spacing-base);
+  border: 1px solid var(--separator);
+  transition: all 0.2s ease;
+}
+
+.list-item-card:hover {
+  background: var(--surface-elevated);
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-card);
+}
+
+/* Button styles */
+.circular-action-button {
+  width: 64px;
+  height: 64px;
+  border-radius: 32px;
+  background: var(--surface-elevated);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-primary);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border: 1px solid var(--separator);
+}
+
+.circular-action-button:hover {
+  background: var(--accent-yellow);
+  color: #000000;
+  transform: scale(1.05);
+}
+
+.primary-cta-button {
+  background: var(--accent-yellow);
+  color: #000000;
+  border-radius: var(--border-radius-button);
+  padding: 16px 24px;
+  font-weight: 500;
+  font-size: 16px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.primary-cta-button:hover {
+  background: #FFE55C;
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-card);
+}
+
+.primary-cta-button:active {
+  transform: translateY(0);
+}
+
+.primary-cta-button:disabled {
+  background: var(--text-tertiary);
+  color: var(--text-secondary);
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+/* Percentage badges */
+.percentage-badge {
+  padding: 6px 12px;
+  border-radius: 12px;
+  font-weight: 600;
+  font-size: 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.percentage-badge.positive {
+  background: var(--positive);
+  color: white;
+}
+
+.percentage-badge.negative {
+  background: var(--negative);
+  color: white;
+}
+
+.percentage-badge.neutral {
+  background: var(--neutral);
+  color: white;
+}
+
+/* Value display */
+.value-primary {
+  font-size: 24px;
+  font-weight: 600;
+  color: var(--text-primary);
+  font-family: var(--font-family-mono);
+}
+
+.value-secondary {
+  font-size: 16px;
+  font-weight: 400;
+  color: var(--text-secondary);
+  font-family: var(--font-family-mono);
+}
+
+/* Exchange selection specific styles */
+.exchange-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 12px;
+  padding: var(--spacing-base);
+}
+
+.exchange-item {
+  background: var(--bg-secondary);
+  border: 2px solid transparent;
+  border-radius: var(--border-radius-card);
+  padding: var(--spacing-base);
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.exchange-item:hover {
+  background: var(--surface-elevated);
+  transform: translateY(-1px);
+}
+
+.exchange-item.selected {
+  background: rgba(255, 214, 10, 0.1);
+  border-color: var(--accent-yellow);
+}
+
+.exchange-logo {
+  width: 48px;
+  height: 48px;
+  border-radius: 24px;
+  background: var(--surface-elevated);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+  flex-shrink: 0;
+}
+
+.exchange-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.exchange-name {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 4px;
+}
+
+.exchange-status {
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.exchange-check {
+  width: 24px;
+  height: 24px;
+  border-radius: 12px;
+  background: var(--accent-yellow);
+  color: #000000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transform: scale(0);
+  transition: all 0.2s ease;
+}
+
+.exchange-item.selected .exchange-check {
+  opacity: 1;
+  transform: scale(1);
+}
+
+/* Arbitrage table styles */
+.opportunity-card {
+  background: var(--bg-secondary);
+  border-radius: var(--border-radius-card);
+  padding: var(--spacing-base);
+  margin-bottom: 12px;
+  border-left: 4px solid var(--accent-yellow);
+  transition: all 0.2s ease;
+}
+
+.opportunity-card:hover {
+  background: var(--surface-elevated);
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-card);
+}
+
+.opportunity-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 16px;
+}
+
+.pair-symbol {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 4px;
+}
+
+.pair-details {
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.profit-badge {
+  background: var(--accent-green);
+  color: white;
+  padding: 6px 12px;
+  border-radius: 12px;
+  font-size: 13px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.exchange-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.exchange-card {
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 8px;
+  padding: 12px;
+}
+
+.exchange-label {
+  font-size: 11px;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 4px;
+}
+
+.exchange-name-display {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 4px;
+}
+
+.exchange-price {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--accent-yellow);
+  font-family: var(--font-family-mono);
+}
+
+/* Stats bar */
+.stats-bar {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.stat-card {
+  background: rgba(255, 214, 10, 0.1);
+  border-radius: 12px;
+  padding: 16px;
+  text-align: center;
+}
+
+.stat-value {
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 4px;
+  font-family: var(--font-family-mono);
+}
+
+.stat-label {
+  font-size: 12px;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* Countdown timer */
+.countdown-timer {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--text-secondary);
+  font-family: var(--font-family-mono);
+}
+
+/* Loading states */
+.loading-card {
+  background: var(--bg-secondary);
+  border-radius: var(--border-radius-card);
+  padding: var(--spacing-base);
+  margin-bottom: 12px;
+  height: 120px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 0.6; }
+  50% { opacity: 0.3; }
+}
+
+/* Responsive adjustments */
+@media (max-width: 480px) {
+  .display-numbers {
+    font-size: 36px;
+  }
+  
+  .heading-primary {
+    font-size: 20px;
+  }
+  
+  .exchange-row {
+    grid-template-columns: 1fr;
+  }
+  
+  .stats-bar {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+  
+  .stat-card {
+    padding: 12px;
+  }
+}
+
+/* Smooth scrolling */
+html {
+  scroll-behavior: smooth;
+}
+
+/* Custom scrollbar for webkit browsers */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--bg-primary);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--separator);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--text-secondary);
+}
+
+

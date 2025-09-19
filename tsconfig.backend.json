@@ -1,0 +1,37 @@
+{
+  "compilerOptions": {
+    "target": "ES2020",
+    "module": "ESNext",
+    "lib": ["ES2020", "DOM"],
+    "outDir": "./dist",
+    "rootDir": "./src",
+    "strict": false,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "resolveJsonModule": true,
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "moduleResolution": "node",
+    "allowImportingTsExtensions": false,
+    "types": ["node"]
+  },
+  "include": [
+    "src/**/*"
+  ],
+  "exclude": [
+    "node_modules",
+    "dist",
+    "miniapp",
+    "src/App.tsx",
+    "src/main.tsx",
+    "src/screens/**/*",
+    "src/hooks/useArbitrageData.ts",
+    "src/hooks/useTelegramTheme.ts",
+    "src/hooks/useTelegramWebApp.ts",
+    "src/services/api.ts",
+    "src/styles/**/*",
+    "src/vite-env.d.ts"
+  ]
+}

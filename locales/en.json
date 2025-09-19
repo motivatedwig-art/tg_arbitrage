@@ -1,0 +1,79 @@
+{
+  "commands": {
+    "start": "🚀 <b>Welcome to Crypto Arbitrage Bot!</b>\n\nThis bot is for cryptocurrency arbitrage. It automatically compares prices across exchanges and provides you with the most profitable arbitrage pairs on your selected exchanges. The main working interface is in the web application. The bot is available in Russian and English languages.",
+    "help": "📋 Available commands:\n\n/start - Welcome message\n/status - System status\n/settings - Configure preferences\n/language - Switch language\n/top - Top 10 opportunities\n/subscribe - Toggle notifications\n/webapp - Open mini app\n/stats - Your statistics",
+    "status": "📊 System Status",
+    "language_changed": "✅ Language changed to English",
+    "settings": "⚙️ Settings",
+    "top_opportunities": "🏆 Top Arbitrage Opportunities",
+    "subscribe_enabled": "🔔 Notifications enabled",
+    "subscribe_disabled": "🔕 Notifications disabled",
+    "stats": "📈 Your Statistics",
+    "webapp": "🌐 Open Mini App",
+    "unknown_command": "❌ Unknown command. Use /help to see available commands."
+  },
+  "status": {
+    "online": "🟢 Online",
+    "offline": "🔴 Offline",
+    "exchanges_status": "Exchange Status:",
+    "last_update": "Last update:",
+    "opportunities_found": "Opportunities found:",
+    "system_uptime": "System uptime:"
+  },
+  "table": {
+    "headers": {
+      "pair": "Pair",
+      "buy_exchange": "Buy Exchange",
+      "sell_exchange": "Sell Exchange",
+      "buy_price": "Buy Price",
+      "sell_price": "Sell Price",
+      "profit": "Profit %",
+      "profit_amount": "Profit Amount",
+      "volume": "Volume",
+      "updated": "Updated"
+    },
+    "no_opportunities": "No arbitrage opportunities found at the moment.",
+    "loading": "Loading opportunities..."
+  },
+  "buttons": {
+    "settings": "⚙️ Settings",
+    "refresh": "🔄 Refresh",
+    "language": "🌐 Language",
+    "notifications": "🔔 Notifications",
+    "webapp": "📱 Web App",
+    "back": "⬅️ Back",
+    "english": "🇺🇸 English",
+    "russian": "🇷🇺 Русский",
+    "enable": "✅ Enable",
+    "disable": "❌ Disable",
+    "subscription_management": "💳 Subscription Management",
+    "web_application": "🌐 Web Application",
+    "choose_language": "Choose the language/Выберите язык"
+  },
+  "notifications": {
+    "high_profit_alert": "🚨 High Profit Alert!\n\n{symbol}: {profit}% profit\nBuy on {buyExchange} at ${buyPrice}\nSell on {sellExchange} at ${sellPrice}",
+    "profit_summary": "📊 <b>Profit Summary (Last 30 minutes)</b>\n\n💰 High-profit deals found: <b>{count}</b>\n📈 Average profit: <b>{avgProfit}%</b>\n🚀 Maximum profit: <b>{maxProfit}%</b>\n\nOpen the web app to see detailed opportunities!",
+    "no_high_profit_deals": "📊 <b>Profit Summary (Last 30 minutes)</b>\n\n💤 No high-profit deals (>2%) were found in the last 30 minutes.\n\nCheck the web app for current opportunities!",
+    "system_error": "⚠️ System Error: {error}",
+    "exchange_offline": "⚠️ Exchange {exchange} is offline"
+  },
+  "errors": {
+    "generic": "An error occurred. Please try again later.",
+    "exchange_error": "Exchange connection error: {error}",
+    "invalid_input": "Invalid input. Please check your data.",
+    "rate_limit": "Rate limit exceeded. Please wait a moment.",
+    "no_data": "No data available at the moment."
+  },
+  "webapp": {
+    "title": "Crypto Arbitrage Opportunities",
+    "subtitle": "Real-time arbitrage opportunities across exchanges",
+    "filter_by_pair": "Filter by pair",
+    "filter_by_exchange": "Filter by exchange",
+    "min_profit": "Minimum profit %",
+    "sort_by": "Sort by",
+    "export_csv": "Export CSV",
+    "last_updated": "Last updated: {time}",
+    "connection_status": "Connection: {status}",
+    "total_opportunities": "Total opportunities: {count}"
+  }
+}
