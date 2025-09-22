@@ -39,190 +39,379 @@
             background: transparent;
         }
 
+        :root {
+            /* Crypto Wallet Design System Colors */
+            --bg-primary: #1C1C1E;
+            --bg-secondary: #2C2C2E;
+            --surface-elevated: #3A3A3C;
+            --accent-yellow: #FFD60A;
+            --accent-green: #30D158;
+            --accent-red: #FF453A;
+            --text-primary: #FFFFFF;
+            --text-secondary: #8E8E93;
+            --text-tertiary: #636366;
+            --separator: #38383A;
+            --overlay: rgba(0, 0, 0, 0.4);
+            --positive: #30D158;
+            --negative: #FF453A;
+            --neutral: #8E8E93;
+            --warning: #FF9F0A;
+        }
+
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: var(--tg-theme-bg-color, #ffffff);
-            color: var(--tg-theme-text-color, #000000);
+            font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
             line-height: 1.6;
+            min-height: 100vh;
             overflow-x: hidden;
         }
 
         .container {
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 20px;
+            max-width: 100%;
+            margin: 0;
+            padding: 16px;
+            min-height: 100vh;
         }
 
         .header {
             text-align: center;
-            margin-bottom: 30px;
+            margin-bottom: 24px;
+            padding: 16px 0;
         }
 
         .header h1 {
-            color: var(--tg-theme-button-color, #0088cc);
-            margin-bottom: 10px;
+            font-size: 24px;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 8px;
+        }
+
+        .header p {
+            font-size: 14px;
+            color: var(--text-secondary);
         }
 
         .status-bar {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            background: var(--tg-theme-secondary-bg-color, #f8f9fa);
-            padding: 15px;
-            border-radius: 10px;
+            background: var(--bg-secondary);
+            padding: 16px;
+            border-radius: 16px;
             margin-bottom: 20px;
             flex-wrap: wrap;
-            gap: 10px;
+            gap: 12px;
+            border: 1px solid var(--separator);
         }
 
         .status-item {
             display: flex;
             align-items: center;
-            gap: 5px;
+            gap: 8px;
+            font-size: 14px;
+            color: var(--text-secondary);
         }
 
         .status-dot {
             width: 8px;
             height: 8px;
             border-radius: 50%;
-            background: #28a745;
+            background: var(--positive);
         }
 
         .status-dot.offline {
-            background: #dc3545;
+            background: var(--negative);
         }
 
         .controls {
             display: flex;
-            gap: 10px;
-            margin-bottom: 20px;
+            gap: 12px;
+            margin-bottom: 24px;
             flex-wrap: wrap;
         }
 
         .btn {
-            padding: 10px 20px;
+            padding: 12px 20px;
             border: none;
-            border-radius: 8px;
-            background: var(--tg-theme-button-color, #0088cc);
-            color: var(--tg-theme-button-text-color, #ffffff);
+            border-radius: 24px;
+            background: var(--accent-yellow);
+            color: #000000;
             cursor: pointer;
             font-size: 14px;
-            transition: opacity 0.2s;
+            font-weight: 500;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 6px;
         }
 
         .btn:hover {
-            opacity: 0.8;
+            background: #FFE55C;
+            transform: scale(1.02);
         }
 
         .btn:disabled {
             opacity: 0.5;
             cursor: not-allowed;
+            transform: none;
         }
 
-        .table-container {
-            background: var(--tg-theme-secondary-bg-color, #ffffff);
-            border-radius: 10px;
-            overflow: hidden;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        .opportunities-container {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
         }
 
-        .table {
-            width: 100%;
-            border-collapse: collapse;
+        .opportunity-card {
+            background: var(--bg-secondary);
+            border-radius: 16px;
+            padding: 16px;
+            border-left: 4px solid var(--accent-yellow);
+            transition: all 0.2s ease;
+            border: 1px solid var(--separator);
         }
 
-        .table th,
-        .table td {
-            padding: 12px;
-            text-align: left;
-            border-bottom: 1px solid var(--tg-theme-hint-color, #e9ecef);
+        .opportunity-card:hover {
+            background: var(--surface-elevated);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
         }
 
-        .table th {
-            background: var(--tg-theme-button-color, #0088cc);
-            color: var(--tg-theme-button-text-color, #ffffff);
+        .opportunity-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 12px;
+        }
+
+        .pair-info {
+            flex: 1;
+        }
+
+        .pair-symbol {
+            font-size: 18px;
             font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 4px;
         }
 
-        .table tbody tr:hover {
-            background: var(--tg-theme-secondary-bg-color, #f8f9fa);
+        .pair-details {
+            font-size: 13px;
+            color: var(--text-secondary);
         }
 
-        .profit-positive {
-            color: #28a745;
-            font-weight: bold;
+        .profit-badge {
+            padding: 6px 12px;
+            border-radius: 12px;
+            font-size: 13px;
+            font-weight: 600;
+            background: var(--accent-green);
+            color: white;
+            display: flex;
+            align-items: center;
+            gap: 4px;
         }
 
-        .profit-high {
-            color: #dc3545;
-            font-weight: bold;
+        .profit-badge.high {
+            background: var(--accent-red);
+        }
+
+        .profit-badge.medium {
+            background: var(--warning);
+        }
+
+        .exchange-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            margin-bottom: 12px;
+        }
+
+        .exchange-card {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 8px;
+            padding: 12px;
+        }
+
+        .exchange-label {
+            font-size: 11px;
+            color: var(--text-secondary);
+            margin-bottom: 4px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .exchange-name {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 4px;
+        }
+
+        .exchange-price {
+            font-family: 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', Consolas, 'Courier New', monospace;
+            font-size: 16px;
+            font-weight: 600;
+            color: var(--accent-yellow);
+        }
+
+        .action-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 12px;
+            padding-top: 12px;
+            border-top: 1px solid var(--separator);
+        }
+
+        .spread-info {
+            font-family: 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', Consolas, 'Courier New', monospace;
+            font-size: 13px;
+            color: var(--text-secondary);
+        }
+
+        .view-button {
+            padding: 8px 16px;
+            border-radius: 20px;
+            background: var(--accent-yellow);
+            color: #000000;
+            font-size: 13px;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            cursor: pointer;
+            border: none;
+            transition: all 0.2s ease;
+            text-decoration: none;
+        }
+
+        .view-button:hover {
+            background: #FFE55C;
+            transform: scale(1.05);
         }
 
         .loading {
             text-align: center;
             padding: 40px;
-            color: var(--tg-theme-hint-color, #6c757d);
+            color: var(--text-secondary);
         }
 
         .no-data {
             text-align: center;
             padding: 40px;
-            color: var(--tg-theme-hint-color, #6c757d);
+            color: var(--text-secondary);
         }
 
-        .exchange-tag {
-            display: inline-block;
-            background: var(--tg-theme-button-color, #0088cc);
-            color: var(--tg-theme-button-text-color, #ffffff);
-            padding: 2px 8px;
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+
+        .stat-card {
+            background: rgba(255, 214, 10, 0.1);
             border-radius: 12px;
-            font-size: 12px;
-            margin: 1px;
+            padding: 16px;
+            text-align: center;
+            border: 1px solid var(--separator);
         }
 
+        .stat-value {
+            font-family: 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', Consolas, 'Courier New', monospace;
+            font-size: 20px;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 4px;
+        }
+
+        .stat-label {
+            font-size: 12px;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        /* Mobile-first responsive design */
         @media (max-width: 768px) {
             .container {
-                padding: 10px;
+                padding: 12px;
             }
             
             .status-bar {
                 flex-direction: column;
                 align-items: stretch;
+                gap: 8px;
             }
             
-            .table-container {
-                overflow-x: auto;
+            .exchange-row {
+                grid-template-columns: 1fr;
+                gap: 8px;
             }
             
-            .table {
-                min-width: 600px;
+            .stats-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+            
+            .opportunity-header {
+                flex-direction: column;
+                align-items: stretch;
+                gap: 8px;
+            }
+            
+            .profit-badge {
+                align-self: flex-start;
             }
         }
 
-        .stats-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 15px;
-            margin-bottom: 20px;
+        @media (max-width: 480px) {
+            .container {
+                padding: 8px;
+            }
+            
+            .header h1 {
+                font-size: 20px;
+            }
+            
+            .stats-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .stat-card {
+                padding: 12px;
+            }
+            
+            .stat-value {
+                font-size: 18px;
+            }
         }
 
-        .stat-card {
-            background: var(--tg-theme-secondary-bg-color, #f8f9fa);
-            padding: 20px;
-            border-radius: 10px;
-            text-align: center;
+        /* Loading animation */
+        .loading-spinner {
+            animation: spin 1s linear infinite;
         }
 
-        .stat-value {
-            font-size: 24px;
-            font-weight: bold;
-            color: var(--tg-theme-button-color, #0088cc);
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
         }
 
-        .stat-label {
-            font-size: 14px;
-            color: var(--tg-theme-hint-color, #6c757d);
-            margin-top: 5px;
+        /* Smooth transitions */
+        .opportunity-card {
+            animation: fadeInUp 0.3s ease-out;
+        }
+
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
         }
     </style>
 </head>
@@ -272,27 +461,11 @@
             </button>
         </div>
 
-        <div class="table-container">
-            <table class="table">
-                <thead>
-                    <tr>
-                        <th>Symbol</th>
-                        <th>Buy Exchange</th>
-                        <th>Sell Exchange</th>
-                        <th>Buy Price</th>
-                        <th>Sell Price</th>
-                        <th>Profit %</th>
-                        <th>Profit $</th>
-                        <th>Volume</th>
-                        <th>Updated</th>
-                    </tr>
-                </thead>
-                <tbody id="opportunitiesTable">
-                    <tr>
-                        <td colspan="9" class="loading">Loading opportunities...</td>
-                    </tr>
-                </tbody>
-            </table>
+        <div class="opportunities-container" id="opportunitiesContainer">
+            <div class="loading" id="loadingState">
+                <div class="loading-spinner">🔄</div>
+                <p>Loading opportunities...</p>
+            </div>
         </div>
     </div>
 
@@ -349,30 +522,100 @@
             }
         }
 
+        // Exchange URL patterns for different exchanges
+        const exchangeUrls = {
+            'binance': 'https://www.binance.com/en/trade/{symbol}',
+            'okx': 'https://www.okx.com/trade-spot/{symbol}',
+            'bybit': 'https://www.bybit.com/trade/spot/{symbol}',
+            'bitget': 'https://www.bitget.com/en/spot/{symbol}',
+            'mexc': 'https://www.mexc.com/exchange/{symbol}',
+            'bingx': 'https://bingx.com/en-us/spot/{symbol}',
+            'gateio': 'https://www.gate.io/trade/{symbol}',
+            'kucoin': 'https://trade.kucoin.com/{symbol}',
+            'coinbase': 'https://pro.coinbase.com/trade/{symbol}',
+            'kraken': 'https://trade.kraken.com/charts/KRAKEN:{symbol}'
+        };
+
+        // Generate exchange URL for a specific symbol
+        function getExchangeUrl(exchange, symbol) {
+            const urlPattern = exchangeUrls[exchange.toLowerCase()];
+            if (!urlPattern) {
+                return `https://${exchange.toLowerCase()}.com`;
+            }
+            return urlPattern.replace('{symbol}', symbol);
+        }
+
+        // Get profit badge class based on profit percentage
+        function getProfitBadgeClass(profitPercentage) {
+            if (profitPercentage >= 2) return 'high';
+            if (profitPercentage >= 1) return 'medium';
+            return '';
+        }
+
         // Update functions
-        function updateOpportunitiesTable(opportunities) {
-            const tbody = document.getElementById('opportunitiesTable');
+        function updateOpportunitiesContainer(opportunities) {
+            const container = document.getElementById('opportunitiesContainer');
+            const loadingState = document.getElementById('loadingState');
             
             if (opportunities.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="9" class="no-data">No arbitrage opportunities found at the moment.</td></tr>';
+                container.innerHTML = '<div class="no-data"><p>No arbitrage opportunities found at the moment.</p><p>Try refreshing or check back later.</p></div>';
                 return;
             }
 
-            tbody.innerHTML = opportunities.map(opp => `
-                <tr>
-                    <td><strong>${opp.symbol}</strong></td>
-                    <td><span class="exchange-tag">${opp.buyExchange}</span></td>
-                    <td><span class="exchange-tag">${opp.sellExchange}</span></td>
-                    <td>$${opp.buyPrice.toFixed(4)}</td>
-                    <td>$${opp.sellPrice.toFixed(4)}</td>
-                    <td class="${opp.profitPercentage >= 2 ? 'profit-high' : 'profit-positive'}">
-                        ${opp.profitPercentage.toFixed(2)}%
-                    </td>
-                    <td class="profit-positive">$${opp.profitAmount.toFixed(4)}</td>
-                    <td>${opp.volume ? opp.volume.toFixed(2) : 'N/A'}</td>
-                    <td>${new Date(opp.timestamp).toLocaleTimeString()}</td>
-                </tr>
-            `).join('');
+            // Hide loading state
+            if (loadingState) {
+                loadingState.style.display = 'none';
+            }
+
+            // Generate opportunity cards
+            const cardsHtml = opportunities.map((opp, index) => {
+                const profitClass = getProfitBadgeClass(opp.profitPercentage);
+                const buyUrl = getExchangeUrl(opp.buyExchange, opp.symbol);
+                const sellUrl = getExchangeUrl(opp.sellExchange, opp.symbol);
+                
+                return `
+                    <div class="opportunity-card" style="animation-delay: ${index * 0.1}s">
+                        <div class="opportunity-header">
+                            <div class="pair-info">
+                                <div class="pair-symbol">${opp.symbol}</div>
+                                <div class="pair-details">${opp.symbol.replace('USDT', '/USDT')}</div>
+                            </div>
+                            <div class="profit-badge ${profitClass}">
+                                📈 ${opp.profitPercentage.toFixed(2)}%
+                            </div>
+                        </div>
+
+                        <div class="exchange-row">
+                            <div class="exchange-card">
+                                <div class="exchange-label">Buy on</div>
+                                <div class="exchange-name">${opp.buyExchange}</div>
+                                <div class="exchange-price">$${opp.buyPrice.toFixed(4)}</div>
+                            </div>
+                            <div class="exchange-card">
+                                <div class="exchange-label">Sell on</div>
+                                <div class="exchange-name">${opp.sellExchange}</div>
+                                <div class="exchange-price">$${opp.sellPrice.toFixed(4)}</div>
+                            </div>
+                        </div>
+
+                        <div class="action-row">
+                            <div class="spread-info">
+                                Spread: $${opp.profitAmount.toFixed(4)}
+                            </div>
+                            <div style="display: flex; gap: 8px;">
+                                <a href="${buyUrl}" target="_blank" class="view-button">
+                                    Buy ↗️
+                                </a>
+                                <a href="${sellUrl}" target="_blank" class="view-button">
+                                    Sell ↗️
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            container.innerHTML = cardsHtml;
         }
 
         function updateStatus(status) {
@@ -399,64 +642,50 @@
 
         // Main refresh function
         async function refreshData() {
-            const [opportunities, status, stats] = await Promise.all([
-                fetchOpportunities(),
-                fetchStatus(),
-                fetchStats()
-            ]);
-
-            updateOpportunitiesTable(opportunities);
-            updateStatus(status);
-            updateStats(stats);
+            const refreshBtn = document.getElementById('refreshBtn');
+            const refreshIcon = document.getElementById('refreshIcon');
+            const refreshText = document.getElementById('refreshText');
+            const loadingState = document.getElementById('loadingState');
             
-            document.getElementById('opportunityCount').textContent = opportunities.length;
-        }
-
-        // Auto-refresh toggle
-        function toggleAutoRefresh() {
-            const btn = document.getElementById('autoRefreshBtn');
+            // Show loading state
+            if (loadingState) {
+                loadingState.style.display = 'block';
+            }
             
-            if (autoRefreshEnabled) {
-                clearInterval(autoRefreshInterval);
-                btn.textContent = '▶️ Resume Auto-refresh';
-                autoRefreshEnabled = false;
-            } else {
-                startAutoRefresh();
-                btn.textContent = '⏸️ Pause Auto-refresh';
-                autoRefreshEnabled = true;
+            // Disable refresh button and show loading
+            refreshBtn.disabled = true;
+            refreshIcon.textContent = '🔄';
+            refreshIcon.classList.add('loading-spinner');
+            refreshText.textContent = 'Refreshing...';
+
+            try {
+                const [opportunities, status, stats] = await Promise.all([
+                    fetchOpportunities(),
+                    fetchStatus(),
+                    fetchStats()
+                ]);
+
+                updateOpportunitiesContainer(opportunities);
+                updateStatus(status);
+                updateStats(stats);
+                
+                document.getElementById('opportunityCount').textContent = opportunities.length;
+            } catch (error) {
+                console.error('Error refreshing data:', error);
+                const container = document.getElementById('opportunitiesContainer');
+                container.innerHTML = '<div class="no-data"><p>Error loading data. Please try again.</p><button class="btn refresh" onclick="refreshData()">Try Again</button></div>';
+            } finally {
+                // Re-enable refresh button
+                refreshBtn.disabled = false;
+                refreshIcon.textContent = '🔄';
+                refreshIcon.classList.remove('loading-spinner');
+                refreshText.textContent = 'Refresh';
             }
         }
 
+        // Auto-refresh every 30 seconds
         function startAutoRefresh() {
-            autoRefreshInterval = setInterval(refreshData, 30000); // Refresh every 30 seconds
-        }
-
-        // Export to CSV
-        function exportCSV() {
-            const table = document.getElementById('opportunitiesTable');
-            const rows = Array.from(table.querySelectorAll('tr'));
-            
-            if (rows.length === 0 || rows[0].textContent.includes('Loading') || rows[0].textContent.includes('No arbitrage')) {
-                alert('No data to export');
-                return;
-            }
-
-            const headers = ['Symbol', 'Buy Exchange', 'Sell Exchange', 'Buy Price', 'Sell Price', 'Profit %', 'Profit $', 'Volume', 'Updated'];
-            const csvContent = [
-                headers.join(','),
-                ...rows.map(row => {
-                    const cells = Array.from(row.querySelectorAll('td'));
-                    return cells.map(cell => `"${cell.textContent.trim()}"`).join(',');
-                })
-            ].join('\n');
-
-            const blob = new Blob([csvContent], { type: 'text/csv' });
-            const url = window.URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `arbitrage-opportunities-${new Date().toISOString().split('T')[0]}.csv`;
-            a.click();
-            window.URL.revokeObjectURL(url);
+            setInterval(refreshData, 30000);
         }
 
         // Initialize
