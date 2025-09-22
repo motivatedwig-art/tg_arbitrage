@@ -1,9 +1,13 @@
 export default function handler(req, res) {
-  // Set CORS headers
+  // Set CORS headers for Telegram WebApp
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  
+  // Security headers for Telegram WebApp
+  res.setHeader('X-Frame-Options', 'SAMEORIGIN');
+  res.setHeader('Content-Security-Policy', "frame-ancestors 'self' https://web.telegram.org");
+  
   if (req.method === 'OPTIONS') {
     res.status(200).end();
     return;
@@ -16,6 +20,7 @@ export default function handler(req, res) {
   res.status(200).json({ 
     status: 'OK', 
     timestamp: Date.now(),
-    message: 'Crypto Arbitrage API is running'
+    message: 'Crypto Arbitrage API is running',
+    telegram_webapp: 'ready'
   });
 }
