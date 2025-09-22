@@ -1,6 +1,6 @@
 const mockStats = {
-  total: 4,
-  avgProfit: 1.24,
+  total: 8,
+  avgProfit: 1.23,
   maxProfit: 1.62
 };
 

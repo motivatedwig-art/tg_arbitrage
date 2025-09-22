@@ -43,6 +43,50 @@ const mockOpportunities = [
     profitAmount: 0.75,
     volume: 2500.0,
     timestamp: new Date().toISOString()
+  },
+  {
+    symbol: 'DOGE/USDT',
+    buyExchange: 'MEXC',
+    sellExchange: 'BingX',
+    buyPrice: 0.0825,
+    sellPrice: 0.0835,
+    profitPercentage: 1.21,
+    profitAmount: 0.001,
+    volume: 15000.0,
+    timestamp: new Date().toISOString()
+  },
+  {
+    symbol: 'MATIC/USDT',
+    buyExchange: 'KuCoin',
+    sellExchange: 'Gate.io',
+    buyPrice: 0.8750,
+    sellPrice: 0.8825,
+    profitPercentage: 0.86,
+    profitAmount: 0.0075,
+    volume: 8000.0,
+    timestamp: new Date().toISOString()
+  },
+  {
+    symbol: 'AVAX/USDT',
+    buyExchange: 'Bybit',
+    sellExchange: 'OKX',
+    buyPrice: 35.20,
+    sellPrice: 35.65,
+    profitPercentage: 1.28,
+    profitAmount: 0.45,
+    volume: 3200.0,
+    timestamp: new Date().toISOString()
+  },
+  {
+    symbol: 'DOT/USDT',
+    buyExchange: 'Binance',
+    sellExchange: 'Kraken',
+    buyPrice: 6.85,
+    sellPrice: 6.95,
+    profitPercentage: 1.46,
+    profitAmount: 0.10,
+    volume: 4500.0,
+    timestamp: new Date().toISOString()
   }
 ];
 
