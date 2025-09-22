@@ -145,7 +145,8 @@ export class WebAppServer {
     return new Promise((resolve, reject) => {
       this.server = this.app.listen(port, () => {
         console.log(`🌐 Web app server running on port ${port}`);
-        console.log(`📱 Mini app URL: http://localhost:${port}`);
+        const webAppUrl = process.env.WEBAPP_URL || `http://localhost:${port}`;
+        console.log(`📱 Mini app URL: ${webAppUrl}`);
         resolve();
       });
 
