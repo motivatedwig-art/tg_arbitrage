@@ -1,60 +1,440 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover" />
-    <meta name="theme-color" content="#3390ec" />
-    <meta name="apple-mobile-web-app-capable" content="yes" />
-    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
-    <title>Crypto Arbitrage</title>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Crypto Arbitrage Opportunities</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
-      /* Prevent zoom on mobile */
-      html {
-        touch-action: manipulation;
-      }
-      
-      /* Prevent text selection */
-      * {
-        -webkit-user-select: none;
-        -moz-user-select: none;
-        -ms-user-select: none;
-        user-select: none;
-      }
-      
-      /* Allow text selection for input fields */
-      input, textarea {
-        -webkit-user-select: text;
-        -moz-user-select: text;
-        -ms-user-select: text;
-        user-select: text;
-      }
-      
-      /* Hide scrollbars but keep functionality */
-      ::-webkit-scrollbar {
-        width: 0px;
-        background: transparent;
-      }
-      
-      /* Telegram WebApp specific styles */
-      body {
-        margin: 0;
-        padding: 0;
-        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
-        background: var(--tg-theme-bg-color, #ffffff);
-        color: var(--tg-theme-text-color, #000000);
-        overflow-x: hidden;
-      }
-      
-      #root {
-        min-height: 100vh;
-        width: 100vw;
-      }
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--tg-theme-bg-color, #ffffff);
+            color: var(--tg-theme-text-color, #000000);
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .header h1 {
+            color: var(--tg-theme-button-color, #0088cc);
+            margin-bottom: 10px;
+        }
+
+        .status-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: var(--tg-theme-secondary-bg-color, #f8f9fa);
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .status-item {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #28a745;
+        }
+
+        .status-dot.offline {
+            background: #dc3545;
+        }
+
+        .controls {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 8px;
+            background: var(--tg-theme-button-color, #0088cc);
+            color: var(--tg-theme-button-text-color, #ffffff);
+            cursor: pointer;
+            font-size: 14px;
+            transition: opacity 0.2s;
+        }
+
+        .btn:hover {
+            opacity: 0.8;
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .table-container {
+            background: var(--tg-theme-secondary-bg-color, #ffffff);
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        .table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .table th,
+        .table td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid var(--tg-theme-hint-color, #e9ecef);
+        }
+
+        .table th {
+            background: var(--tg-theme-button-color, #0088cc);
+            color: var(--tg-theme-button-text-color, #ffffff);
+            font-weight: 600;
+        }
+
+        .table tbody tr:hover {
+            background: var(--tg-theme-secondary-bg-color, #f8f9fa);
+        }
+
+        .profit-positive {
+            color: #28a745;
+            font-weight: bold;
+        }
+
+        .profit-high {
+            color: #dc3545;
+            font-weight: bold;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: var(--tg-theme-hint-color, #6c757d);
+        }
+
+        .no-data {
+            text-align: center;
+            padding: 40px;
+            color: var(--tg-theme-hint-color, #6c757d);
+        }
+
+        .exchange-tag {
+            display: inline-block;
+            background: var(--tg-theme-button-color, #0088cc);
+            color: var(--tg-theme-button-text-color, #ffffff);
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 12px;
+            margin: 1px;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 10px;
+            }
+            
+            .status-bar {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            
+            .table-container {
+                overflow-x: auto;
+            }
+            
+            .table {
+                min-width: 600px;
+            }
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .stat-card {
+            background: var(--tg-theme-secondary-bg-color, #f8f9fa);
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 24px;
+            font-weight: bold;
+            color: var(--tg-theme-button-color, #0088cc);
+        }
+
+        .stat-label {
+            font-size: 14px;
+            color: var(--tg-theme-hint-color, #6c757d);
+            margin-top: 5px;
+        }
     </style>
-  </head>
-  <body>
-    <div id="root"></div>
-    <script type="module" src="/src/main.tsx"></script>
-  </body>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🚀 Crypto Arbitrage</h1>
+            <p>Real-time arbitrage opportunities across exchanges</p>
+        </div>
+
+        <div class="stats-grid" id="statsGrid">
+            <div class="stat-card">
+                <div class="stat-value" id="totalOpportunities">0</div>
+                <div class="stat-label">Total Opportunities</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="avgProfit">0%</div>
+                <div class="stat-label">Average Profit</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="maxProfit">0%</div>
+                <div class="stat-label">Maximum Profit</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="connectedExchanges">0</div>
+                <div class="stat-label">Connected Exchanges</div>
+            </div>
+        </div>
+
+        <div class="status-bar">
+            <div class="status-item">
+                <span class="status-dot" id="connectionStatus"></span>
+                <span id="connectionText">Connecting...</span>
+            </div>
+            <div class="status-item">
+                <span>Last Update: <span id="lastUpdate">Never</span></span>
+            </div>
+            <div class="status-item">
+                <span>Opportunities: <span id="opportunityCount">0</span></span>
+            </div>
+        </div>
+
+        <div class="controls">
+            <button class="btn" onclick="refreshData()">🔄 Refresh</button>
+            <button class="btn" onclick="exportCSV()">📊 Export CSV</button>
+            <button class="btn" onclick="toggleAutoRefresh()" id="autoRefreshBtn">⏸️ Pause Auto-refresh</button>
+        </div>
+
+        <div class="table-container">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>Symbol</th>
+                        <th>Buy Exchange</th>
+                        <th>Sell Exchange</th>
+                        <th>Buy Price</th>
+                        <th>Sell Price</th>
+                        <th>Profit %</th>
+                        <th>Profit $</th>
+                        <th>Volume</th>
+                        <th>Updated</th>
+                    </tr>
+                </thead>
+                <tbody id="opportunitiesTable">
+                    <tr>
+                        <td colspan="9" class="loading">Loading opportunities...</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        // Initialize Telegram WebApp
+        if (window.Telegram?.WebApp) {
+            const tg = window.Telegram.WebApp;
+            tg.ready();
+            tg.expand();
+            
+            // Apply Telegram theme
+            document.documentElement.style.setProperty('--tg-theme-bg-color', tg.themeParams.bg_color || '#ffffff');
+            document.documentElement.style.setProperty('--tg-theme-text-color', tg.themeParams.text_color || '#000000');
+            document.documentElement.style.setProperty('--tg-theme-button-color', tg.themeParams.button_color || '#0088cc');
+            document.documentElement.style.setProperty('--tg-theme-button-text-color', tg.themeParams.button_text_color || '#ffffff');
+            document.documentElement.style.setProperty('--tg-theme-secondary-bg-color', tg.themeParams.secondary_bg_color || '#f8f9fa');
+            document.documentElement.style.setProperty('--tg-theme-hint-color', tg.themeParams.hint_color || '#6c757d');
+        }
+
+        let autoRefreshInterval;
+        let autoRefreshEnabled = true;
+
+        // API functions
+        async function fetchOpportunities() {
+            try {
+                const response = await fetch('/api/opportunities');
+                const data = await response.json();
+                return data.success ? data.data : [];
+            } catch (error) {
+                console.error('Error fetching opportunities:', error);
+                return [];
+            }
+        }
+
+        async function fetchStatus() {
+            try {
+                const response = await fetch('/api/status');
+                const data = await response.json();
+                return data.success ? data.data : null;
+            } catch (error) {
+                console.error('Error fetching status:', error);
+                return null;
+            }
+        }
+
+        async function fetchStats() {
+            try {
+                const response = await fetch('/api/stats');
+                const data = await response.json();
+                return data.success ? data.data : null;
+            } catch (error) {
+                console.error('Error fetching stats:', error);
+                return null;
+            }
+        }
+
+        // Update functions
+        function updateOpportunitiesTable(opportunities) {
+            const tbody = document.getElementById('opportunitiesTable');
+            
+            if (opportunities.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="9" class="no-data">No arbitrage opportunities found at the moment.</td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = opportunities.map(opp => `
+                <tr>
+                    <td><strong>${opp.symbol}</strong></td>
+                    <td><span class="exchange-tag">${opp.buyExchange}</span></td>
+                    <td><span class="exchange-tag">${opp.sellExchange}</span></td>
+                    <td>$${opp.buyPrice.toFixed(4)}</td>
+                    <td>$${opp.sellPrice.toFixed(4)}</td>
+                    <td class="${opp.profitPercentage >= 2 ? 'profit-high' : 'profit-positive'}">
+                        ${opp.profitPercentage.toFixed(2)}%
+                    </td>
+                    <td class="profit-positive">$${opp.profitAmount.toFixed(4)}</td>
+                    <td>${opp.volume ? opp.volume.toFixed(2) : 'N/A'}</td>
+                    <td>${new Date(opp.timestamp).toLocaleTimeString()}</td>
+                </tr>
+            `).join('');
+        }
+
+        function updateStatus(status) {
+            if (!status) return;
+
+            const statusDot = document.getElementById('connectionStatus');
+            const statusText = document.getElementById('connectionText');
+            const lastUpdate = document.getElementById('lastUpdate');
+            const connectedExchanges = document.getElementById('connectedExchanges');
+
+            statusDot.className = status.connectedCount > 0 ? 'status-dot' : 'status-dot offline';
+            statusText.textContent = status.connectedCount > 0 ? 'Connected' : 'Disconnected';
+            lastUpdate.textContent = status.lastUpdate ? new Date(status.lastUpdate).toLocaleTimeString() : 'Never';
+            connectedExchanges.textContent = status.connectedCount;
+        }
+
+        function updateStats(stats) {
+            if (!stats) return;
+
+            document.getElementById('totalOpportunities').textContent = stats.total || 0;
+            document.getElementById('avgProfit').textContent = `${(stats.avgProfit || 0).toFixed(2)}%`;
+            document.getElementById('maxProfit').textContent = `${(stats.maxProfit || 0).toFixed(2)}%`;
+        }
+
+        // Main refresh function
+        async function refreshData() {
+            const [opportunities, status, stats] = await Promise.all([
+                fetchOpportunities(),
+                fetchStatus(),
+                fetchStats()
+            ]);
+
+            updateOpportunitiesTable(opportunities);
+            updateStatus(status);
+            updateStats(stats);
+            
+            document.getElementById('opportunityCount').textContent = opportunities.length;
+        }
+
+        // Auto-refresh toggle
+        function toggleAutoRefresh() {
+            const btn = document.getElementById('autoRefreshBtn');
+            
+            if (autoRefreshEnabled) {
+                clearInterval(autoRefreshInterval);
+                btn.textContent = '▶️ Resume Auto-refresh';
+                autoRefreshEnabled = false;
+            } else {
+                startAutoRefresh();
+                btn.textContent = '⏸️ Pause Auto-refresh';
+                autoRefreshEnabled = true;
+            }
+        }
+
+        function startAutoRefresh() {
+            autoRefreshInterval = setInterval(refreshData, 30000); // Refresh every 30 seconds
+        }
+
+        // Export to CSV
+        function exportCSV() {
+            const table = document.getElementById('opportunitiesTable');
+            const rows = Array.from(table.querySelectorAll('tr'));
+            
+            if (rows.length === 0 || rows[0].textContent.includes('Loading') || rows[0].textContent.includes('No arbitrage')) {
+                alert('No data to export');
+                return;
+            }
+
+            const headers = ['Symbol', 'Buy Exchange', 'Sell Exchange', 'Buy Price', 'Sell Price', 'Profit %', 'Profit $', 'Volume', 'Updated'];
+            const csvContent = [
+                headers.join(','),
+                ...rows.map(row => {
+                    const cells = Array.from(row.querySelectorAll('td'));
+                    return cells.map(cell => `"${cell.textContent.trim()}"`).join(',');
+                })
+            ].join('\n');
+
+            const blob = new Blob([csvContent], { type: 'text/csv' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `arbitrage-opportunities-${new Date().toISOString().split('T')[0]}.csv`;
+            a.click();
+            window.URL.revokeObjectURL(url);
+        }
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            refreshData();
+            startAutoRefresh();
+        });
+    </script>
+</body>
 </html>
