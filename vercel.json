@@ -8,6 +8,22 @@
   ],
   "routes": [
     {
+      "src": "/api/health",
+      "dest": "/api/health.js"
+    },
+    {
+      "src": "/api/opportunities",
+      "dest": "/api/opportunities.js"
+    },
+    {
+      "src": "/api/status",
+      "dest": "/api/status.js"
+    },
+    {
+      "src": "/api/stats",
+      "dest": "/api/stats.js"
+    },
+    {
       "src": "/(.*)",
       "dest": "/src/webapp/public/index.html"
     }
