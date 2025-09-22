@@ -11,20 +11,20 @@ interface TableScreenProps {
 }
 
 const Container = styled.div`
-  height: 100vh;
+  min-height: 100vh;
   display: flex;
   flex-direction: column;
-  background: var(--bg-primary);
-  overflow: hidden;
+  background: #1C1C1E;
+  overflow-x: hidden;
 `;
 
 const Header = styled.div`
-  padding: var(--spacing-base) 20px;
+  padding: 16px 20px;
   display: flex;
   align-items: center;
   gap: 16px;
-  border-bottom: 1px solid var(--separator);
-  background: var(--bg-primary);
+  border-bottom: 1px solid #38383A;
+  background: #1C1C1E;
   position: sticky;
   top: 0;
   z-index: 10;
@@ -34,17 +34,17 @@ const BackButton = styled(motion.button)`
   width: 40px;
   height: 40px;
   border-radius: 20px;
-  background: var(--surface-elevated);
+  background: #3A3A3C;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: var(--text-primary);
+  color: #FFFFFF;
   cursor: pointer;
   border: none;
   transition: all 0.2s ease;
   
   &:hover {
-    background: var(--accent-yellow);
+    background: #FFD60A;
     color: #000000;
     transform: scale(1.05);
   }
@@ -55,17 +55,17 @@ const HeaderInfo = styled.div`
 `;
 
 const Title = styled.h1`
-  font-family: var(--font-family-text);
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', Roboto, sans-serif;
   font-size: 20px;
   font-weight: 600;
-  color: var(--text-primary);
+  color: #FFFFFF;
   margin-bottom: 4px;
 `;
 
 const Subtitle = styled.div`
-  font-family: var(--font-family-text);
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', Roboto, sans-serif;
   font-size: 13px;
-  color: var(--text-secondary);
+  color: #8E8E93;
   display: flex;
   align-items: center;
   gap: 8px;
@@ -75,7 +75,7 @@ const RefreshButton = styled(motion.button)<{ isRefreshing: boolean }>`
   width: 40px;
   height: 40px;
   border-radius: 20px;
-  background: var(--accent-yellow);
+  background: #FFD60A;
   color: #000000;
   display: flex;
   align-items: center;
@@ -94,12 +94,12 @@ const RefreshButton = styled(motion.button)<{ isRefreshing: boolean }>`
 const Content = styled.div`
   flex: 1;
   overflow-y: auto;
-  padding: var(--spacing-base);
+  padding: 16px;
 `;
 
 const StatsBar = styled.div`
   display: grid;
-  grid-template-columns: 1fr 1fr 1fr;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
   gap: 12px;
   margin-bottom: 20px;
 `;
@@ -109,36 +109,38 @@ const StatCard = styled.div`
   border-radius: 12px;
   padding: 16px;
   text-align: center;
+  border: 1px solid #38383A;
 `;
 
 const StatValue = styled.div`
-  font-family: var(--font-family-mono);
+  font-family: 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', Consolas, 'Courier New', monospace;
   font-size: 20px;
   font-weight: 600;
-  color: var(--text-primary);
+  color: #FFFFFF;
   margin-bottom: 4px;
 `;
 
 const StatLabel = styled.div`
-  font-family: var(--font-family-text);
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', Roboto, sans-serif;
   font-size: 12px;
-  color: var(--text-secondary);
+  color: #8E8E93;
   text-transform: uppercase;
   letter-spacing: 0.5px;
 `;
 
 const OpportunityCard = styled(motion.div)`
-  background: var(--bg-secondary);
-  border-radius: var(--border-radius-card);
-  padding: var(--spacing-base);
+  background: #2C2C2E;
+  border-radius: 16px;
+  padding: 16px;
   margin-bottom: 12px;
-  border-left: 4px solid var(--accent-yellow);
+  border-left: 4px solid #FFD60A;
   transition: all 0.2s ease;
+  border: 1px solid #38383A;
   
   &:hover {
-    background: var(--surface-elevated);
+    background: #3A3A3C;
     transform: translateY(-2px);
-    box-shadow: var(--shadow-card);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
   }
 `;
 
@@ -154,17 +156,17 @@ const PairInfo = styled.div`
 `;
 
 const PairSymbol = styled.div`
-  font-family: var(--font-family-text);
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', Roboto, sans-serif;
   font-size: 18px;
   font-weight: 600;
-  color: var(--text-primary);
+  color: #FFFFFF;
   margin-bottom: 4px;
 `;
 
 const PairDetails = styled.div`
-  font-family: var(--font-family-text);
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', Roboto, sans-serif;
   font-size: 13px;
-  color: var(--text-secondary);
+  color: #8E8E93;
 `;
 
 const ProfitBadge = styled.div<{ profitability: 'high' | 'medium' | 'low' }>`
@@ -172,7 +174,10 @@ const ProfitBadge = styled.div<{ profitability: 'high' | 'medium' | 'low' }>`
   border-radius: 12px;
   font-size: 13px;
   font-weight: 600;
-  background: var(--accent-green);
+  background: ${props => 
+    props.profitability === 'high' ? '#FF453A' :
+    props.profitability === 'medium' ? '#FF9F0A' :
+    '#30D158'};
   color: white;
   display: flex;
   align-items: center;
@@ -193,27 +198,27 @@ const ExchangeCard = styled.div`
 `;
 
 const ExchangeLabel = styled.div`
-  font-family: var(--font-family-text);
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', Roboto, sans-serif;
   font-size: 11px;
-  color: var(--text-secondary);
+  color: #8E8E93;
   margin-bottom: 4px;
   text-transform: uppercase;
   letter-spacing: 0.5px;
 `;
 
 const ExchangeName = styled.div`
-  font-family: var(--font-family-text);
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', Roboto, sans-serif;
   font-size: 14px;
   font-weight: 600;
-  color: var(--text-primary);
+  color: #FFFFFF;
   margin-bottom: 4px;
 `;
 
 const ExchangePrice = styled.div`
-  font-family: var(--font-family-mono);
+  font-family: 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', Consolas, 'Courier New', monospace;
   font-size: 16px;
   font-weight: 600;
-  color: var(--accent-yellow);
+  color: #FFD60A;
 `;
 
 const ActionRow = styled.div`
@@ -222,21 +227,21 @@ const ActionRow = styled.div`
   align-items: center;
   margin-top: 12px;
   padding-top: 12px;
-  border-top: 1px solid var(--separator);
+  border-top: 1px solid #38383A;
 `;
 
 const SpreadInfo = styled.div`
-  font-family: var(--font-family-mono);
+  font-family: 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', Consolas, 'Courier New', monospace;
   font-size: 13px;
-  color: var(--text-secondary);
+  color: #8E8E93;
 `;
 
-const ViewButton = styled(motion.button)`
+const ViewButton = styled(motion.a)`
   padding: 8px 16px;
   border-radius: 20px;
-  background: var(--accent-yellow);
+  background: #FFD60A;
   color: #000000;
-  font-family: var(--font-family-text);
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', Roboto, sans-serif;
   font-size: 13px;
   font-weight: 500;
   display: flex;
@@ -245,6 +250,7 @@ const ViewButton = styled(motion.button)`
   cursor: pointer;
   border: none;
   transition: all 0.2s ease;
+  text-decoration: none;
   
   &:hover {
     background: #FFE55C;
@@ -255,13 +261,13 @@ const ViewButton = styled(motion.button)`
 const EmptyState = styled.div`
   text-align: center;
   padding: 40px 20px;
-  color: var(--text-secondary);
+  color: #8E8E93;
 `;
 
 const LoadingCard = styled(motion.div)`
-  background: var(--bg-secondary);
-  border-radius: var(--border-radius-card);
-  padding: var(--spacing-base);
+  background: #2C2C2E;
+  border-radius: 16px;
+  padding: 16px;
   margin-bottom: 12px;
   height: 120px;
   display: flex;
@@ -271,18 +277,38 @@ const LoadingCard = styled(motion.div)`
 `;
 
 const CountdownTimer = styled.div`
-  font-family: var(--font-family-mono);
+  font-family: 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', Consolas, 'Courier New', monospace;
   font-size: 12px;
-  color: var(--text-secondary);
+  color: #8E8E93;
   display: flex;
   align-items: center;
   gap: 6px;
 `;
 
+// Exchange URL patterns
+const exchangeUrls: Record<string, string> = {
+  'binance': 'https://www.binance.com/en/trade/{symbol}',
+  'okx': 'https://www.okx.com/trade-spot/{symbol}',
+  'bybit': 'https://www.bybit.com/trade/spot/{symbol}',
+  'bitget': 'https://www.bitget.com/en/spot/{symbol}',
+  'mexc': 'https://www.mexc.com/exchange/{symbol}',
+  'bingx': 'https://bingx.com/en-us/spot/{symbol}',
+  'gateio': 'https://www.gate.io/trade/{symbol}',
+  'kucoin': 'https://trade.kucoin.com/{symbol}'
+};
+
+const getExchangeUrl = (exchange: string, symbol: string): string => {
+  const urlPattern = exchangeUrls[exchange.toLowerCase()];
+  if (!urlPattern) {
+    return `https://${exchange.toLowerCase()}.com`;
+  }
+  return urlPattern.replace('{symbol}', symbol);
+};
+
 const TableScreen: React.FC<TableScreenProps> = ({ selectedExchanges, onBack }) => {
   const { data, loading, error, refetch } = useArbitrageData(selectedExchanges);
   const [isRefreshing, setIsRefreshing] = useState(false);
-  const [countdown, setCountdown] = useState(120); // 2 minutes
+  const [countdown, setCountdown] = useState(30); // 30 seconds
 
   // Countdown timer effect
   React.useEffect(() => {
@@ -290,7 +316,7 @@ const TableScreen: React.FC<TableScreenProps> = ({ selectedExchanges, onBack }) 
       setCountdown(prev => {
         if (prev <= 1) {
           refetch();
-          return 120;
+          return 30;
         }
         return prev - 1;
       });
@@ -301,9 +327,14 @@ const TableScreen: React.FC<TableScreenProps> = ({ selectedExchanges, onBack }) 
 
   const handleRefresh = async () => {
     setIsRefreshing(true);
-    await refetch();
-    setCountdown(120);
-    setIsRefreshing(false);
+    try {
+      await refetch();
+      setCountdown(30);
+    } catch (error) {
+      console.error('Refresh error:', error);
+    } finally {
+      setIsRefreshing(false);
+    }
   };
 
   const formatTime = (seconds: number) => {
@@ -461,15 +492,24 @@ const TableScreen: React.FC<TableScreenProps> = ({ selectedExchanges, onBack }) 
                     <SpreadInfo>
                       Spread: ${opportunity.spreadAmount.toFixed(4)}
                     </SpreadInfo>
-                    <ViewButton
-                      whileTap={{ scale: 0.95 }}
-                      onClick={() => {
-                        // Open external link to exchange
-                        window.open(opportunity.bestBuy.url, '_blank');
-                      }}
-                    >
-                      View <ExternalLink size={12} />
-                    </ViewButton>
+                    <div style={{ display: 'flex', gap: '8px' }}>
+                      <ViewButton
+                        href={getExchangeUrl(opportunity.bestBuy.exchangeName, opportunity.pair.symbol)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        whileTap={{ scale: 0.95 }}
+                      >
+                        Buy ↗️
+                      </ViewButton>
+                      <ViewButton
+                        href={getExchangeUrl(opportunity.bestSell.exchangeName, opportunity.pair.symbol)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        whileTap={{ scale: 0.95 }}
+                      >
+                        Sell ↗️
+                      </ViewButton>
+                    </div>
                   </ActionRow>
                 </OpportunityCard>
               ))}

@@ -19,7 +19,7 @@ export class KeyboardManager {
           { text: i18n.t('buttons.language', lng), callback_data: 'language' }
         ],
         [
-          { text: i18n.t('buttons.web_application', lng), web_app: { url: process.env.WEBAPP_URL || 'http://localhost:3000' } }
+          { text: i18n.t('buttons.web_application', lng), web_app: { url: process.env.WEBAPP_URL || 'https://tg-arbitrage.vercel.app' } }
         ]
       ]
     };
@@ -75,7 +75,7 @@ export class KeyboardManager {
         [
           { 
             text: i18n.t('buttons.webapp', lng), 
-            web_app: { url: process.env.WEBAPP_URL || 'http://localhost:3000' }
+            web_app: { url: process.env.WEBAPP_URL || 'https://tg-arbitrage.vercel.app' }
           }
         ]
       ]

@@ -78,7 +78,7 @@ Create a `.env` file with the following variables:
 ```env
 # Telegram Bot
 TELEGRAM_BOT_TOKEN=your_bot_token_here
-WEBAPP_URL=http://localhost:3000
+WEBAPP_URL=https://tg-arbitrage.vercel.app
 
 # Exchange API Keys (optional for public data)
 BINANCE_API_KEY=

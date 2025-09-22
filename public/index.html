@@ -266,9 +266,10 @@
         </div>
 
         <div class="controls">
-            <button class="btn" onclick="refreshData()">🔄 Refresh</button>
-            <button class="btn" onclick="exportCSV()">📊 Export CSV</button>
-            <button class="btn" onclick="toggleAutoRefresh()" id="autoRefreshBtn">⏸️ Pause Auto-refresh</button>
+            <button class="btn refresh" onclick="refreshData()" id="refreshBtn">
+                <span id="refreshIcon">🔄</span>
+                <span id="refreshText">Refresh</span>
+            </button>
         </div>
 
         <div class="table-container">

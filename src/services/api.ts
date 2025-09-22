@@ -67,7 +67,7 @@ export const apiService = {
       return {
         opportunities,
         lastUpdate: new Date().toISOString(),
-        nextUpdate: new Date(Date.now() + 120000).toISOString() // 2 minutes from now
+        nextUpdate: new Date(Date.now() + 30000).toISOString() // 30 seconds from now
       };
     } catch (error) {
       console.error('API Error:', error);

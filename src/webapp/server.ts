@@ -79,7 +79,7 @@ export class WebAppServer {
     // API route to get arbitrage opportunities
     this.app.get('/api/opportunities', async (req, res) => {
       try {
-        const opportunities = await this.db.getArbitrageModel().getTopOpportunities(50);
+        const opportunities = await this.db.getArbitrageModel().getRecentOpportunities(30);
         res.json({
           success: true,
           data: opportunities,
