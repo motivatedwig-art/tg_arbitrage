@@ -6,11 +6,14 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
+    "build:vercel": "tsc -p tsconfig.backend.json && npm run build:frontend",
+    "build:frontend": "vite build",
     "preview": "vite preview",
     "lint": "eslint src --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
     "bot": "node -r dotenv/config dist/index.js",
     "bot:dev": "npx tsc -p tsconfig.backend.json && npm run bot",
-    "start": "npm run bot"
+    "start": "npm run bot",
+    "vercel-build": "npm run build:vercel"
   },
   "dependencies": {
     "@telegram-apps/sdk": "^1.0.0",

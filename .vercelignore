@@ -1,0 +1,22 @@
+# Vercel deployment configuration
+# This file tells Vercel how to build and deploy your application
+
+# Build command
+vercel-build: npm run build:vercel
+
+# Output directory
+output: dist
+
+# Install command
+install: npm ci
+
+# Node.js version
+node-version: 18.x
+
+# Environment variables (set these in Vercel dashboard)
+# TELEGRAM_BOT_TOKEN=your_bot_token
+# MIN_PROFIT_THRESHOLD=0.5
+# MAX_PROFIT_THRESHOLD=110
+# UPDATE_INTERVAL=30000
+# PORT=3000
+

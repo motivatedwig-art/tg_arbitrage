@@ -1,0 +1,18 @@
+{
+  "version": 2,
+  "builds": [
+    {
+      "src": "src/webapp/public/**",
+      "use": "@vercel/static"
+    }
+  ],
+  "routes": [
+    {
+      "src": "/(.*)",
+      "dest": "/src/webapp/public/index.html"
+    }
+  ],
+  "env": {
+    "NODE_ENV": "production"
+  }
+}
