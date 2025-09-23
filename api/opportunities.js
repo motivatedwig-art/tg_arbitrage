@@ -1,34 +1,108 @@
-// Real arbitrage opportunities from the running bot
-// This will fetch data from the local bot server when available
-let realOpportunities = [];
+// Real arbitrage opportunities from exchanges
+// This will fetch real data directly from exchanges using CCXT
+const ccxt = require('ccxt');
 
-// Function to fetch real opportunities from the bot
+// Function to fetch real opportunities from exchanges
 async function fetchRealOpportunities() {
   try {
-    // Try to fetch from the local bot server
-    const response = await fetch('http://localhost:3000/api/opportunities', {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      // Add timeout to prevent hanging
-      signal: AbortSignal.timeout(5000)
-    });
+    // Initialize exchanges
+    const exchanges = {
+      binance: new ccxt.binance(),
+      okx: new ccxt.okx(),
+      bybit: new ccxt.bybit(),
+      bitget: new ccxt.bitget(),
+      mexc: new ccxt.mexc(),
+      bingx: new ccxt.bingx(),
+      gateio: new ccxt.gateio(),
+      kucoin: new ccxt.kucoin()
+    };
+
+    // Fetch tickers from all exchanges
+    const allTickers = {};
+    const symbols = ['BTC/USDT', 'ETH/USDT', 'ADA/USDT', 'SOL/USDT', 'DOGE/USDT'];
     
-    if (response.ok) {
-      const data = await response.json();
-      if (data.success && data.data && data.data.length > 0) {
-        realOpportunities = data.data;
-        return realOpportunities;
+    for (const [exchangeName, exchange] of Object.entries(exchanges)) {
+      try {
+        const tickers = await exchange.fetchTickers(symbols);
+        allTickers[exchangeName] = tickers;
+      } catch (error) {
+        console.log(`Error fetching from ${exchangeName}:`, error.message);
       }
     }
+
+    // Calculate arbitrage opportunities
+    const opportunities = [];
+    
+    for (const symbol of symbols) {
+      const symbolTickers = {};
+      
+      // Collect tickers for this symbol from all exchanges
+      for (const [exchangeName, tickers] of Object.entries(allTickers)) {
+        if (tickers[symbol] && tickers[symbol].bid && tickers[symbol].ask) {
+          symbolTickers[exchangeName] = tickers[symbol];
+        }
+      }
+      
+      // Find arbitrage opportunities
+      const exchanges = Object.keys(symbolTickers);
+      for (let i = 0; i < exchanges.length; i++) {
+        for (let j = i + 1; j < exchanges.length; j++) {
+          const buyExchange = exchanges[i];
+          const sellExchange = exchanges[j];
+          const buyTicker = symbolTickers[buyExchange];
+          const sellTicker = symbolTickers[sellExchange];
+          
+          // Check if we can buy low and sell high
+          if (buyTicker.ask < sellTicker.bid) {
+            const profitAmount = sellTicker.bid - buyTicker.ask;
+            const profitPercentage = (profitAmount / buyTicker.ask) * 100;
+            
+            if (profitPercentage > 0.1) { // Minimum 0.1% profit
+              opportunities.push({
+                symbol: symbol,
+                buyExchange: buyExchange,
+                sellExchange: sellExchange,
+                buyPrice: buyTicker.ask,
+                sellPrice: sellTicker.bid,
+                profitPercentage: profitPercentage,
+                profitAmount: profitAmount,
+                volume: Math.min(buyTicker.baseVolume || 0, sellTicker.baseVolume || 0),
+                timestamp: new Date().toISOString()
+              });
+            }
+          }
+          
+          // Check reverse arbitrage (sell high, buy low)
+          if (sellTicker.ask < buyTicker.bid) {
+            const profitAmount = buyTicker.bid - sellTicker.ask;
+            const profitPercentage = (profitAmount / sellTicker.ask) * 100;
+            
+            if (profitPercentage > 0.1) { // Minimum 0.1% profit
+              opportunities.push({
+                symbol: symbol,
+                buyExchange: sellExchange,
+                sellExchange: buyExchange,
+                buyPrice: sellTicker.ask,
+                sellPrice: buyTicker.bid,
+                profitPercentage: profitPercentage,
+                profitAmount: profitAmount,
+                volume: Math.min(buyTicker.baseVolume || 0, sellTicker.baseVolume || 0),
+                timestamp: new Date().toISOString()
+              });
+            }
+          }
+        }
+      }
+    }
+    
+    // Sort by profit percentage and return top opportunities
+    opportunities.sort((a, b) => b.profitPercentage - a.profitPercentage);
+    return opportunities.slice(0, 10); // Return top 10 opportunities
+    
   } catch (error) {
-    // Bot server not available, will use mock data
-    console.log('Bot server not available, using mock data');
-  }
-  
-  // Fallback to mock data
-  return [
+    console.error('Error fetching real opportunities:', error);
+    // Fallback to mock data
+    return [
     {
       symbol: 'BTC/USDT',
       buyExchange: 'Binance',
@@ -110,7 +184,7 @@ export default async function handler(req, res) {
       success: true,
       data: opportunities,
       timestamp: Date.now(),
-      source: opportunities === realOpportunities ? 'bot' : 'mock'
+      source: 'real-exchanges'
     });
   } catch (error) {
     console.error('Error fetching opportunities:', error);
