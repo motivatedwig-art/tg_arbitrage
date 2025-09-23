@@ -1,28 +1,123 @@
-// Real arbitrage opportunities from the Vercel bot
-// This will fetch data from the bot API endpoint
+// Real arbitrage opportunities from exchanges
+// This will fetch real data directly from exchanges using CCXT
 
-// Function to fetch real opportunities from the bot
+const ccxt = require('ccxt');
+
+// Function to fetch real opportunities from exchanges
 async function fetchRealOpportunities() {
   try {
-    // Try to fetch from the simple bot API endpoint
-    const response = await fetch(`${process.env.VERCEL_URL || 'https://tg-arbitrage.vercel.app'}/api/simple-bot`, {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      // Add timeout to prevent hanging
-      signal: AbortSignal.timeout(25000) // 25 seconds timeout for Vercel
-    });
+    console.log('🔄 Fetching real arbitrage opportunities from exchanges...');
     
-    if (response.ok) {
-      const data = await response.json();
-      if (data.success && data.data && data.data.opportunities && data.data.opportunities.length > 0) {
-        console.log(`✅ Fetched ${data.data.opportunities.length} real opportunities from bot`);
-        return data.data.opportunities;
+    // Initialize exchanges
+    const exchanges = {
+      binance: new ccxt.binance(),
+      okx: new ccxt.okx(),
+      bybit: new ccxt.bybit()
+    };
+
+    const opportunities = [];
+    const symbols = ['BTC/USDT', 'ETH/USDT', 'ADA/USDT', 'SOL/USDT', 'DOGE/USDT'];
+    
+    // Fetch tickers from exchanges
+    for (const [exchangeName, exchange] of Object.entries(exchanges)) {
+      try {
+        console.log(`🔌 Fetching from ${exchangeName}...`);
+        const tickers = await exchange.fetchTickers(symbols);
+        
+        for (const symbol of symbols) {
+          if (tickers[symbol] && tickers[symbol].bid && tickers[symbol].ask) {
+            const ticker = tickers[symbol];
+            opportunities.push({
+              symbol: symbol,
+              exchange: exchangeName,
+              bid: ticker.bid,
+              ask: ticker.ask,
+              volume: ticker.baseVolume || 0,
+              timestamp: new Date().toISOString()
+            });
+          }
+        }
+        console.log(`✅ Fetched ${symbols.length} symbols from ${exchangeName}`);
+      } catch (error) {
+        console.log(`❌ Error fetching from ${exchangeName}:`, error.message);
       }
     }
+    
+    // Calculate arbitrage opportunities
+    const arbitrageOpportunities = [];
+    const symbolGroups = {};
+    
+    // Group by symbol
+    for (const opp of opportunities) {
+      if (!symbolGroups[opp.symbol]) {
+        symbolGroups[opp.symbol] = [];
+      }
+      symbolGroups[opp.symbol].push(opp);
+    }
+    
+    // Find arbitrage opportunities
+    for (const [symbol, symbolOpps] of Object.entries(symbolGroups)) {
+      if (symbolOpps.length >= 2) {
+        for (let i = 0; i < symbolOpps.length; i++) {
+          for (let j = i + 1; j < symbolOpps.length; j++) {
+            const opp1 = symbolOpps[i];
+            const opp2 = symbolOpps[j];
+            
+            // Check if we can buy low and sell high
+            if (opp1.ask < opp2.bid) {
+              const profitAmount = opp2.bid - opp1.ask;
+              const profitPercentage = (profitAmount / opp1.ask) * 100;
+              
+              if (profitPercentage > 0.1) {
+                arbitrageOpportunities.push({
+                  symbol: symbol,
+                  buyExchange: opp1.exchange,
+                  sellExchange: opp2.exchange,
+                  buyPrice: opp1.ask,
+                  sellPrice: opp2.bid,
+                  profitPercentage: profitPercentage,
+                  profitAmount: profitAmount,
+                  volume: Math.min(opp1.volume, opp2.volume),
+                  timestamp: new Date().toISOString()
+                });
+              }
+            }
+            
+            // Check reverse arbitrage
+            if (opp2.ask < opp1.bid) {
+              const profitAmount = opp1.bid - opp2.ask;
+              const profitPercentage = (profitAmount / opp2.ask) * 100;
+              
+              if (profitPercentage > 0.1) {
+                arbitrageOpportunities.push({
+                  symbol: symbol,
+                  buyExchange: opp2.exchange,
+                  sellExchange: opp1.exchange,
+                  buyPrice: opp2.ask,
+                  sellPrice: opp1.bid,
+                  profitPercentage: profitPercentage,
+                  profitAmount: profitAmount,
+                  volume: Math.min(opp1.volume, opp2.volume),
+                  timestamp: new Date().toISOString()
+                });
+              }
+            }
+          }
+        }
+      }
+    }
+    
+    // Sort by profit percentage
+    arbitrageOpportunities.sort((a, b) => b.profitPercentage - a.profitPercentage);
+    
+    console.log(`🎯 Found ${arbitrageOpportunities.length} real arbitrage opportunities`);
+    
+    if (arbitrageOpportunities.length > 0) {
+      return arbitrageOpportunities;
+    }
+    
   } catch (error) {
-    console.log('❌ Bot API not available, using mock data:', error.message);
+    console.error('❌ Error fetching real opportunities:', error);
   }
   
   // Fallback to mock data
@@ -108,7 +203,7 @@ export default async function handler(req, res) {
       success: true,
       data: opportunities,
       timestamp: Date.now(),
-      source: 'vercel-bot'
+      source: 'real-exchanges'
     });
   } catch (error) {
     console.error('Error fetching opportunities:', error);
