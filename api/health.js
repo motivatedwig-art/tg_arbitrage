@@ -21,6 +21,8 @@ export default function handler(req, res) {
     status: 'OK', 
     timestamp: Date.now(),
     message: 'Crypto Arbitrage API is running',
-    telegram_webapp: 'ready'
+    telegram_webapp: 'ready',
+    version: '2025-09-23-updated',
+    deploymentTest: true
   });
 }
