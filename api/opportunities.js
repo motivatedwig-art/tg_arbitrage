@@ -145,7 +145,7 @@ export default async function handler(req, res) {
   }
 
   try {
-    console.log('🚀 API called - starting real data fetch...');
+    console.log('🚀 API called - starting real data fetch... UPDATED VERSION!');
     
     // Try to get real opportunities, fallback to mock data
     const opportunities = await fetchRealOpportunities();
