@@ -21,11 +21,30 @@ export default async function handler(req, res) {
   try {
     console.log('🚀 Simple bot API called...');
     
-    // Initialize a few key exchanges
+    // Initialize a few key exchanges with public API access
     const exchanges = {
-      binance: new ccxt.binance(),
-      okx: new ccxt.okx(),
-      bybit: new ccxt.bybit()
+      binance: new ccxt.binance({
+        apiKey: '', // No API key needed for public data
+        secret: '', // No secret needed for public data
+        sandbox: false,
+        enableRateLimit: true,
+        timeout: 10000
+      }),
+      okx: new ccxt.okx({
+        apiKey: '', // No API key needed for public data
+        secret: '', // No secret needed for public data
+        passphrase: '', // No passphrase needed for public data
+        sandbox: false,
+        enableRateLimit: true,
+        timeout: 10000
+      }),
+      bybit: new ccxt.bybit({
+        apiKey: '', // No API key needed for public data
+        secret: '', // No secret needed for public data
+        sandbox: false,
+        enableRateLimit: true,
+        timeout: 10000
+      })
     };
 
     const opportunities = [];

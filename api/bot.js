@@ -3,16 +3,67 @@
 
 const ccxt = require('ccxt');
 
-// Initialize exchanges
+// Initialize exchanges with public API access
 const exchanges = {
-  binance: new ccxt.binance(),
-  okx: new ccxt.okx(),
-  bybit: new ccxt.bybit(),
-  bitget: new ccxt.bitget(),
-  mexc: new ccxt.mexc(),
-  bingx: new ccxt.bingx(),
-  gateio: new ccxt.gateio(),
-  kucoin: new ccxt.kucoin()
+  binance: new ccxt.binance({
+    apiKey: '', // No API key needed for public data
+    secret: '', // No secret needed for public data
+    sandbox: false,
+    enableRateLimit: true,
+    timeout: 10000
+  }),
+  okx: new ccxt.okx({
+    apiKey: '', // No API key needed for public data
+    secret: '', // No secret needed for public data
+    passphrase: '', // No passphrase needed for public data
+    sandbox: false,
+    enableRateLimit: true,
+    timeout: 10000
+  }),
+  bybit: new ccxt.bybit({
+    apiKey: '', // No API key needed for public data
+    secret: '', // No secret needed for public data
+    sandbox: false,
+    enableRateLimit: true,
+    timeout: 10000
+  }),
+  bitget: new ccxt.bitget({
+    apiKey: '', // No API key needed for public data
+    secret: '', // No secret needed for public data
+    passphrase: '', // No passphrase needed for public data
+    sandbox: false,
+    enableRateLimit: true,
+    timeout: 10000
+  }),
+  mexc: new ccxt.mexc({
+    apiKey: '', // No API key needed for public data
+    secret: '', // No secret needed for public data
+    sandbox: false,
+    enableRateLimit: true,
+    timeout: 10000
+  }),
+  bingx: new ccxt.bingx({
+    apiKey: '', // No API key needed for public data
+    secret: '', // No secret needed for public data
+    sandbox: false,
+    enableRateLimit: true,
+    timeout: 10000
+  }),
+  gateio: new ccxt.gateio({
+    apiKey: '', // No API key needed for public data
+    secret: '', // No secret needed for public data
+    sandbox: false,
+    enableRateLimit: true,
+    timeout: 10000
+  }),
+  kucoin: new ccxt.kucoin({
+    apiKey: '', // No API key needed for public data
+    secret: '', // No secret needed for public data
+    passphrase: '', // No passphrase needed for public data
+    sandbox: false,
+    enableRateLimit: true,
+    timeout: 10000
+  })
 };
 
 // Trading fees for each exchange (maker fees)

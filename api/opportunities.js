@@ -9,7 +9,13 @@ async function fetchRealOpportunities() {
     console.log('🔄 Fetching real arbitrage opportunities from exchanges...');
     
     // Test with just one exchange and one symbol first
-    const exchange = new ccxt.binance();
+    const exchange = new ccxt.binance({
+      apiKey: '', // No API key needed for public data
+      secret: '', // No secret needed for public data
+      sandbox: false,
+      enableRateLimit: true,
+      timeout: 10000
+    });
     const symbol = 'BTC/USDT';
     
     console.log(`🔌 Fetching ${symbol} from Binance...`);
