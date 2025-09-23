@@ -19,9 +19,22 @@ async function fetchRealOpportunities() {
     const symbol = 'BTC/USDT';
     
     console.log(`🔌 Fetching ${symbol} from Binance...`);
+    console.log('Exchange config:', {
+      name: exchange.name,
+      hasCredentials: !!exchange.apiKey,
+      sandbox: exchange.sandbox,
+      timeout: exchange.timeout
+    });
+    
     const ticker = await exchange.fetchTicker(symbol);
     
-    console.log('✅ Successfully fetched real data:', ticker);
+    console.log('✅ Successfully fetched real data:', {
+      symbol: ticker.symbol,
+      bid: ticker.bid,
+      ask: ticker.ask,
+      last: ticker.last,
+      volume: ticker.baseVolume
+    });
     
     // Create a simple arbitrage opportunity with real data
     const realOpportunities = [{
@@ -44,6 +57,11 @@ async function fetchRealOpportunities() {
     console.error('❌ Error fetching real opportunities:', error);
     console.error('Error details:', error.message);
     console.error('Error stack:', error.stack);
+    console.error('Error name:', error.name);
+    console.error('Error code:', error.code);
+    
+    // Re-throw the error so we can see it in the response
+    throw error;
   }
   
   // Fallback to mock data
@@ -144,10 +162,15 @@ export default async function handler(req, res) {
   } catch (error) {
     console.error('❌ API Error:', error);
     console.error('Error stack:', error.stack);
+    
+    // Return error details in response for debugging
     res.status(500).json({
       success: false,
       error: 'Failed to fetch opportunities',
-      details: error.message
+      details: error.message,
+      errorName: error.name,
+      errorCode: error.code,
+      stack: error.stack
     });
   }
 }
