@@ -1,7 +1,7 @@
 // Real arbitrage opportunities from exchanges
 // This will fetch real data directly from exchanges using CCXT
 
-const ccxt = require('ccxt');
+import ccxt from 'ccxt';
 
 // Function to fetch real opportunities from exchanges
 async function fetchRealOpportunities() {
