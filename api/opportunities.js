@@ -60,8 +60,8 @@ async function fetchRealOpportunities() {
     console.error('Error name:', error.name);
     console.error('Error code:', error.code);
     
-    // Re-throw the error so we can see it in the response
-    throw error;
+    // Don't throw error, fall back to mock data instead
+    console.log('🔄 Falling back to mock data...');
   }
   
   // Fallback to mock data
@@ -75,7 +75,8 @@ async function fetchRealOpportunities() {
       profitPercentage: 1.62,
       profitAmount: 70.25,
       volume: 1250.5,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
+      realData: false
     },
     {
       symbol: 'ETH/USDT',
@@ -86,7 +87,8 @@ async function fetchRealOpportunities() {
       profitPercentage: 1.14,
       profitAmount: 30.15,
       volume: 850.2,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
+      realData: false
     },
     {
       symbol: 'ADA/USDT',
@@ -97,7 +99,8 @@ async function fetchRealOpportunities() {
       profitPercentage: 1.44,
       profitAmount: 0.007,
       volume: 5000.0,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
+      realData: false
     },
     {
       symbol: 'SOL/USDT',
@@ -108,7 +111,8 @@ async function fetchRealOpportunities() {
       profitPercentage: 0.76,
       profitAmount: 0.75,
       volume: 2500.0,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
+      realData: false
     },
     {
       symbol: 'DOGE/USDT',
@@ -119,7 +123,8 @@ async function fetchRealOpportunities() {
       profitPercentage: 1.21,
       profitAmount: 0.001,
       volume: 15000.0,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
+      realData: false
     }
   ];
 }
