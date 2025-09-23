@@ -3,7 +3,8 @@ import { DatabaseManager } from '../../database/Database.js';
 import { User, UserPreferences } from '../../exchanges/types/index.js';
 import { i18n } from '../../utils/i18n.js';
 import { KeyboardManager } from '../keyboards/index.js';
-import { v4 as uuidv4 } from 'uuid';
+// Simple ID generator to avoid uuid circular dependency warning
+const generateId = () => Math.random().toString(36).substr(2, 9) + Date.now().toString(36);
 
 export class CommandHandler {
   private bot: TelegramBot;
@@ -78,7 +79,7 @@ export class CommandHandler {
       };
 
       user = {
-        id: uuidv4(),
+        id: generateId(),
         telegramId: telegramId,
         username: msg.from?.username,
         createdAt: Date.now(),

@@ -4,6 +4,7 @@ import helmet from 'helmet';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { dirname } from 'path';
+import fs from 'fs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -55,8 +56,8 @@ export class WebAppServer {
   private setupRoutes(): void {
     // Serve React mini app
     this.app.get('/', (req, res) => {
-      const miniappPath = path.join(__dirname, '../../miniapp/dist/index.html');
-      if (require('fs').existsSync(miniappPath)) {
+      const miniappPath = path.join(__dirname, '../../dist/index.html');
+      if (fs.existsSync(miniappPath)) {
         res.sendFile(miniappPath);
       } else {
         res.sendFile(path.join(__dirname, 'public', 'index.html'));
@@ -64,12 +65,12 @@ export class WebAppServer {
     });
 
     // Serve React mini app static assets
-    this.app.use('/assets', express.static(path.join(__dirname, '../../miniapp/dist/assets')));
+    this.app.use('/assets', express.static(path.join(__dirname, '../../dist/assets')));
     
     // Fallback for React mini app routing
     this.app.get('/miniapp*', (req, res) => {
-      const miniappPath = path.join(__dirname, '../../miniapp/dist/index.html');
-      if (require('fs').existsSync(miniappPath)) {
+      const miniappPath = path.join(__dirname, '../../dist/index.html');
+      if (fs.existsSync(miniappPath)) {
         res.sendFile(miniappPath);
       } else {
         res.status(404).send('Mini app not found. Please build the React app first.');
