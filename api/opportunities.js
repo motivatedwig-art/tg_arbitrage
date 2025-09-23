@@ -116,20 +116,32 @@ export default async function handler(req, res) {
   }
 
   try {
+    console.log('🚀 API called - starting real data fetch...');
+    
     // Try to get real opportunities, fallback to mock data
     const opportunities = await fetchRealOpportunities();
+    
+    console.log(`📊 Returning ${opportunities.length} opportunities`);
+    console.log('First opportunity:', opportunities[0]);
     
     res.status(200).json({
       success: true,
       data: opportunities,
       timestamp: Date.now(),
-      source: 'real-exchanges'
+      source: opportunities[0]?.realData ? 'real-exchanges' : 'mock-data',
+      debug: {
+        opportunityCount: opportunities.length,
+        firstOpportunity: opportunities[0],
+        hasRealData: opportunities[0]?.realData || false
+      }
     });
   } catch (error) {
-    console.error('Error fetching opportunities:', error);
+    console.error('❌ API Error:', error);
+    console.error('Error stack:', error.stack);
     res.status(500).json({
       success: false,
-      error: 'Failed to fetch opportunities'
+      error: 'Failed to fetch opportunities',
+      details: error.message
     });
   }
 }
