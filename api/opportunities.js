@@ -4,8 +4,8 @@
 // Function to fetch real opportunities from the bot
 async function fetchRealOpportunities() {
   try {
-    // Try to fetch from the bot API endpoint
-    const response = await fetch(`${process.env.VERCEL_URL || 'https://tg-arbitrage.vercel.app'}/api/bot`, {
+    // Try to fetch from the simple bot API endpoint
+    const response = await fetch(`${process.env.VERCEL_URL || 'https://tg-arbitrage.vercel.app'}/api/simple-bot`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
