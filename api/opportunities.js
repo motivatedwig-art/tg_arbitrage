@@ -1,4 +1,4 @@
-// Mock data for Vercel deployment (since we can't use SQLite)
+// Extended mock data with more opportunities for better testing
 const mockOpportunities = [
   {
     symbol: 'BTC/USDT',
@@ -86,6 +86,50 @@ const mockOpportunities = [
     profitPercentage: 1.46,
     profitAmount: 0.10,
     volume: 4500.0,
+    timestamp: new Date().toISOString()
+  },
+  {
+    symbol: 'LINK/USDT',
+    buyExchange: 'Gate.io',
+    sellExchange: 'Binance',
+    buyPrice: 14.25,
+    sellPrice: 14.45,
+    profitPercentage: 1.40,
+    profitAmount: 0.20,
+    volume: 2800.0,
+    timestamp: new Date().toISOString()
+  },
+  {
+    symbol: 'UNI/USDT',
+    buyExchange: 'KuCoin',
+    sellExchange: 'OKX',
+    buyPrice: 6.85,
+    sellPrice: 6.95,
+    profitPercentage: 1.46,
+    profitAmount: 0.10,
+    volume: 3200.0,
+    timestamp: new Date().toISOString()
+  },
+  {
+    symbol: 'ATOM/USDT',
+    buyExchange: 'Bybit',
+    sellExchange: 'MEXC',
+    buyPrice: 8.45,
+    sellPrice: 8.58,
+    profitPercentage: 1.54,
+    profitAmount: 0.13,
+    volume: 1800.0,
+    timestamp: new Date().toISOString()
+  },
+  {
+    symbol: 'NEAR/USDT',
+    buyExchange: 'BingX',
+    sellExchange: 'Gate.io',
+    buyPrice: 3.25,
+    sellPrice: 3.30,
+    profitPercentage: 1.54,
+    profitAmount: 0.05,
+    volume: 4200.0,
     timestamp: new Date().toISOString()
   }
 ];

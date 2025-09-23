@@ -45,6 +45,8 @@
             margin: 0;
             padding: 16px;
             min-height: 100vh;
+            width: 100%;
+            box-sizing: border-box;
         }
 
         .header {
@@ -76,6 +78,8 @@
             flex-wrap: wrap;
             gap: 12px;
             border: 1px solid var(--separator);
+            width: 100%;
+            box-sizing: border-box;
         }
 
         .status-item {
@@ -147,6 +151,8 @@
             display: flex;
             flex-direction: column;
             gap: 12px;
+            width: 100%;
+            box-sizing: border-box;
         }
 
         .opportunity-card {
@@ -156,6 +162,8 @@
             border-left: 4px solid var(--accent-yellow);
             transition: all 0.2s ease;
             border: 1px solid var(--separator);
+            width: 100%;
+            box-sizing: border-box;
         }
 
         .opportunity-card:hover {
@@ -235,6 +243,17 @@
             margin-bottom: 4px;
         }
 
+        .exchange-name-link {
+            text-decoration: none;
+            color: inherit;
+            transition: all 0.2s ease;
+        }
+
+        .exchange-name-link:hover .exchange-name {
+            color: var(--accent-yellow);
+            transform: scale(1.05);
+        }
+
         .exchange-price {
             font-family: 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', Consolas, 'Courier New', monospace;
             font-size: 16px;
@@ -276,6 +295,115 @@
         .view-button:hover {
             background: #FFE55C;
             transform: scale(1.05);
+        }
+
+        /* Table view styles */
+        .table-view {
+            background: var(--bg-secondary);
+            border-radius: 16px;
+            overflow: hidden;
+            border: 1px solid var(--separator);
+        }
+
+        .table-header {
+            background: var(--accent-yellow);
+            color: #000000;
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr 1fr 1fr;
+            gap: 1px;
+            font-weight: 600;
+            font-size: 14px;
+        }
+
+        .table-header-cell {
+            padding: 12px 8px;
+            text-align: center;
+        }
+
+        .table-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr 1fr 1fr;
+            gap: 1px;
+            border-bottom: 1px solid var(--separator);
+            transition: background-color 0.2s ease;
+        }
+
+        .table-row:hover {
+            background: var(--surface-elevated);
+        }
+
+        .table-cell {
+            padding: 12px 8px;
+            text-align: center;
+            font-size: 13px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .table-cell.symbol {
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .table-cell.exchange {
+            font-weight: 500;
+        }
+
+        .table-cell.price {
+            font-family: 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', Consolas, 'Courier New', monospace;
+            font-weight: 600;
+            color: var(--accent-yellow);
+        }
+
+        .table-cell.profit {
+            font-weight: 600;
+        }
+
+        .table-cell.profit.positive {
+            color: var(--accent-green);
+        }
+
+        .table-cell.profit.medium {
+            color: var(--warning);
+        }
+
+        .table-cell.profit.high {
+            color: var(--accent-red);
+        }
+
+        .table-cell.actions {
+            gap: 4px;
+        }
+
+        .table-action-btn {
+            padding: 4px 8px;
+            border-radius: 12px;
+            background: var(--accent-yellow);
+            color: #000000;
+            font-size: 11px;
+            font-weight: 500;
+            text-decoration: none;
+            transition: all 0.2s ease;
+        }
+
+        .table-action-btn:hover {
+            background: #FFE55C;
+            transform: scale(1.05);
+        }
+
+        @media (max-width: 768px) {
+            .table-header,
+            .table-row {
+                grid-template-columns: 1fr 1fr 1fr;
+            }
+            
+            .table-header-cell:nth-child(4),
+            .table-header-cell:nth-child(5),
+            .table-cell:nth-child(4),
+            .table-cell:nth-child(5) {
+                display: none;
+            }
         }
 
         .loading {
@@ -332,6 +460,11 @@
                 gap: 8px;
             }
             
+            .status-item {
+                justify-content: center;
+                text-align: center;
+            }
+            
             .exchange-row {
                 grid-template-columns: 1fr;
                 gap: 8px;
@@ -349,6 +482,18 @@
             
             .profit-badge {
                 align-self: flex-start;
+            }
+            
+            .action-row {
+                flex-direction: column;
+                gap: 12px;
+                align-items: stretch;
+            }
+            
+            .action-row > div:last-child {
+                display: flex;
+                justify-content: center;
+                gap: 8px;
             }
         }
 
@@ -371,6 +516,19 @@
             
             .stat-value {
                 font-size: 18px;
+            }
+            
+            .exchange-price {
+                font-size: 14px;
+            }
+            
+            .pair-symbol {
+                font-size: 16px;
+            }
+            
+            .view-button {
+                padding: 6px 12px;
+                font-size: 12px;
             }
         }
 
@@ -445,6 +603,10 @@
                 <span id="refreshIcon">🔄</span>
                 <span id="refreshText">Refresh</span>
             </button>
+            <button class="btn" onclick="toggleView()" id="viewToggleBtn">
+                <span id="viewIcon">📊</span>
+                <span id="viewText">Table View</span>
+            </button>
         </div>
 
         <div class="opportunities-container" id="opportunitiesContainer">
@@ -516,7 +678,9 @@
             'mexc': 'https://www.mexc.com/exchange/{symbol}',
             'bingx': 'https://bingx.com/en-us/spot/{symbol}',
             'gateio': 'https://www.gate.io/trade/{symbol}',
-            'kucoin': 'https://trade.kucoin.com/{symbol}'
+            'kucoin': 'https://trade.kucoin.com/{symbol}',
+            'coinbase': 'https://pro.coinbase.com/trade/{symbol}',
+            'kraken': 'https://trade.kraken.com/charts/KRAKEN:{symbol}'
         };
 
         // Generate exchange URL for a specific symbol
@@ -525,7 +689,10 @@
             if (!urlPattern) {
                 return `https://${exchange.toLowerCase()}.com`;
             }
-            return urlPattern.replace('{symbol}', symbol);
+            
+            // Clean symbol for URL (remove /USDT and make lowercase)
+            const cleanSymbol = symbol.replace('/USDT', '').replace('/', '').toLowerCase();
+            return urlPattern.replace('{symbol}', cleanSymbol);
         }
 
         // Get profit badge class based on profit percentage
@@ -536,70 +703,6 @@
         }
 
         // Update functions
-        function updateOpportunitiesContainer(opportunities) {
-            const container = document.getElementById('opportunitiesContainer');
-            const loadingState = document.getElementById('loadingState');
-            
-            if (opportunities.length === 0) {
-                container.innerHTML = '<div class="no-data"><p>No arbitrage opportunities found at the moment.</p><p>Try refreshing or check back later.</p></div>';
-                return;
-            }
-
-            // Hide loading state
-            if (loadingState) {
-                loadingState.style.display = 'none';
-            }
-
-            // Generate opportunity cards
-            const cardsHtml = opportunities.map((opp, index) => {
-                const profitClass = getProfitBadgeClass(opp.profitPercentage);
-                const buyUrl = getExchangeUrl(opp.buyExchange, opp.symbol);
-                const sellUrl = getExchangeUrl(opp.sellExchange, opp.symbol);
-                
-                return `
-                    <div class="opportunity-card" style="animation-delay: ${index * 0.1}s">
-                        <div class="opportunity-header">
-                            <div class="pair-info">
-                                <div class="pair-symbol">${opp.symbol}</div>
-                                <div class="pair-details">${opp.symbol.replace('USDT', '/USDT')}</div>
-                            </div>
-                            <div class="profit-badge ${profitClass}">
-                                📈 ${opp.profitPercentage.toFixed(2)}%
-                            </div>
-                        </div>
-
-                        <div class="exchange-row">
-                            <div class="exchange-card">
-                                <div class="exchange-label">Buy on</div>
-                                <div class="exchange-name">${opp.buyExchange}</div>
-                                <div class="exchange-price">$${opp.buyPrice.toFixed(4)}</div>
-                            </div>
-                            <div class="exchange-card">
-                                <div class="exchange-label">Sell on</div>
-                                <div class="exchange-name">${opp.sellExchange}</div>
-                                <div class="exchange-price">$${opp.sellPrice.toFixed(4)}</div>
-                            </div>
-                        </div>
-
-                        <div class="action-row">
-                            <div class="spread-info">
-                                Spread: $${opp.profitAmount.toFixed(4)}
-                            </div>
-                            <div style="display: flex; gap: 8px;">
-                                <a href="${buyUrl}" target="_blank" class="view-button">
-                                    Buy ↗️
-                                </a>
-                                <a href="${sellUrl}" target="_blank" class="view-button">
-                                    Sell ↗️
-                                </a>
-                            </div>
-                        </div>
-                    </div>
-                `;
-            }).join('');
-
-            container.innerHTML = cardsHtml;
-        }
 
         function updateStatus(status) {
             if (!status) return;
@@ -642,17 +745,27 @@
             refreshText.textContent = 'Refreshing...';
 
             try {
+                console.log('🔄 Refreshing data...');
+                
                 const [opportunities, status, stats] = await Promise.all([
                     fetchOpportunities(),
                     fetchStatus(),
                     fetchStats()
                 ]);
 
+                console.log(`📊 Loaded ${opportunities.length} opportunities`);
+                
                 updateOpportunitiesContainer(opportunities);
                 updateStatus(status);
                 updateStats(stats);
                 
                 document.getElementById('opportunityCount').textContent = opportunities.length;
+                
+                // Hide loading state after successful update
+                if (loadingState) {
+                    loadingState.style.display = 'none';
+                }
+                
             } catch (error) {
                 console.error('Error refreshing data:', error);
                 const container = document.getElementById('opportunitiesContainer');
@@ -669,6 +782,142 @@
         // Auto-refresh every 30 seconds
         function startAutoRefresh() {
             setInterval(refreshData, 30000);
+        }
+
+        // View toggle functionality
+        let isTableView = false;
+
+        function toggleView() {
+            isTableView = !isTableView;
+            const viewIcon = document.getElementById('viewIcon');
+            const viewText = document.getElementById('viewText');
+            
+            if (isTableView) {
+                viewIcon.textContent = '📱';
+                viewText.textContent = 'Card View';
+            } else {
+                viewIcon.textContent = '📊';
+                viewText.textContent = 'Table View';
+            }
+            
+            // Re-render opportunities with current view
+            const opportunities = window.currentOpportunities || [];
+            updateOpportunitiesContainer(opportunities);
+        }
+
+        // Update opportunities container with view toggle support
+        function updateOpportunitiesContainer(opportunities) {
+            // Store current opportunities for view toggle
+            window.currentOpportunities = opportunities;
+            
+            const container = document.getElementById('opportunitiesContainer');
+            const loadingState = document.getElementById('loadingState');
+            
+            if (opportunities.length === 0) {
+                container.innerHTML = '<div class="no-data"><p>No arbitrage opportunities found at the moment.</p><p>Try refreshing or check back later.</p></div>';
+                return;
+            }
+
+            // Hide loading state
+            if (loadingState) {
+                loadingState.style.display = 'none';
+            }
+
+            if (isTableView) {
+                // Generate table view
+                const tableHtml = `
+                    <div class="table-view">
+                        <div class="table-header">
+                            <div class="table-header-cell">Symbol</div>
+                            <div class="table-header-cell">Buy Exchange</div>
+                            <div class="table-header-cell">Sell Exchange</div>
+                            <div class="table-header-cell">Buy Price</div>
+                            <div class="table-header-cell">Actions</div>
+                        </div>
+                        ${opportunities.map(opp => {
+                            const buyUrl = getExchangeUrl(opp.buyExchange, opp.symbol);
+                            const sellUrl = getExchangeUrl(opp.sellExchange, opp.symbol);
+                            const profitClass = getProfitBadgeClass(opp.profitPercentage);
+                            
+                            return `
+                                <div class="table-row">
+                                    <div class="table-cell symbol">${opp.symbol}</div>
+                                    <div class="table-cell exchange">
+                                        <a href="${buyUrl}" target="_blank" class="exchange-name-link">
+                                            ${opp.buyExchange}
+                                        </a>
+                                    </div>
+                                    <div class="table-cell exchange">
+                                        <a href="${sellUrl}" target="_blank" class="exchange-name-link">
+                                            ${opp.sellExchange}
+                                        </a>
+                                    </div>
+                                    <div class="table-cell price">$${opp.buyPrice.toFixed(4)}</div>
+                                    <div class="table-cell actions">
+                                        <a href="${buyUrl}" target="_blank" class="table-action-btn">Buy</a>
+                                        <a href="${sellUrl}" target="_blank" class="table-action-btn">Sell</a>
+                                    </div>
+                                </div>
+                            `;
+                        }).join('')}
+                    </div>
+                `;
+                container.innerHTML = tableHtml;
+            } else {
+                // Generate card view (existing code)
+                const cardsHtml = opportunities.map((opp, index) => {
+                    const profitClass = getProfitBadgeClass(opp.profitPercentage);
+                    const buyUrl = getExchangeUrl(opp.buyExchange, opp.symbol);
+                    const sellUrl = getExchangeUrl(opp.sellExchange, opp.symbol);
+                    
+                    return `
+                        <div class="opportunity-card" style="animation-delay: ${index * 0.1}s">
+                            <div class="opportunity-header">
+                                <div class="pair-info">
+                                    <div class="pair-symbol">${opp.symbol}</div>
+                                    <div class="pair-details">${opp.symbol.replace('USDT', '/USDT')}</div>
+                                </div>
+                                <div class="profit-badge ${profitClass}">
+                                    📈 ${opp.profitPercentage.toFixed(2)}%
+                                </div>
+                            </div>
+
+                            <div class="exchange-row">
+                                <div class="exchange-card">
+                                    <div class="exchange-label">Buy on</div>
+                                    <a href="${buyUrl}" target="_blank" class="exchange-name-link">
+                                        <div class="exchange-name">${opp.buyExchange}</div>
+                                    </a>
+                                    <div class="exchange-price">$${opp.buyPrice.toFixed(4)}</div>
+                                </div>
+                                <div class="exchange-card">
+                                    <div class="exchange-label">Sell on</div>
+                                    <a href="${sellUrl}" target="_blank" class="exchange-name-link">
+                                        <div class="exchange-name">${opp.sellExchange}</div>
+                                    </a>
+                                    <div class="exchange-price">$${opp.sellPrice.toFixed(4)}</div>
+                                </div>
+                            </div>
+
+                            <div class="action-row">
+                                <div class="spread-info">
+                                    Spread: $${opp.profitAmount.toFixed(4)}
+                                </div>
+                                <div style="display: flex; gap: 8px;">
+                                    <a href="${buyUrl}" target="_blank" class="view-button">
+                                        Buy ↗️
+                                    </a>
+                                    <a href="${sellUrl}" target="_blank" class="view-button">
+                                        Sell ↗️
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+
+                container.innerHTML = cardsHtml;
+            }
         }
 
         // Initialize
