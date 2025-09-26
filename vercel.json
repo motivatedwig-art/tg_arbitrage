@@ -1,27 +1,19 @@
 {
-  "version": 2,
-  "builds": [
-    {
-      "src": "api/**/*.js",
-      "use": "@vercel/node"
-    }
-  ],
-  "routes": [
-    {
-      "src": "/api/(.*)",
-      "dest": "/api/$1"
-    },
-    {
-      "src": "/(.*)",
-      "dest": "/index.html"
-    }
-  ],
+  "buildCommand": "npm run build",
+  "outputDirectory": "dist",
   "functions": {
-    "api/**/*.js": {
+    "api/*.ts": {
       "maxDuration": 30
-    },
-    "api/bot.js": {
-      "maxDuration": 30
+    }
+  },
+  "env": {
+    "NODE_ENV": "production",
+    "WEBAPP_URL": "https://crypto-arbitrage-tg.vercel.app",
+    "TELEGRAM_BOT_TOKEN": "8467603449:AAFvY-Qy5aT4mYDwogA7tQnKirhBDyJ2Ios"
+  },
+  "build": {
+    "env": {
+      "NODE_ENV": "production"
     }
   }
 }

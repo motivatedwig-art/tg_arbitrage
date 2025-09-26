@@ -112,27 +112,35 @@ export class ExchangeManager {
   private createAdapter(config: ExchangeConfig): ExchangeAdapter {
     switch (config.name) {
       case ExchangeName.BINANCE:
-        return new BinanceAdapter(config);
+        return new BinanceAdapter();
       case ExchangeName.OKX:
-        return new OKXAdapter(config);
+        return new OKXAdapter();
       case ExchangeName.BYBIT:
-        return new BybitAdapter(config);
+        return new BybitAdapter();
       case ExchangeName.BITGET:
-        return new BitgetAdapter(config);
+        return new BitgetAdapter();
       case ExchangeName.MEXC:
-        return new MexcAdapter(config);
+        return new MexcAdapter();
       case ExchangeName.BINGX:
-        return new BingxAdapter(config);
+        return new BingxAdapter();
       case ExchangeName.GATE_IO:
-        return new GateioAdapter(config);
+        return new GateioAdapter();
       case ExchangeName.KUCOIN:
-        return new KucoinAdapter(config);
+        return new KucoinAdapter();
       default:
         throw new Error(`Unsupported exchange: ${config.name}`);
     }
   }
 
   public async updateAllTickers(): Promise<void> {
+    // Check if we should use mock data
+    if (process.env.USE_MOCK_DATA === 'true') {
+      console.warn('Using mock data - USE_MOCK_DATA is true');
+      this.generateMockTickers();
+      this.lastUpdate = Date.now();
+      return;
+    }
+
     const promises: Promise<void>[] = [];
 
     for (const [name, adapter] of this.adapters) {
@@ -152,7 +160,33 @@ export class ExchangeManager {
       console.log(`Updated ${tickers.length} tickers for ${name}`);
     } catch (error) {
       console.error(`Failed to update tickers for ${name}:`, error);
+      // In production, throw the error instead of silently failing
+      if (process.env.NODE_ENV === 'production') {
+        throw new Error(`Failed to fetch real data from ${name}: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      }
     }
+  }
+
+  private generateMockTickers(): void {
+    const mockSymbols = ['BTC/USDT', 'ETH/USDT', 'BNB/USDT', 'ADA/USDT', 'SOL/USDT'];
+    const exchanges = ['binance', 'okx', 'bybit', 'bitget', 'mexc', 'bingx', 'gateio', 'kucoin'];
+    
+    exchanges.forEach(exchange => {
+      const mockTickers: Ticker[] = mockSymbols.map(symbol => ({
+        symbol,
+        bid: 100 + Math.random() * 10,
+        ask: 100 + Math.random() * 10,
+        timestamp: Date.now(),
+        exchange,
+        volume: Math.random() * 1000000,
+        blockchain: undefined,
+        contractAddress: undefined
+      }));
+      
+      this.tickerCache.set(exchange, mockTickers);
+    });
+    
+    console.log('Generated mock tickers for all exchanges');
   }
 
   public getAllTickers(): Map<string, Ticker[]> {

@@ -70,3 +70,4 @@ Thumbs.db
 # Test files
 test-*.js
 tests/
+.vercel

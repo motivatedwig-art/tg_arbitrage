@@ -19,7 +19,7 @@
 In Vercel dashboard, go to Settings > Environment Variables and add:
 
 ```
-TELEGRAM_BOT_TOKEN=your_actual_bot_token
+TELEGRAM_BOT_TOKEN=8467603449:AAFvY-Qy5aT4mYDwogA7tQnKirhBDyJ2Ios
 MIN_PROFIT_THRESHOLD=0.5
 MAX_PROFIT_THRESHOLD=110
 UPDATE_INTERVAL=30000

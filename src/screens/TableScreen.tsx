@@ -2,7 +2,9 @@ import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ArrowLeft, RefreshCw, ExternalLink, TrendingUp, Clock } from 'lucide-react';
 import styled from 'styled-components';
+import { useTranslation } from 'react-i18next';
 import { useArbitrageData } from '../hooks/useArbitrageData';
+import LanguageSwitcher from '../components/LanguageSwitcher';
 // import { ArbitrageOpportunity } from '../types';
 
 interface TableScreenProps {
@@ -28,6 +30,12 @@ const Header = styled.div`
   position: sticky;
   top: 0;
   z-index: 10;
+`;
+
+const LanguageSwitcherWrapper = styled.div`
+  position: absolute;
+  top: 16px;
+  right: 20px;
 `;
 
 const BackButton = styled(motion.button)`
@@ -309,6 +317,7 @@ const TableScreen: React.FC<TableScreenProps> = ({ selectedExchanges, onBack }) 
   const { data, loading, error, refetch } = useArbitrageData(selectedExchanges);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [countdown, setCountdown] = useState(30); // 30 seconds
+  const { t } = useTranslation();
 
   // Countdown timer effect
   React.useEffect(() => {
@@ -361,6 +370,10 @@ const TableScreen: React.FC<TableScreenProps> = ({ selectedExchanges, onBack }) 
   return (
     <Container>
       <Header>
+        <LanguageSwitcherWrapper>
+          <LanguageSwitcher />
+        </LanguageSwitcherWrapper>
+        
         <BackButton
           onClick={onBack}
           whileTap={{ scale: 0.9 }}
@@ -369,7 +382,7 @@ const TableScreen: React.FC<TableScreenProps> = ({ selectedExchanges, onBack }) 
         </BackButton>
         
         <HeaderInfo>
-          <Title>Arbitrage Opportunities</Title>
+          <Title>{t('webapp.title')}</Title>
           <Subtitle>
             <CountdownTimer>
               <Clock size={12} />
@@ -397,15 +410,15 @@ const TableScreen: React.FC<TableScreenProps> = ({ selectedExchanges, onBack }) 
         <StatsBar>
           <StatCard>
             <StatValue>{stats.total}</StatValue>
-            <StatLabel>Opportunities</StatLabel>
+            <StatLabel>{t('table.headers.opportunities')}</StatLabel>
           </StatCard>
           <StatCard>
             <StatValue>{stats.avgProfit}%</StatValue>
-            <StatLabel>Avg Profit</StatLabel>
+            <StatLabel>{t('table.headers.avg_profit')}</StatLabel>
           </StatCard>
           <StatCard>
             <StatValue>{stats.maxProfit}%</StatValue>
-            <StatLabel>Max Profit</StatLabel>
+            <StatLabel>{t('table.headers.max_profit')}</StatLabel>
           </StatCard>
         </StatsBar>
 
@@ -431,9 +444,9 @@ const TableScreen: React.FC<TableScreenProps> = ({ selectedExchanges, onBack }) 
 
           {error && (
             <EmptyState>
-              <p>Error loading data: {error}</p>
+              <p>{t('errors.generic')}: {error}</p>
               <ViewButton onClick={handleRefresh} style={{ margin: '16px auto' }}>
-                Try Again
+                {t('buttons.refresh')}
               </ViewButton>
             </EmptyState>
           )}
@@ -441,7 +454,7 @@ const TableScreen: React.FC<TableScreenProps> = ({ selectedExchanges, onBack }) 
           {!loading && !error && data.length === 0 && (
             <EmptyState>
               <TrendingUp size={48} style={{ marginBottom: '16px', opacity: 0.5 }} />
-              <p>No arbitrage opportunities found</p>
+              <p>{t('table.no_opportunities')}</p>
               <p style={{ fontSize: '0.8rem', marginTop: '8px' }}>
                 Try selecting more exchanges or check back later
               </p>
@@ -477,12 +490,12 @@ const TableScreen: React.FC<TableScreenProps> = ({ selectedExchanges, onBack }) 
 
                   <ExchangeRow>
                     <ExchangeCard>
-                      <ExchangeLabel>Buy on</ExchangeLabel>
+                      <ExchangeLabel>{t('table.headers.buy_exchange')}</ExchangeLabel>
                       <ExchangeName>{opportunity.bestBuy.exchangeName}</ExchangeName>
                       <ExchangePrice>${opportunity.bestBuy.price.toFixed(4)}</ExchangePrice>
                     </ExchangeCard>
                     <ExchangeCard>
-                      <ExchangeLabel>Sell on</ExchangeLabel>
+                      <ExchangeLabel>{t('table.headers.sell_exchange')}</ExchangeLabel>
                       <ExchangeName>{opportunity.bestSell.exchangeName}</ExchangeName>
                       <ExchangePrice>${opportunity.bestSell.price.toFixed(4)}</ExchangePrice>
                     </ExchangeCard>

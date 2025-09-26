@@ -30,7 +30,10 @@
       "profit": "Profit %",
       "profit_amount": "Profit Amount",
       "volume": "Volume",
-      "updated": "Updated"
+      "updated": "Updated",
+      "opportunities": "Opportunities",
+      "avg_profit": "Avg Profit",
+      "max_profit": "Max Profit"
     },
     "no_opportunities": "No arbitrage opportunities found at the moment.",
     "loading": "Loading opportunities..."
@@ -44,8 +47,9 @@
     "back": "⬅️ Back",
     "english": "🇺🇸 English",
     "russian": "🇷🇺 Русский",
-    "enable": "✅ Enable",
-    "disable": "❌ Disable",
+    "enable": "✅ Selected",
+    "disable": "❌ Tap to select",
+    "continue": "Continue with {{count}} exchange",
     "subscription_management": "💳 Subscription Management",
     "web_application": "🌐 Web Application",
     "choose_language": "Choose the language/Выберите язык"

@@ -32,6 +32,8 @@
     "src/hooks/useTelegramWebApp.ts",
     "src/services/api.ts",
     "src/styles/**/*",
-    "src/vite-env.d.ts"
+    "src/vite-env.d.ts",
+    "src/components/**/*",
+    "src/i18n/**/*"
   ]
 }

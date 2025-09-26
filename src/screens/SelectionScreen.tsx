@@ -2,9 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { ChevronRight, Check } from 'lucide-react';
 import styled from 'styled-components';
+import { useTranslation } from 'react-i18next';
 import { Exchange } from '../types';
 import { apiService } from '../services/api';
 import { useTelegramWebApp } from '../hooks/useTelegramWebApp';
+import LanguageSwitcher from '../components/LanguageSwitcher';
 
 interface SelectionScreenProps {
   onExchangesSelected: (exchanges: string[]) => void;
@@ -23,6 +25,13 @@ const Header = styled.div`
   text-align: center;
   border-bottom: 1px solid var(--separator);
   background: var(--bg-primary);
+  position: relative;
+`;
+
+const LanguageSwitcherWrapper = styled.div`
+  position: absolute;
+  top: 16px;
+  right: 20px;
 `;
 
 const Title = styled.h1`
@@ -170,6 +179,7 @@ const SelectionScreen: React.FC<SelectionScreenProps> = ({ onExchangesSelected }
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const { user } = useTelegramWebApp();
+  const { t } = useTranslation();
 
   useEffect(() => {
     loadExchanges();
@@ -181,7 +191,7 @@ const SelectionScreen: React.FC<SelectionScreenProps> = ({ onExchangesSelected }
       const exchangeData = await apiService.getAvailableExchanges();
       setExchanges(exchangeData);
     } catch (err) {
-      setError('Failed to load exchanges');
+      setError(t('errors.generic'));
       console.error('Error loading exchanges:', err);
     } finally {
       setLoading(false);
@@ -215,7 +225,10 @@ const SelectionScreen: React.FC<SelectionScreenProps> = ({ onExchangesSelected }
     return (
       <Container>
         <Header>
-          <Title>Loading Exchanges...</Title>
+          <LanguageSwitcherWrapper>
+            <LanguageSwitcher />
+          </LanguageSwitcherWrapper>
+          <Title>{t('table.loading')}</Title>
         </Header>
         <LoadingSpinner
           animate={{ rotate: 360 }}
@@ -229,7 +242,10 @@ const SelectionScreen: React.FC<SelectionScreenProps> = ({ onExchangesSelected }
     return (
       <Container>
         <Header>
-          <Title>Error</Title>
+          <LanguageSwitcherWrapper>
+            <LanguageSwitcher />
+          </LanguageSwitcherWrapper>
+          <Title>{t('errors.generic')}</Title>
           <Subtitle>{error}</Subtitle>
         </Header>
       </Container>
@@ -244,9 +260,12 @@ const SelectionScreen: React.FC<SelectionScreenProps> = ({ onExchangesSelected }
         transition={{ duration: 0.3 }}
       >
         <Header>
-          <Title>Select Exchanges</Title>
+          <LanguageSwitcherWrapper>
+            <LanguageSwitcher />
+          </LanguageSwitcherWrapper>
+          <Title>{t('webapp.title')}</Title>
           <Subtitle>
-            Choose the exchanges you want to monitor for arbitrage opportunities
+            {t('webapp.subtitle')}
           </Subtitle>
         </Header>
       </motion.div>
@@ -270,7 +289,7 @@ const SelectionScreen: React.FC<SelectionScreenProps> = ({ onExchangesSelected }
                 {exchange.displayName}
               </ExchangeName>
               <ExchangeStatus isSelected={exchange.isSelected}>
-                {exchange.isSelected ? 'Selected' : 'Tap to select'}
+                {exchange.isSelected ? t('buttons.enable') : t('buttons.disable')}
               </ExchangeStatus>
             </ExchangeInfo>
             <CheckIcon
@@ -291,7 +310,7 @@ const SelectionScreen: React.FC<SelectionScreenProps> = ({ onExchangesSelected }
           onClick={handleContinue}
           whileTap={{ scale: selectedExchanges.length > 0 ? 0.98 : 1 }}
         >
-          Continue with {selectedExchanges.length} exchange{selectedExchanges.length !== 1 ? 's' : ''}
+          {t('buttons.continue', { count: selectedExchanges.length })}
           <ChevronRight size={20} />
         </ContinueButton>
       </Footer>

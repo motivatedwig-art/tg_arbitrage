@@ -183,14 +183,25 @@ export class CommandHandler {
     try {
       const lng = await this.getUserLanguage(msg.from!.id);
       
+      console.log('Fetching top arbitrage opportunities...');
       // Get top opportunities from database
       const opportunities = await this.db.getArbitrageModel().getTopOpportunities(10);
       
-      if (opportunities.length === 0) {
-        await this.bot.sendMessage(msg.chat.id, i18n.t('table.no_opportunities', lng));
+      if (!opportunities || opportunities.length === 0) {
+        await this.bot.sendMessage(msg.chat.id, '❌ No arbitrage opportunities found. This might indicate an issue with exchange connections.');
         return;
       }
-
+      
+      // Log first opportunity to verify it's real data
+      console.log('Sample opportunity:', JSON.stringify(opportunities[0], null, 2));
+      
+      // Check if data looks like mock
+      const isMock = this.detectMockData(opportunities);
+      if (isMock) {
+        console.warn('WARNING: Mock data detected in opportunities');
+        await this.bot.sendMessage(msg.chat.id, '⚠️ Warning: Using test data. Real exchange data not available.');
+      }
+      
       let message = `${i18n.t('commands.top_opportunities', lng)}\n\n`;
       
       opportunities.forEach((opp, index) => {
@@ -206,8 +217,23 @@ export class CommandHandler {
       });
     } catch (error) {
       console.error('Error in handleTop:', error);
-      await this.bot.sendMessage(msg.chat.id, 'An error occurred. Please try again.');
+      await this.bot.sendMessage(msg.chat.id, '❌ Error fetching data. Check logs for details.');
     }
+  }
+
+  private detectMockData(opportunities: any[]): boolean {
+    // Check for patterns that indicate mock data
+    const mockIndicators = [
+      opportunities.every(o => o.profitPercentage === 2.5), // All same profit
+      opportunities.some(o => o.buyExchange.toLowerCase().includes('mock')),
+      opportunities.some(o => o.sellExchange.toLowerCase().includes('mock')),
+      opportunities.some(o => o.symbol === 'TEST/USDT'),
+      opportunities.some(o => o.symbol.includes('mock')),
+      // Check for suspiciously round numbers
+      opportunities.every(o => o.buyPrice === 100 || o.buyPrice === 1000),
+      opportunities.every(o => o.sellPrice === 100 || o.sellPrice === 1000),
+    ];
+    return mockIndicators.some(indicator => indicator);
   }
 
   private async handleSubscribe(msg: TelegramBot.Message): Promise<void> {

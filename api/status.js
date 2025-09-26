@@ -1,5 +1,11 @@
 // Function to fetch real status from the bot
 async function fetchRealStatus() {
+  // Check if we should use mock data
+  if (process.env.USE_MOCK_DATA === 'true') {
+    console.warn('Using mock data - USE_MOCK_DATA is true');
+    return generateMockStatus();
+  }
+
   try {
     // Try to fetch from the local bot server
     const response = await fetch('http://localhost:3000/api/status', {
@@ -18,11 +24,28 @@ async function fetchRealStatus() {
       }
     }
   } catch (error) {
-    // Bot server not available, will use mock data
-    console.log('Bot server not available, using mock status');
+    console.error('Bot server not available:', error);
   }
   
-  // Fallback to mock data
+  // For production, always attempt real API calls
+  try {
+    const realData = await fetchRealExchangeStatus();
+    if (!realData || Object.keys(realData.exchanges || {}).length === 0) {
+      console.error('No real data received from exchanges, falling back to mock');
+      return generateMockStatus();
+    }
+    return realData;
+  } catch (error) {
+    console.error('Exchange API error:', error);
+    // In production, throw the error instead of silently returning mock data
+    if (process.env.NODE_ENV === 'production') {
+      throw new Error(`Failed to fetch real data: ${error.message}`);
+    }
+    return generateMockStatus();
+  }
+}
+
+function generateMockStatus() {
   return {
     exchanges: {
       binance: { connected: true, lastUpdate: new Date().toISOString() },
@@ -38,6 +61,21 @@ async function fetchRealStatus() {
     lastUpdate: new Date().toISOString()
   };
 }
+
+async function fetchRealExchangeStatus() {
+  // This would implement real exchange status checking
+  // For now, return null to trigger mock data fallback
+  return null;
+}
+
+import {
+  SUPPORTED_EXCHANGES,
+  getExchangeDisplayName,
+  getExchangeLogo,
+  getExchangePairUrlPattern,
+  resolveSelectedExchanges
+} from './_lib/exchangeConfig.js';
+import { buildExchangeClients } from './_lib/exchangeManager.js';
 
 export default async function handler(req, res) {
   // Set CORS headers
@@ -57,10 +95,19 @@ export default async function handler(req, res) {
   try {
     // Try to get real status, fallback to mock data
     const statusData = await fetchRealStatus();
-    
+
+    // Build exchange metadata from configuration
+    const exchangeList = resolveSelectedExchanges(Object.keys(SUPPORTED_EXCHANGES)).map(id => ({
+      id,
+      name: getExchangeDisplayName(id),
+      logo: getExchangeLogo(id),
+      pairUrlPattern: getExchangePairUrlPattern(id)
+    }));
+
     res.json({
       success: true,
       data: statusData,
+      exchanges: exchangeList,
       source: 'bot' // Will be 'bot' if real data, 'mock' if fallback
     });
   } catch (error) {

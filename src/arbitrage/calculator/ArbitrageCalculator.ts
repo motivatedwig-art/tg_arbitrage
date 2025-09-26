@@ -27,6 +27,20 @@ export class ArbitrageCalculator {
   }
 
   public calculateArbitrageOpportunities(allTickers: Map<string, Ticker[]>): ArbitrageOpportunity[] {
+    console.log(`Calculating arbitrage for ${allTickers.size} exchanges`);
+    
+    // Log first ticker sample to verify if data is real
+    const firstExchange = Array.from(allTickers.keys())[0];
+    const firstTickers = allTickers.get(firstExchange);
+    if (firstTickers && firstTickers.length > 0) {
+      console.log('First ticker sample:', firstTickers[0]);
+    }
+    
+    // Add validation for mock data
+    if (this.isMockData(allTickers)) {
+      console.warn('WARNING: Mock data detected in arbitrage calculation');
+    }
+    
     const opportunities: ArbitrageOpportunity[] = [];
     
     // Group tickers by symbol and filter for compatible chains only
@@ -55,6 +69,23 @@ export class ArbitrageCalculator {
 
     // Sort by profit percentage (highest first)
     return filteredOpportunities.sort((a, b) => b.profitPercentage - a.profitPercentage);
+  }
+
+  private isMockData(allTickers: Map<string, Ticker[]>): boolean {
+    // Check for common mock data patterns
+    for (const tickers of allTickers.values()) {
+      const suspiciousPrices = tickers.filter(ticker => 
+        ticker.bid === 100 || 
+        ticker.bid === 1000 || 
+        ticker.exchange.includes('mock') ||
+        ticker.exchange.includes('test') ||
+        (ticker.bid >= 100 && ticker.bid <= 110) // Mock data range
+      );
+      if (suspiciousPrices.length > 0) {
+        return true;
+      }
+    }
+    return false;
   }
 
   /**

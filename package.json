@@ -4,19 +4,25 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "vite",
-    "build": "tsc && vite build",
-    "build:vercel": "tsc -p tsconfig.backend.json && npm run build:frontend",
+    "dev": "NODE_ENV=development tsx watch src/index.ts",
+    "build": "tsc",
+    "start": "NODE_ENV=production node dist/index.js",
+    "vercel-build": "npm run build",
+    "test:api": "node -e \"fetch('https://tg-arbitrage.vercel.app/api/debug').then(r=>r.json()).then(console.log)\"",
+    "test:local": "NODE_ENV=production npm start",
     "build:frontend": "vite build",
     "preview": "vite preview",
     "lint": "eslint src --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
     "bot": "node -r dotenv/config dist/index.js",
-    "bot:dev": "npx tsc -p tsconfig.backend.json && npm run bot",
-    "start": "npm run bot",
-    "vercel-build": "npm run build:vercel"
+    "bot:dev": "npx tsc -p tsconfig.backend.json && npm run bot"
+  },
+  "engines": {
+    "node": ">=18.0.0"
   },
   "dependencies": {
     "@telegram-apps/sdk": "^1.0.0",
+    "@types/sequelize": "^4.28.20",
+    "@vercel/node": "^5.3.24",
     "axios": "^1.5.0",
     "ccxt": "^4.1.0",
     "cors": "^2.8.5",
@@ -31,7 +37,9 @@
     "node-telegram-bot-api": "^0.64.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
+    "react-i18next": "^13.5.0",
     "react-query": "^3.39.0",
+    "sequelize": "^6.37.7",
     "sqlite3": "^5.1.0",
     "styled-components": "^6.0.0",
     "typescript": "^5.0.0"

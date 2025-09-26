@@ -38,6 +38,22 @@ export interface ApiResponse {
   opportunities: ArbitrageOpportunity[];
   lastUpdate: string;
   nextUpdate: string;
+  meta?: OpportunitiesMeta;
+}
+
+export interface ExchangeMeta {
+  id: string;
+  name: string;
+  logo?: string | null;
+  pairUrlPattern?: string | null;
+}
+
+export interface OpportunitiesMeta {
+  exchanges: ExchangeMeta[];
+  requestedSymbols: string[];
+  returnedSymbols: string[];
+  opportunityCount: number;
+  generatedAt: string;
 }
 
 export interface TelegramWebApp {

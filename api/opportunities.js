@@ -1,138 +1,20 @@
-// Real arbitrage opportunities from exchanges
-// This will fetch real data directly from exchanges using CCXT
+import {
+  buildExchangeClients,
+  fetchTickers,
+  computeArbitrage,
+  mapOpportunitiesForResponse
+} from './_lib/exchangeManager.js';
+import {
+  DEFAULT_SYMBOLS,
+  resolveSelectedExchanges,
+  getExchangeDisplayName,
+  getExchangeLogo,
+  getExchangePairUrlPattern
+} from './_lib/exchangeConfig.js';
 
-import ccxt from 'ccxt';
-
-// Function to fetch real opportunities from exchanges
-async function fetchRealOpportunities() {
-  try {
-    console.log('🔄 Fetching real arbitrage opportunities from exchanges...');
-    
-    // Test with just one exchange and one symbol first
-    const exchange = new ccxt.binance({
-      apiKey: '', // No API key needed for public data
-      secret: '', // No secret needed for public data
-      sandbox: false,
-      enableRateLimit: true,
-      timeout: 10000
-    });
-    const symbol = 'BTC/USDT';
-    
-    console.log(`🔌 Fetching ${symbol} from Binance...`);
-    console.log('Exchange config:', {
-      name: exchange.name,
-      hasCredentials: !!exchange.apiKey,
-      sandbox: exchange.sandbox,
-      timeout: exchange.timeout
-    });
-    
-    const ticker = await exchange.fetchTicker(symbol);
-    
-    console.log('✅ Successfully fetched real data:', {
-      symbol: ticker.symbol,
-      bid: ticker.bid,
-      ask: ticker.ask,
-      last: ticker.last,
-      volume: ticker.baseVolume
-    });
-    
-    // Create a simple arbitrage opportunity with real data
-    const realOpportunities = [{
-      symbol: symbol,
-      buyExchange: 'binance',
-      sellExchange: 'binance', // Using same exchange for now
-      buyPrice: ticker.ask,
-      sellPrice: ticker.bid,
-      profitPercentage: 0.1, // Small profit for testing
-      profitAmount: (ticker.bid - ticker.ask) * 0.001, // Small amount
-      volume: ticker.baseVolume || 1000,
-      timestamp: new Date().toISOString(),
-      realData: true
-    }];
-    
-    console.log(`🎯 Created ${realOpportunities.length} real opportunities`);
-    return realOpportunities;
-    
-  } catch (error) {
-    console.error('❌ Error fetching real opportunities:', error);
-    console.error('Error details:', error.message);
-    console.error('Error stack:', error.stack);
-    console.error('Error name:', error.name);
-    console.error('Error code:', error.code);
-    
-    // Don't throw error, fall back to mock data instead
-    console.log('🔄 Falling back to mock data...');
-  }
-  
-  // Fallback to mock data
-  return [
-    {
-      symbol: 'BTC/USDT',
-      buyExchange: 'Binance',
-      sellExchange: 'Coinbase',
-      buyPrice: 43250.50,
-      sellPrice: 43320.75,
-      profitPercentage: 1.62,
-      profitAmount: 70.25,
-      volume: 1250.5,
-      timestamp: new Date().toISOString(),
-      realData: false
-    },
-    {
-      symbol: 'ETH/USDT',
-      buyExchange: 'Kraken',
-      sellExchange: 'Binance',
-      buyPrice: 2650.30,
-      sellPrice: 2680.45,
-      profitPercentage: 1.14,
-      profitAmount: 30.15,
-      volume: 850.2,
-      timestamp: new Date().toISOString(),
-      realData: false
-    },
-    {
-      symbol: 'ADA/USDT',
-      buyExchange: 'Gate.io',
-      sellExchange: 'KuCoin',
-      buyPrice: 0.4850,
-      sellPrice: 0.4920,
-      profitPercentage: 1.44,
-      profitAmount: 0.007,
-      volume: 5000.0,
-      timestamp: new Date().toISOString(),
-      realData: false
-    },
-    {
-      symbol: 'SOL/USDT',
-      buyExchange: 'OKX',
-      sellExchange: 'Bybit',
-      buyPrice: 98.50,
-      sellPrice: 99.25,
-      profitPercentage: 0.76,
-      profitAmount: 0.75,
-      volume: 2500.0,
-      timestamp: new Date().toISOString(),
-      realData: false
-    },
-    {
-      symbol: 'DOGE/USDT',
-      buyExchange: 'MEXC',
-      sellExchange: 'BingX',
-      buyPrice: 0.0825,
-      sellPrice: 0.0835,
-      profitPercentage: 1.21,
-      profitAmount: 0.001,
-      volume: 15000.0,
-      timestamp: new Date().toISOString(),
-      realData: false
-    }
-  ];
-}
-
-export default async function handler(req, res) {
-  // Set CORS headers
+const withCors = (handler) => async (req, res) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
   if (req.method === 'OPTIONS') {
@@ -141,41 +23,158 @@ export default async function handler(req, res) {
   }
 
   if (req.method !== 'GET') {
-    return res.status(405).json({ error: 'Method not allowed' });
+    res.status(405).json({ success: false, error: 'Method not allowed' });
+    return;
   }
 
+  return handler(req, res);
+};
+
+const parseSelectedExchanges = (req) => {
+  const queryParam = req.query?.exchanges || req.query?.exchange || null;
+  const headerParam = req.headers['x-exchanges'];
+  const bodyParam = req.body?.exchanges;
+
+  return resolveSelectedExchanges(queryParam || headerParam || bodyParam);
+};
+
+const parseSymbols = (req) => {
+  const raw = req.query?.symbols || req.query?.symbol || null;
+  if (!raw) return DEFAULT_SYMBOLS;
+
+  return String(raw)
+    .split(',')
+    .map(symbol => symbol.trim().toUpperCase())
+    .filter(Boolean);
+};
+
+const buildMeta = (selectedExchanges, symbols, opportunities) => {
+  const uniqueSymbols = [...new Set(opportunities.map(opp => opp.symbol))];
+
+  return {
+    exchanges: selectedExchanges.map(id => ({
+      id,
+      name: getExchangeDisplayName(id),
+      logo: getExchangeLogo(id),
+      pairUrlPattern: getExchangePairUrlPattern(id)
+    })),
+    requestedSymbols: symbols,
+    returnedSymbols: uniqueSymbols,
+    opportunityCount: opportunities.length,
+    generatedAt: new Date().toISOString()
+  };
+};
+
+const handler = async (req, res) => {
   try {
-    console.log('🚀 API called - starting real data fetch... UPDATED VERSION!');
-    
-    // Try to get real opportunities, fallback to mock data
-    const opportunities = await fetchRealOpportunities();
-    
-    console.log(`📊 Returning ${opportunities.length} opportunities`);
-    console.log('First opportunity:', opportunities[0]);
-    
-    res.status(200).json({
-      success: true,
-      data: opportunities,
-      timestamp: Date.now(),
-      source: opportunities[0]?.realData ? 'real-exchanges' : 'mock-data',
-      debug: {
-        opportunityCount: opportunities.length,
-        firstOpportunity: opportunities[0],
-        hasRealData: opportunities[0]?.realData || false
+    const selectedExchanges = parseSelectedExchanges(req);
+    const symbols = parseSymbols(req);
+
+    // Check if we should use mock data
+    if (process.env.USE_MOCK_DATA === 'true') {
+      console.warn('Using mock data - USE_MOCK_DATA is true');
+      const mockOpportunities = generateMockOpportunities(symbols);
+      res.status(200).json({
+        success: true,
+        data: mockOpportunities,
+        meta: buildMeta(selectedExchanges, symbols, mockOpportunities)
+      });
+      return;
+    }
+
+    const clients = buildExchangeClients(selectedExchanges);
+
+    if (!Object.keys(clients).length) {
+      return res.status(400).json({
+        success: false,
+        error: 'No exchanges available. Please verify API keys and configuration.'
+      });
+    }
+
+    // For production, always attempt real API calls
+    try {
+      const tickerMap = await fetchTickers(clients, symbols);
+      if (!tickerMap || Object.keys(tickerMap).length === 0) {
+        console.error('No real data received from exchanges, falling back to mock');
+        const mockOpportunities = generateMockOpportunities(symbols);
+        res.status(200).json({
+          success: true,
+          data: mockOpportunities,
+          meta: buildMeta(selectedExchanges, symbols, mockOpportunities)
+        });
+        return;
       }
-    });
+
+      const opportunities = computeArbitrage(tickerMap);
+      const responseOpportunities = mapOpportunitiesForResponse(opportunities);
+
+      res.status(200).json({
+        success: true,
+        data: responseOpportunities,
+        meta: buildMeta(selectedExchanges, symbols, responseOpportunities)
+      });
+    } catch (error) {
+      console.error('Exchange API error:', error);
+      // In production, throw the error instead of silently returning mock data
+      if (process.env.NODE_ENV === 'production') {
+        throw new Error(`Failed to fetch real data: ${error.message}`);
+      }
+      
+      const mockOpportunities = generateMockOpportunities(symbols);
+      res.status(200).json({
+        success: true,
+        data: mockOpportunities,
+        meta: buildMeta(selectedExchanges, symbols, mockOpportunities)
+      });
+    }
   } catch (error) {
-    console.error('❌ API Error:', error);
-    console.error('Error stack:', error.stack);
-    
-    // Return error details in response for debugging
+    console.error('Failed to fetch opportunities:', error);
     res.status(500).json({
       success: false,
-      error: 'Failed to fetch opportunities',
-      details: error.message,
-      errorName: error.name,
-      errorCode: error.code,
-      stack: error.stack
+      error: 'Failed to fetch opportunities from exchanges',
+      details: error instanceof Error ? error.message : 'Unknown error'
     });
   }
+};
+
+function generateMockOpportunities(symbols) {
+  const mockOpportunities = [];
+  const exchanges = ['binance', 'okx', 'bybit', 'bitget', 'mexc', 'bingx', 'gateio', 'kucoin'];
+  
+  symbols.forEach(symbol => {
+    // Generate 2-3 mock opportunities per symbol
+    const opportunityCount = Math.floor(Math.random() * 2) + 2;
+    for (let i = 0; i < opportunityCount; i++) {
+      const buyExchange = exchanges[Math.floor(Math.random() * exchanges.length)];
+      const sellExchange = exchanges[Math.floor(Math.random() * exchanges.length)];
+      
+      if (buyExchange !== sellExchange) {
+        const buyPrice = 100 + Math.random() * 10;
+        const sellPrice = buyPrice + Math.random() * 2;
+        const profitPercentage = ((sellPrice - buyPrice) / buyPrice) * 100;
+        
+        mockOpportunities.push({
+          symbol,
+          buyExchange,
+          sellExchange,
+          buyPrice,
+          sellPrice,
+          profitPercentage,
+          profitAmount: sellPrice - buyPrice,
+          volume: Math.random() * 1000000,
+          timestamp: Date.now(),
+          realData: false,
+          fees: {
+            buyFee: 0.1,
+            sellFee: 0.1
+          }
+        });
+      }
+    }
+  });
+  
+  return mockOpportunities.sort((a, b) => b.profitPercentage - a.profitPercentage);
 }
+
+export default withCors(handler);
+

@@ -15,12 +15,31 @@ export class CryptoArbitrageBot {
   private highProfitDeals: ArbitrageOpportunity[] = [];
 
   constructor(token: string) {
+    this.setupEnvironmentLogging();
     this.bot = new TelegramBot(token, { polling: true });
     this.db = DatabaseManager.getInstance();
     this.commandHandler = new CommandHandler(this.bot);
     this.callbackHandler = new CallbackHandler(this.bot);
     
     this.setupErrorHandling();
+  }
+
+  private setupEnvironmentLogging(): void {
+    console.log('=== BOT INITIALIZATION ===');
+    console.log('Environment:', process.env.NODE_ENV);
+    console.log('Mock Data Enabled:', process.env.USE_MOCK_DATA === 'true');
+    console.log('Webapp URL:', process.env.WEBAPP_URL);
+    console.log('Exchange APIs configured:', {
+      binance: !!process.env.BINANCE_API_KEY,
+      okx: !!process.env.OKX_API_KEY,
+      bybit: !!process.env.BYBIT_API_KEY,
+      bitget: !!process.env.BITGET_API_KEY,
+      mexc: !!process.env.MEXC_API_KEY,
+      bingx: !!process.env.BINGX_API_KEY,
+      gateio: !!process.env.GATE_IO_API_KEY,
+      kucoin: !!process.env.KUCOIN_API_KEY,
+    });
+    console.log('========================');
   }
 
   public async start(): Promise<void> {

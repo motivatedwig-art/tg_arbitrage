@@ -13,9 +13,10 @@ const api = axios.create({
 });
 
 export const apiService = {
-  async getArbitrageData(_selectedExchanges: string[]): Promise<ApiResponse> {
+  async getArbitrageData(selectedExchanges: string[]): Promise<ApiResponse> {
     try {
-      const response = await api.get('/opportunities');
+      const params = selectedExchanges.length ? { exchanges: selectedExchanges.join(',') } : {};
+      const response = await api.get('/opportunities', { params });
       
       // Transform the backend data to match our frontend types
       const opportunities: ArbitrageOpportunity[] = response.data.data?.map((opp: any) => ({
@@ -66,7 +67,7 @@ export const apiService = {
 
       return {
         opportunities,
-        lastUpdate: new Date().toISOString(),
+        lastUpdate: response.data.meta?.generatedAt || new Date().toISOString(),
         nextUpdate: new Date(Date.now() + 30000).toISOString() // 30 seconds from now
       };
     } catch (error) {
