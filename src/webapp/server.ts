@@ -144,16 +144,27 @@ export class WebAppServer {
 
   public start(port: number = 3000): Promise<void> {
     return new Promise((resolve, reject) => {
-      this.server = this.app.listen(port, () => {
-        console.log(`🌐 Web app server running on port ${port}`);
-        const webAppUrl = process.env.WEBAPP_URL || `http://localhost:${port}`;
-        console.log(`📱 Mini app URL: ${webAppUrl}`);
-        resolve();
-      });
+      // Try to find an available port
+      const tryPort = (attemptPort: number) => {
+        this.server = this.app.listen(attemptPort, () => {
+          console.log(`🌐 Web app server running on port ${attemptPort}`);
+          const webAppUrl = process.env.WEBAPP_URL || `http://localhost:${attemptPort}`;
+          console.log(`📱 Mini app URL: ${webAppUrl}`);
+          resolve();
+        });
 
-      this.server.on('error', (error: any) => {
-        reject(error);
-      });
+        this.server.on('error', (error: any) => {
+          if (error.code === 'EADDRINUSE') {
+            console.log(`Port ${attemptPort} is in use, trying ${attemptPort + 1}...`);
+            this.server.close();
+            tryPort(attemptPort + 1);
+          } else {
+            reject(error);
+          }
+        });
+      };
+
+      tryPort(port);
     });
   }
 
