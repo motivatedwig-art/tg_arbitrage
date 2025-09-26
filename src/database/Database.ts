@@ -1,7 +1,6 @@
 import sqlite3 from 'sqlite3';
 const { Database: SQLiteDB } = sqlite3;
 type SQLiteDatabase = sqlite3.Database;
-import path from 'path';
 import { UserModel } from './models/User.js';
 import { ArbitrageOpportunityModel } from './models/ArbitrageOpportunity.js';
 

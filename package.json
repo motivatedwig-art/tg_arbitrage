@@ -23,6 +23,7 @@
   },
   "dependencies": {
     "@telegram-apps/sdk": "^1.0.0",
+    "@vercel/node": "^3.0.0",
     "axios": "^1.5.0",
     "ccxt": "^4.1.0",
     "cors": "^2.8.5",

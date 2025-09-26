@@ -1,5 +1,5 @@
 import { Database } from 'sqlite3';
-import { User, UserPreferences } from '../../exchanges/types';
+import { User } from '../../exchanges/types';
 
 export class UserModel {
   private db: Database;
