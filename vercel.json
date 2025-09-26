@@ -8,7 +8,7 @@
   },
   "env": {
     "NODE_ENV": "production",
-    "WEBAPP_URL": "https://crypto-arbitrage-tg.vercel.app",
+    "WEBAPP_URL": "https://crypto-arbitrage-2mjtcip5b-motivatedwig-arts-projects.vercel.app",
     "TELEGRAM_BOT_TOKEN": "8467603449:AAFvY-Qy5aT4mYDwogA7tQnKirhBDyJ2Ios"
   },
   "build": {
