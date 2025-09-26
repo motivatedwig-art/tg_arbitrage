@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, RefreshCw, ExternalLink, TrendingUp, Clock } from 'lucide-react';
+import { ArrowLeft, RefreshCw, TrendingUp, Clock } from 'lucide-react';
 import styled from 'styled-components';
 import { useTranslation } from 'react-i18next';
 import { useArbitrageData } from '../hooks/useArbitrageData';

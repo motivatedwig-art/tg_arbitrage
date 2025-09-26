@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "NODE_ENV=development tsx watch src/index.ts",
+    "dev": "cross-env NODE_ENV=development tsx watch src/index.ts",
     "build": "npm run build:backend && npm run build:frontend && npm run copy:backend",
     "copy:backend": "cp -r dist-backend/* dist/ 2>/dev/null || xcopy /E /I /Y dist-backend dist",
     "build:backend": "tsc -p tsconfig.backend.json",
@@ -12,9 +12,9 @@
     "start": "set NODE_ENV=production && node dist/index.js",
     "vercel-build": "npm run build",
     "test:api": "node -e \"fetch('`https://tg-arbitrage.vercel.app/api/debug').then(r=>r.json()).then(console.log)\"",
-    "test:local": "NODE_ENV=production npm start",
+    "test:local": "cross-env NODE_ENV=production npm start",
     "preview": "vite preview",
-    "lint": "eslint src --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
+    "lint": "eslint src --report-unused-disable-directives --max-warnings 0",
     "bot": "node -r dotenv/config dist/index.js",
     "bot:dev": "npx tsc -p tsconfig.backend.json && npm run bot"
   },

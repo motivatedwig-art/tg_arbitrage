@@ -1,4 +1,4 @@
-import ccxt from 'ccxt';
+// import ccxt from 'ccxt'; // Unused import
 import { ExchangeAdapter, Ticker, OrderBook, ExchangeConfig, ExchangeStatus } from '../types/index.js';
 import { TokenMetadataService } from '../../services/TokenMetadataService.js';
 

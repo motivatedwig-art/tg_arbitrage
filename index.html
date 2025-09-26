@@ -1,14 +1,173 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Crypto Arbitrage</title>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Crypto Arbitrage Bot</title>
+    
+    <!-- Telegram WebApp SDK - CRITICAL -->
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
-  </head>
-  <body>
-    <div id="root"></div>
+    
+    <!-- Favicon -->
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+    
+    <!-- PWA Meta Tags -->
+    <meta name="theme-color" content="#3390ec">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    
+    <!-- CSS Variables for Telegram Theme -->
+    <style>
+        :root {
+            --tg-theme-bg-color: #ffffff;
+            --tg-theme-text-color: #000000;
+            --tg-theme-hint-color: #999999;
+            --tg-theme-link-color: #3390ec;
+            --tg-theme-button-color: #3390ec;
+            --tg-theme-button-text-color: #ffffff;
+            --tg-theme-secondary-bg-color: #f1f1f1;
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+            background-color: var(--tg-theme-bg-color);
+            color: var(--tg-theme-text-color);
+            line-height: 1.4;
+            overflow-x: hidden;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+        
+        #root {
+            min-height: 100vh;
+            width: 100%;
+        }
+        
+        /* Loading spinner */
+        .loading-spinner {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            font-size: 18px;
+            color: var(--tg-theme-hint-color);
+        }
+        
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid var(--tg-theme-secondary-bg-color);
+            border-top: 4px solid var(--tg-theme-button-color);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-right: 12px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        /* Error message */
+        .error-message {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            padding: 20px;
+            text-align: center;
+            color: var(--tg-theme-destructive-text-color, #ff3b30);
+        }
+        
+        .error-message h2 {
+            margin-bottom: 12px;
+            font-size: 20px;
+        }
+        
+        .error-message p {
+            color: var(--tg-theme-hint-color);
+            font-size: 16px;
+            line-height: 1.5;
+        }
+        
+        /* Hide scrollbars but keep functionality */
+        ::-webkit-scrollbar {
+            width: 0px;
+            background: transparent;
+        }
+    </style>
+</head>
+<body>
+    <div id="root">
+        <!-- Loading state -->
+        <div class="loading-spinner" id="loading">
+            <div class="spinner"></div>
+            <div>Loading...</div>
+        </div>
+    </div>
+    
+    <script>
+        // Debug information
+        console.log('Telegram WebApp available:', !!window.Telegram?.WebApp);
+        console.log('User Agent:', navigator.userAgent);
+        console.log('Environment:', {
+            href: window.location.href,
+            hostname: window.location.hostname,
+            protocol: window.location.protocol
+        });
+        
+        // Initialize Telegram WebApp early
+        if (window.Telegram?.WebApp) {
+            const tg = window.Telegram.WebApp;
+            console.log('Telegram WebApp Info:', {
+                version: tg.version,
+                platform: tg.platform,
+                colorScheme: tg.colorScheme,
+                initData: tg.initData
+            });
+            
+            // Ready the app
+            tg.ready();
+            tg.expand();
+            
+            // Remove loading after initialization
+            setTimeout(() => {
+                const loading = document.getElementById('loading');
+                if (loading) {
+                    loading.style.display = 'none';
+                }
+            }, 1000);
+        } else {
+            console.warn('Not running in Telegram WebApp');
+            // Show warning for development
+            if (location.hostname === 'localhost' || location.hostname === '127.0.0.1') {
+                setTimeout(() => {
+                    const loading = document.getElementById('loading');
+                    if (loading) {
+                        loading.innerHTML = '<div class="error-message"><h2>Development Mode</h2><p>Running outside Telegram WebApp</p></div>';
+                    }
+                }, 1000);
+            }
+        }
+        
+        // Error handling
+        window.addEventListener('error', (event) => {
+            console.error('Global error:', event.error);
+        });
+        
+        window.addEventListener('unhandledrejection', (event) => {
+            console.error('Unhandled promise rejection:', event.reason);
+        });
+    </script>
+    
+    <!-- Your React app bundle will be injected here by Vite -->
     <script type="module" src="/src/main.tsx"></script>
-  </body>
+</body>
 </html>

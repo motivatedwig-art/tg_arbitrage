@@ -8,9 +8,8 @@
   },
   "env": {
     "NODE_ENV": "production",
-    "WEBAPP_URL": "https://crypto-arbitrage-2mjtcip5b-motivatedwig-arts-projects.vercel.app",
-    "TELEGRAM_BOT_TOKEN": "8467603449:AAFvY-Qy5aT4mYDwogA7tQnKirhBDyJ2Ios",
-    "USE_MOCK_DATA": "false",
+    "WEBAPP_URL": "https://tg-arbitrage.vercel.app",
+    "TELEGRAM_BOT_TOKEN": "8467603449:AAFvY-Qy5aT4mYDwogA7tQnKirhBDyJ2Ios",    "USE_MOCK_DATA": "false",
     "BINANCE_API_KEY": "",
     "BINANCE_SECRET": "",
     "OKX_API_KEY": "",

@@ -40,15 +40,13 @@ const createExchangeInstance = (meta) => {
 export const buildExchangeClients = (exchanges) => {
   const normalized = resolveSelectedExchanges(exchanges);
 
+  // Return a simple object with exchange IDs since we're using public APIs
   return normalized.reduce((acc, id) => {
     const meta = SUPPORTED_EXCHANGES[id];
     if (!meta) return acc;
 
-    try {
-      acc[id] = createExchangeInstance(meta);
-    } catch (error) {
-      console.error(`Failed to initialize exchange ${id}:`, error);
-    }
+    // Just return the exchange ID as a placeholder
+    acc[id] = { id };
     return acc;
   }, {});
 };
@@ -69,21 +67,103 @@ const formatTicker = (ticker, { symbol, exchangeId }) => {
   };
 };
 
+// Fetch tickers using public APIs instead of CCXT
 export const fetchTickers = async (clients, symbols = DEFAULT_SYMBOLS) => {
   const results = {};
 
-  for (const [exchangeId, client] of Object.entries(clients)) {
-    try {
-      await client.loadMarkets();
-      const tickers = await client.fetchTickers(symbols);
+  // Use public APIs for each exchange
+  const exchangeAPIs = {
+    binance: {
+      url: 'https://api.binance.com/api/v3/ticker/price',
+      allUrl: 'https://api.binance.com/api/v3/ticker/price',
+      symbolKey: 'symbol',
+      priceKey: 'price'
+    },
+    okx: {
+      url: 'https://www.okx.com/api/v5/market/tickers?instType=SPOT',
+      allUrl: 'https://www.okx.com/api/v5/market/tickers?instType=SPOT',
+      symbolKey: 'instId',
+      priceKey: 'last'
+    },
+    bybit: {
+      url: 'https://api.bybit.com/v5/market/tickers?category=spot',
+      allUrl: 'https://api.bybit.com/v5/market/tickers?category=spot',
+      symbolKey: 'symbol',
+      priceKey: 'lastPrice'
+    },
+    bitget: {
+      url: 'https://api.bitget.com/api/v2/spot/market/tickers',
+      allUrl: 'https://api.bitget.com/api/v2/spot/market/tickers',
+      symbolKey: 'symbol',
+      priceKey: 'close'
+    },
+    mexc: {
+      url: 'https://api.mexc.com/api/v3/ticker/price',
+      allUrl: 'https://api.mexc.com/api/v3/ticker/price',
+      symbolKey: 'symbol',
+      priceKey: 'price'
+    },
+    bingx: {
+      url: 'https://open-api.bingx.com/openApi/spot/v1/ticker/price',
+      allUrl: 'https://open-api.bingx.com/openApi/spot/v1/ticker/price',
+      symbolKey: 'symbol',
+      priceKey: 'price'
+    },
+    gateio: {
+      url: 'https://api.gateio.ws/api/v4/spot/tickers',
+      allUrl: 'https://api.gateio.ws/api/v4/spot/tickers',
+      symbolKey: 'currency_pair',
+      priceKey: 'last'
+    },
+    kucoin: {
+      url: 'https://api.kucoin.com/api/v1/market/allTickers',
+      allUrl: 'https://api.kucoin.com/api/v1/market/allTickers',
+      symbolKey: 'symbol',
+      priceKey: 'last'
+    }
+  };
 
-      results[exchangeId] = Object.entries(tickers).reduce((acc, [symbol, ticker]) => {
-        const data = formatTicker(ticker, { symbol, exchangeId });
-        if (data) {
-          acc[symbol] = data;
+  for (const [exchangeId, apiConfig] of Object.entries(exchangeAPIs)) {
+    try {
+      console.log(`Fetching real ${exchangeId} tickers...`);
+      const response = await fetch(apiConfig.allUrl);
+      const data = await response.json();
+      
+      if (!data || !Array.isArray(data.data) && !Array.isArray(data)) {
+        console.log(`No real data received from ${exchangeId}, falling back to mock`);
+        continue;
+      }
+
+      const tickers = Array.isArray(data.data) ? data.data : data;
+      const tickerCount = tickers.length;
+      console.log(`Received ${tickerCount} tickers from ${exchangeId}`);
+
+      results[exchangeId] = {};
+      
+      // Process tickers and create bid/ask prices
+      tickers.forEach(ticker => {
+        const symbol = ticker[apiConfig.symbolKey];
+        const price = parseFloat(ticker[apiConfig.priceKey]);
+        
+        if (symbol && price && price > 0) {
+          // Create synthetic bid/ask spread (0.1% spread)
+          const spread = price * 0.001;
+          const bid = price - spread / 2;
+          const ask = price + spread / 2;
+          
+          results[exchangeId][symbol] = {
+            symbol,
+            exchangeId,
+            bid,
+            ask,
+            spread: ask - bid,
+            baseVolume: ticker.volume || ticker.quoteVolume || 0,
+            timestamp: Date.now()
+          };
         }
-        return acc;
-      }, {});
+      });
+
+      console.log(`Updated ${Object.keys(results[exchangeId]).length} tickers for ${exchangeId}`);
     } catch (error) {
       console.error(`Error fetching tickers for ${exchangeId}:`, error.message || error);
     }

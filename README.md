@@ -1,158 +1,211 @@
 # Crypto Arbitrage Telegram Bot
 
-A comprehensive Telegram bot that identifies and displays profitable cryptocurrency arbitrage opportunities across multiple exchanges in real-time.
+A Telegram Web App that provides real-time cryptocurrency arbitrage opportunities across multiple exchanges.
 
 ## Features
 
-- 🚀 **Real-time Arbitrage Detection**: Monitors 8+ cryptocurrency exchanges for profitable arbitrage opportunities
-- 🤖 **Telegram Bot Interface**: Interactive bot with multilingual support (English/Russian)
-- 📱 **Mini Web App**: Interactive table showing arbitrage opportunities
-- 🔔 **Smart Notifications**: Alerts for high-profit opportunities (>2%)
-- 🌐 **Multi-language Support**: English and Russian interfaces
-- 📊 **Historical Data**: Track and analyze arbitrage performance
-- ⚙️ **Customizable Settings**: Adjust profit thresholds and preferences
+- 🔍 Real-time arbitrage opportunity detection
+- 📱 Native Telegram Web App experience
+- 🏪 Support for 8 major exchanges (Binance, OKX, Bybit, Bitget, MEXC, BingX, Gate.io, KuCoin)
+- 📊 Interactive data visualization
+- ⚡ Auto-refresh every 30 seconds
+- 🎯 Profitability filtering
+- 💾 User preference persistence
+- 📱 Mobile-optimized interface
 
 ## Supported Exchanges
 
-- Binance
-- OKX
-- Bybit
-- BitGet
-- MEXC
-- BingX
-- Gate.io
-- KuCoin
+- **Binance** - World's largest crypto exchange
+- **OKX** - Leading crypto exchange
+- **Bybit** - Derivatives and spot trading
+- **Bitget** - Global crypto exchange
+- **MEXC** - Global digital asset trading platform
+- **BingX** - Social trading platform
+- **Gate.io** - Global cryptocurrency exchange
+- **KuCoin** - Global cryptocurrency exchange
 
 ## Quick Start
 
-1. **Clone the repository**
-   ```bash
-   git clone <repository-url>
-   cd crypto-arbitrage-bot
-   ```
+### Prerequisites
 
-2. **Install dependencies**
-   ```bash
-   npm install
-   ```
+- Node.js 18+ 
+- npm or yarn
+- Telegram Bot Token
 
-3. **Configure environment**
-   ```bash
-   cp .env.example .env
-   # Edit .env with your API keys and bot token
-   ```
+### Installation
 
-4. **Build the project**
-   ```bash
-   npm run build
-   ```
+1. Clone the repository:
+```bash
+git clone <repository-url>
+cd crypto-arbitrage-telegram-bot
+```
 
-5. **Start the bot**
-   ```bash
-   npm start
-   ```
+2. Install dependencies:
+```bash
+npm install
+```
 
-   For development:
-   ```bash
-   npm run dev
-   ```
+3. Set up environment variables:
+```bash
+cp .env.example .env
+```
 
-## Bot Commands
+4. Configure your `.env` file with your Telegram Bot Token:
+```env
+TELEGRAM_BOT_TOKEN=your_telegram_bot_token_here
+WEBAPP_URL=https://your-domain.vercel.app
+VITE_API_BASE_URL=https://your-domain.vercel.app/api
+```
 
-- `/start` - Welcome message and setup
-- `/help` - Show all available commands
-- `/status` - Display system and exchange status
-- `/settings` - Configure user preferences
-- `/language` - Switch between English and Russian
-- `/top` - Show top 10 arbitrage opportunities
-- `/subscribe` - Toggle notifications on/off
-- `/webapp` - Open the mini web application
-- `/stats` - View your statistics
+5. Start the development server:
+```bash
+npm run dev
+```
 
-## Configuration
+## Environment Configuration
 
-### Environment Variables
-
-Create a `.env` file with the following variables:
+### Required Variables
 
 ```env
-# Telegram Bot
-TELEGRAM_BOT_TOKEN=8467603449:AAFvY-Qy5aT4mYDwogA7tQnKirhBDyJ2Ios
-WEBAPP_URL=https://tg-arbitrage.vercel.app
+# Telegram Bot Configuration
+TELEGRAM_BOT_TOKEN=your_telegram_bot_token_here
+WEBAPP_URL=https://your-domain.vercel.app
 
-# Exchange API Keys (optional for public data)
-BINANCE_API_KEY=
-BINANCE_API_SECRET=
-OKX_API_KEY=
-OKX_API_SECRET=
-OKX_PASSPHRASE=
-# ... other exchange keys
+# Frontend API Configuration
+VITE_API_BASE_URL=https://your-domain.vercel.app/api
+VITE_API_URL=https://your-domain.vercel.app/api
+```
 
+### Optional Variables
+
+```env
 # Application Settings
 PORT=3000
 NODE_ENV=development
 UPDATE_INTERVAL=30000
 MIN_PROFIT_THRESHOLD=0.5
+MAX_OPPORTUNITIES=50
+
+# Database
+DATABASE_PATH=./database.sqlite
+
+# Rate Limiting
+RATE_LIMIT_WINDOW=15
+RATE_LIMIT_MAX_REQUESTS=100
+
+# Development
+USE_MOCK_DATA=false
+DEBUG=false
+LOG_LEVEL=info
 ```
 
-### Database
+### Exchange API Keys (Optional)
 
-The bot uses SQLite by default. The database file will be created automatically at `./database.sqlite`.
+For enhanced features, you can add exchange API keys:
 
-## Architecture
+```env
+# Binance
+BINANCE_API_KEY=your_binance_api_key
+BINANCE_API_SECRET=your_binance_api_secret
+
+# OKX
+OKX_API_KEY=your_okx_api_key
+OKX_API_SECRET=your_okx_api_secret
+OKX_PASSPHRASE=your_okx_passphrase
+
+# Add other exchanges as needed...
+```
+
+## Project Structure
 
 ```
 src/
-├── bot/                 # Telegram bot implementation
-│   ├── handlers/        # Command and callback handlers
-│   ├── keyboards/       # Inline keyboards
-│   └── TelegramBot.ts   # Main bot class
-├── exchanges/           # Exchange integration
-│   ├── adapters/        # Exchange-specific adapters
-│   ├── types/           # TypeScript interfaces
-│   └── ExchangeManager.ts
-├── arbitrage/           # Arbitrage calculation engine
-│   └── calculator/
-├── database/            # Database models and management
-│   └── models/
-├── utils/               # Utilities (i18n, etc.)
-└── index.ts             # Application entry point
+├── components/          # React components
+│   ├── ArbitrageTable.tsx
+│   ├── ExchangeSelector.tsx
+│   ├── LoadingSpinner.tsx
+│   └── ErrorMessage.tsx
+├── hooks/              # Custom React hooks
+│   ├── useTelegramWebApp.ts
+│   └── useArbitrageData.ts
+├── services/           # API services
+│   └── api.ts
+├── types/              # TypeScript type definitions
+│   └── index.ts
+├── config/             # Configuration
+│   └── environment.ts
+├── bot/                # Telegram bot logic
+│   └── TelegramBot.ts
+└── App.tsx             # Main App component
 ```
 
 ## Development
 
-### Running in Development Mode
+### Local Development
 
+1. Start the backend server:
+```bash
+npm run dev:server
+```
+
+2. Start the frontend development server:
 ```bash
 npm run dev
 ```
 
-### Building for Production
+3. The app will be available at `http://localhost:3000`
 
+### Environment Files
+
+- `.env` - Main environment configuration
+- `.env.development` - Development-specific settings
+- `.env.production` - Production-specific settings
+- `.env.example` - Template for environment variables
+
+## Deployment
+
+### Vercel (Recommended)
+
+1. Connect your repository to Vercel
+2. Set environment variables in Vercel dashboard
+3. Deploy automatically on push to main branch
+
+### Manual Deployment
+
+1. Build the project:
 ```bash
 npm run build
+```
+
+2. Start the production server:
+```bash
 npm start
 ```
 
-### Testing
+## Telegram Bot Setup
+
+1. Create a new bot with [@BotFather](https://t.me/botfather)
+2. Get your bot token
+3. Set the webhook URL to your deployed app
+4. Configure the bot menu and commands
+
+## API Endpoints
+
+### Public Endpoints
+
+- `GET /api/opportunities` - Get arbitrage opportunities
+- `GET /api/status` - Get exchange status
+- `GET /api/health` - Health check
+
+### Parameters
+
+- `exchanges` - Comma-separated list of exchange IDs to filter
+
+### Example
 
 ```bash
-npm test
+curl "https://your-domain.vercel.app/api/opportunities?exchanges=binance,okx"
 ```
-
-## API Rate Limits
-
-The bot respects exchange API rate limits:
-- Updates every 30 seconds by default
-- Implements proper rate limiting for each exchange
-- Graceful handling of rate limit errors
-
-## Security
-
-- API keys are encrypted in the database
-- Input validation and sanitization
-- Secure WebSocket connections
-- Rate limiting for bot commands
 
 ## Contributing
 
@@ -164,12 +217,12 @@ The bot respects exchange API rate limits:
 
 ## License
 
-MIT License - see LICENSE file for details.
+MIT License - see LICENSE file for details
 
 ## Support
 
-For support, please contact [your-contact-info] or create an issue in the repository.
+For support, please open an issue on GitHub or contact the development team.
 
 ## Disclaimer
 
-This bot is for educational and informational purposes only. Cryptocurrency trading involves risk, and you should never invest more than you can afford to lose. Always do your own research before making trading decisions.
+This tool is for educational and informational purposes only. Cryptocurrency trading involves significant risk. Always do your own research and never invest more than you can afford to lose.
