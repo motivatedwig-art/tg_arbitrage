@@ -12,7 +12,7 @@ export default defineConfig({
       }
     })
   ],
-  base: process.env.NODE_ENV === 'production' ? '/tg_arbitrage/' : './',
+  base: './',
   root: '.',
   publicDir: 'public',
   build: {
