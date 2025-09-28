@@ -81,7 +81,11 @@ export interface EnvironmentConfig {
 
 // Get environment variable with fallback
 const getEnvVar = (key: string, defaultValue?: string): string => {
-  const value = import.meta.env[key] || process.env[key] || defaultValue;
+  // Check if we're in a browser environment (Vite)
+  const isBrowser = typeof window !== 'undefined';
+  const value = isBrowser 
+    ? (import.meta as any).env?.[key] || process.env[key] || defaultValue
+    : process.env[key] || defaultValue;
   if (!value) {
     throw new Error(`Environment variable ${key} is required`);
   }
@@ -90,13 +94,19 @@ const getEnvVar = (key: string, defaultValue?: string): string => {
 
 // Get environment variable as number
 const getEnvNumber = (key: string, defaultValue: number): number => {
-  const value = import.meta.env[key] || process.env[key];
+  const isBrowser = typeof window !== 'undefined';
+  const value = isBrowser 
+    ? (import.meta as any).env?.[key] || process.env[key]
+    : process.env[key];
   return value ? parseInt(value, 10) : defaultValue;
 };
 
 // Get environment variable as boolean
 const getEnvBoolean = (key: string, defaultValue: boolean): boolean => {
-  const value = import.meta.env[key] || process.env[key];
+  const isBrowser = typeof window !== 'undefined';
+  const value = isBrowser 
+    ? (import.meta as any).env?.[key] || process.env[key]
+    : process.env[key];
   return value ? value.toLowerCase() === 'true' : defaultValue;
 };
 

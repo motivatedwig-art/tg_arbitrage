@@ -71,53 +71,53 @@ const formatTicker = (ticker, { symbol, exchangeId }) => {
 export const fetchTickers = async (clients, symbols = DEFAULT_SYMBOLS) => {
   const results = {};
 
-  // Use public APIs for each exchange
+  // Use public APIs for each exchange from environment variables
   const exchangeAPIs = {
     binance: {
-      url: 'https://api.binance.com/api/v3/ticker/price',
-      allUrl: 'https://api.binance.com/api/v3/ticker/price',
+      url: process.env.BINANCE_ALL_PRICES_API || 'https://api.binance.com/api/v3/ticker/price',
+      allUrl: process.env.BINANCE_ALL_PRICES_API || 'https://api.binance.com/api/v3/ticker/price',
       symbolKey: 'symbol',
       priceKey: 'price'
     },
     okx: {
-      url: 'https://www.okx.com/api/v5/market/tickers?instType=SPOT',
-      allUrl: 'https://www.okx.com/api/v5/market/tickers?instType=SPOT',
+      url: process.env.OKX_ALL_TICKERS_API || 'https://www.okx.com/api/v5/market/tickers?instType=SPOT',
+      allUrl: process.env.OKX_ALL_TICKERS_API || 'https://www.okx.com/api/v5/market/tickers?instType=SPOT',
       symbolKey: 'instId',
       priceKey: 'last'
     },
     bybit: {
-      url: 'https://api.bybit.com/v5/market/tickers?category=spot',
-      allUrl: 'https://api.bybit.com/v5/market/tickers?category=spot',
+      url: process.env.BYBIT_ALL_SPOT_API || 'https://api.bybit.com/v5/market/tickers?category=spot',
+      allUrl: process.env.BYBIT_ALL_SPOT_API || 'https://api.bybit.com/v5/market/tickers?category=spot',
       symbolKey: 'symbol',
       priceKey: 'lastPrice'
     },
     bitget: {
-      url: 'https://api.bitget.com/api/v2/spot/market/tickers',
-      allUrl: 'https://api.bitget.com/api/v2/spot/market/tickers',
+      url: process.env.BITGET_ALL_TICKERS_API || 'https://api.bitget.com/api/v2/spot/market/tickers',
+      allUrl: process.env.BITGET_ALL_TICKERS_API || 'https://api.bitget.com/api/v2/spot/market/tickers',
       symbolKey: 'symbol',
       priceKey: 'close'
     },
     mexc: {
-      url: 'https://api.mexc.com/api/v3/ticker/price',
-      allUrl: 'https://api.mexc.com/api/v3/ticker/price',
+      url: process.env.MEXC_ALL_PRICES_API || 'https://api.mexc.com/api/v3/ticker/price',
+      allUrl: process.env.MEXC_ALL_PRICES_API || 'https://api.mexc.com/api/v3/ticker/price',
       symbolKey: 'symbol',
       priceKey: 'price'
     },
     bingx: {
-      url: 'https://open-api.bingx.com/openApi/spot/v1/ticker/price',
-      allUrl: 'https://open-api.bingx.com/openApi/spot/v1/ticker/price',
+      url: process.env.BINGX_ALL_PRICES_API || 'https://open-api.bingx.com/openApi/spot/v1/ticker/price',
+      allUrl: process.env.BINGX_ALL_PRICES_API || 'https://open-api.bingx.com/openApi/spot/v1/ticker/price',
       symbolKey: 'symbol',
       priceKey: 'price'
     },
     gateio: {
-      url: 'https://api.gateio.ws/api/v4/spot/tickers',
-      allUrl: 'https://api.gateio.ws/api/v4/spot/tickers',
+      url: process.env.GATE_IO_ALL_TICKERS_API || 'https://api.gateio.ws/api/v4/spot/tickers',
+      allUrl: process.env.GATE_IO_ALL_TICKERS_API || 'https://api.gateio.ws/api/v4/spot/tickers',
       symbolKey: 'currency_pair',
       priceKey: 'last'
     },
     kucoin: {
-      url: 'https://api.kucoin.com/api/v1/market/allTickers',
-      allUrl: 'https://api.kucoin.com/api/v1/market/allTickers',
+      url: process.env.KUCOIN_ALL_TICKERS_API || 'https://api.kucoin.com/api/v1/market/allTickers',
+      allUrl: process.env.KUCOIN_ALL_TICKERS_API || 'https://api.kucoin.com/api/v1/market/allTickers',
       symbolKey: 'symbol',
       priceKey: 'last'
     }

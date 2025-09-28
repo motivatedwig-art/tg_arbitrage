@@ -1,5 +1,5 @@
 {
-  "buildCommand": "npm run build",
+  "buildCommand": "npm run build:frontend",
   "outputDirectory": "dist",
   "functions": {
     "api/*.ts": {
@@ -8,25 +8,20 @@
   },
   "env": {
     "NODE_ENV": "production",
-    "WEBAPP_URL": "https://tg-arbitrage.vercel.app",
-    "TELEGRAM_BOT_TOKEN": "8467603449:AAFvY-Qy5aT4mYDwogA7tQnKirhBDyJ2Ios",    "USE_MOCK_DATA": "false",
-    "BINANCE_API_KEY": "",
-    "BINANCE_SECRET": "",
-    "OKX_API_KEY": "",
-    "OKX_SECRET": "",
-    "BYBIT_API_KEY": "",
-    "BYBIT_SECRET": "",
-    "BITGET_API_KEY": "",
-    "BITGET_SECRET": "",
-    "MEXC_API_KEY": "",
-    "MEXC_SECRET": "",
-    "BINGX_API_KEY": "",
-    "BINGX_SECRET": "",
-    "GATE_IO_API_KEY": "",
-    "GATE_IO_SECRET": "",
-    "KUCOIN_API_KEY": "",
-    "KUCOIN_SECRET": "",
-    "PORT": "3001"
+    "WEBAPP_URL": "https://crypto-arbitrage-tg.vercel.app",
+    "TELEGRAM_BOT_TOKEN": "8467603449:AAFvY-Qy5aT4mYDwogA7tQnKirhBDyJ2Ios",
+    "VITE_API_BASE_URL": "https://crypto-arbitrage-tg.vercel.app/api",
+    "VITE_API_URL": "https://crypto-arbitrage-tg.vercel.app/api",
+    "USE_MOCK_DATA": "false",
+    "DEBUG": "false",
+    "BINANCE_ALL_PRICES_API": "https://api.binance.com/api/v3/ticker/price",
+    "OKX_ALL_TICKERS_API": "https://www.okx.com/api/v5/market/tickers?instType=SPOT",
+    "BYBIT_ALL_SPOT_API": "https://api.bybit.com/v5/market/tickers?category=spot",
+    "BITGET_ALL_TICKERS_API": "https://api.bitget.com/api/v2/spot/market/tickers",
+    "MEXC_ALL_PRICES_API": "https://api.mexc.com/api/v3/ticker/price",
+    "BINGX_ALL_PRICES_API": "https://open-api.bingx.com/openApi/spot/v1/ticker/price",
+    "GATE_IO_ALL_TICKERS_API": "https://api.gateio.ws/api/v4/spot/tickers",
+    "KUCOIN_ALL_TICKERS_API": "https://api.kucoin.com/api/v1/market/allTickers"
   },
   "build": {
     "env": {
