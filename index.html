@@ -5,9 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>Crypto Arbitrage Bot</title>
     
-    <!-- Content Security Policy -->
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://telegram.org; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; connect-src 'self' https:; font-src 'self' data:; object-src 'none'; base-uri 'self'; form-action 'self';">
-    
     <!-- Telegram WebApp SDK - CRITICAL -->
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     
@@ -114,61 +111,9 @@
         </div>
     </div>
     
-    <script>
-        // Debug information
-        console.log('Telegram WebApp available:', !!window.Telegram?.WebApp);
-        console.log('User Agent:', navigator.userAgent);
-        console.log('Environment:', {
-            href: window.location.href,
-            hostname: window.location.hostname,
-            protocol: window.location.protocol
-        });
-        
-        // Initialize Telegram WebApp early
-        if (window.Telegram?.WebApp) {
-            const tg = window.Telegram.WebApp;
-            console.log('Telegram WebApp Info:', {
-                version: tg.version,
-                platform: tg.platform,
-                colorScheme: tg.colorScheme,
-                initData: tg.initData
-            });
-            
-            // Ready the app
-            tg.ready();
-            tg.expand();
-            
-            // Remove loading after initialization
-            setTimeout(() => {
-                const loading = document.getElementById('loading');
-                if (loading) {
-                    loading.style.display = 'none';
-                }
-            }, 1000);
-        } else {
-            console.warn('Not running in Telegram WebApp');
-            // Show warning for development
-            if (location.hostname === 'localhost' || location.hostname === '127.0.0.1') {
-                setTimeout(() => {
-                    const loading = document.getElementById('loading');
-                    if (loading) {
-                        loading.innerHTML = '<div class="error-message"><h2>Development Mode</h2><p>Running outside Telegram WebApp</p></div>';
-                    }
-                }, 1000);
-            }
-        }
-        
-        // Error handling
-        window.addEventListener('error', (event) => {
-            console.error('Global error:', event.error);
-        });
-        
-        window.addEventListener('unhandledrejection', (event) => {
-            console.error('Unhandled promise rejection:', event.reason);
-        });
-    </script>
+    <!-- Telegram WebApp initialization -->
+    <script src="./telegram-init.js"></script>
     
     <!-- Your React app bundle will be injected here by Vite -->
-    <script type="module" src="/src/main.tsx"></script>
 </body>
 </html>
