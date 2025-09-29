@@ -3,18 +3,32 @@ const { Database: SQLiteDB } = sqlite3;
 type SQLiteDatabase = sqlite3.Database;
 import { UserModel } from './models/User.js';
 import { ArbitrageOpportunityModel } from './models/ArbitrageOpportunity.js';
+import { DatabaseManagerPostgres } from './DatabasePostgres.js';
 
 export class DatabaseManager {
   private static instance: DatabaseManager;
-  private db: SQLiteDatabase;
+  private db: SQLiteDatabase | DatabaseManagerPostgres;
   private userModel: UserModel;
   private arbitrageModel: ArbitrageOpportunityModel;
+  private isPostgres: boolean;
 
   private constructor() {
-    const dbPath = process.env.DATABASE_URL || './database.sqlite';
-    this.db = new SQLiteDB(dbPath);
-    this.userModel = new UserModel(this.db);
-    this.arbitrageModel = new ArbitrageOpportunityModel(this.db);
+    // Check if we have a PostgreSQL connection string
+    if (process.env.DATABASE_URL && process.env.DATABASE_URL.startsWith('postgresql://')) {
+      console.log('🔗 Using PostgreSQL database (Railway)');
+      this.isPostgres = true;
+      this.db = DatabaseManagerPostgres.getInstance();
+    } else {
+      console.log('💾 Using SQLite database (local)');
+      this.isPostgres = false;
+      const dbPath = process.env.DATABASE_URL || './database.sqlite';
+      this.db = new SQLiteDB(dbPath);
+    }
+    
+    // For now, we'll use mock models for PostgreSQL
+    // TODO: Create PostgreSQL-compatible models
+    this.userModel = new UserModel(this.db as SQLiteDatabase);
+    this.arbitrageModel = new ArbitrageOpportunityModel(this.db as SQLiteDatabase);
   }
 
   public static getInstance(): DatabaseManager {
@@ -26,11 +40,18 @@ export class DatabaseManager {
 
   public async init(): Promise<void> {
     try {
-      await this.userModel.createTable();
-      await this.arbitrageModel.createTable();
-      console.log('Database initialized successfully');
+      if (this.isPostgres) {
+        // PostgreSQL initialization
+        await (this.db as DatabaseManagerPostgres).init();
+        console.log('✅ PostgreSQL database initialized successfully');
+      } else {
+        // SQLite initialization
+        await this.userModel.createTable();
+        await this.arbitrageModel.createTable();
+        console.log('✅ SQLite database initialized successfully');
+      }
     } catch (error) {
-      console.error('Failed to initialize database:', error);
+      console.error('❌ Failed to initialize database:', error);
       throw error;
     }
   }
@@ -48,15 +69,19 @@ export class DatabaseManager {
   }
 
   public async close(): Promise<void> {
-    return new Promise((resolve, reject) => {
-      this.db.close((err) => {
-        if (err) {
-          reject(err);
-        } else {
-          resolve();
-        }
+    if (this.isPostgres) {
+      await (this.db as DatabaseManagerPostgres).close();
+    } else {
+      return new Promise((resolve, reject) => {
+        (this.db as SQLiteDatabase).close((err) => {
+          if (err) {
+            reject(err);
+          } else {
+            resolve();
+          }
+        });
       });
-    });
+    }
   }
 
   public async runMigrations(): Promise<void> {

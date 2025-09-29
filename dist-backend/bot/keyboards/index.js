@@ -15,7 +15,7 @@ export class KeyboardManager {
                     { text: i18n.t('buttons.language', lng), callback_data: 'language' }
                 ],
                 [
-                    { text: i18n.t('buttons.web_application', lng), web_app: { url: process.env.WEBAPP_URL || 'https://tg-arbitrage.vercel.app' } }
+                    { text: i18n.t('buttons.web_application', lng), web_app: { url: process.env.WEBAPP_URL || 'https://crypto-arbitrage-2mjtcip5b-motivatedwig-arts-projects.vercel.app' } }
                 ]
             ]
         };
@@ -67,7 +67,7 @@ export class KeyboardManager {
                 [
                     {
                         text: i18n.t('buttons.webapp', lng),
-                        web_app: { url: process.env.WEBAPP_URL || 'https://tg-arbitrage.vercel.app' }
+                        web_app: { url: process.env.WEBAPP_URL || 'https://crypto-arbitrage-2mjtcip5b-motivatedwig-arts-projects.vercel.app' }
                     }
                 ]
             ]
