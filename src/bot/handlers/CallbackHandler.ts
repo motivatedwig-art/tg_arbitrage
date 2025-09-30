@@ -127,7 +127,9 @@ export class CallbackHandler {
     await this.db.getUserModel().updateLanguage(telegramId, newLng);
     console.log(`✅ Language updated in database`);
     
-    const confirmMessage = i18n.t('commands.language_changed', newLng);
+    const confirmMessage = newLng === 'ru' 
+      ? "✅ Язык изменен на русский" 
+      : "✅ Language changed to English";
     console.log(`📝 Confirmation message: ${confirmMessage}`);
     
     const keyboard = KeyboardManager.getMainMenuKeyboard(newLng);

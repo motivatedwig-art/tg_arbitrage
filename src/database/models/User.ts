@@ -18,7 +18,7 @@ export class UserModel {
           created_at INTEGER NOT NULL,
           preferences TEXT NOT NULL,
           api_keys_encrypted TEXT,
-          is_active BOOLEAN DEFAULT 1
+          is_active BOOLEAN NOT NULL DEFAULT 1
         )
       `;
       
@@ -36,7 +36,9 @@ export class UserModel {
       this.db.get(sql, [telegramId], (err, row: any) => {
         if (err) {
           reject(err);
-        } else if (row) {
+        } else if (!row) {
+          resolve(null);
+        } else {
           resolve({
             id: row.id,
             telegramId: row.telegram_id,
@@ -46,8 +48,6 @@ export class UserModel {
             apiKeysEncrypted: row.api_keys_encrypted,
             isActive: Boolean(row.is_active)
           });
-        } else {
-          resolve(null);
         }
       });
     });

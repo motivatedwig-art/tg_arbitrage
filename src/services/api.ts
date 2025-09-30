@@ -3,13 +3,9 @@ import { ApiResponse, Exchange, ArbitrageOpportunity } from '../types';
 
 // Get API base URL with fallback
 const getAPIBaseURL = (): string => {
-  // Check for different environment variable names
-  const envUrl = import.meta.env.VITE_API_BASE_URL || 
-                 import.meta.env.VITE_API_URL || 
-                 process.env.WEBAPP_URL;
-                 
+  const envUrl = import.meta.env.VITE_API_BASE_URL;
+  
   if (envUrl) {
-    // Ensure it ends with /api
     return envUrl.endsWith('/api') ? envUrl : `${envUrl}/api`;
   }
   
@@ -18,8 +14,8 @@ const getAPIBaseURL = (): string => {
     return 'http://localhost:3000/api';
   }
   
-  // Production fallback
-  return 'https://tg-arbitrage.vercel.app/api';
+  // Production - this should be set via env var
+  throw new Error('VITE_API_BASE_URL not configured');
 };
 
 const API_BASE_URL = getAPIBaseURL();

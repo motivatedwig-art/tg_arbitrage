@@ -11,6 +11,7 @@ import {
   getExchangeLogo,
   getExchangePairUrlPattern
 } from './_lib/exchangeConfig.js';
+import { getDatabase } from './lib/database.js';
 
 const withCors = (handler) => async (req, res) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -82,6 +83,42 @@ const handler = async (req, res) => {
       return;
     }
 
+    // Try to get opportunities from database first (from ArbitrageScanner)
+    try {
+      const db = getDatabase();
+      const dbOpportunities = await db.getRecentOpportunities(30); // Last 30 minutes
+      
+      if (dbOpportunities && dbOpportunities.length > 0) {
+        console.log(`📊 Found ${dbOpportunities.length} opportunities from database`);
+        
+        // Filter by selected exchanges if specified
+        let filteredOpportunities = dbOpportunities;
+        if (selectedExchanges.length > 0) {
+          filteredOpportunities = dbOpportunities.filter(opp => 
+            selectedExchanges.includes(opp.buyExchange.toLowerCase()) || 
+            selectedExchanges.includes(opp.sellExchange.toLowerCase())
+          );
+        }
+
+        // Filter by symbols if specified
+        if (symbols.length > 0) {
+          filteredOpportunities = filteredOpportunities.filter(opp => 
+            symbols.includes(opp.symbol)
+          );
+        }
+
+        res.status(200).json({
+          success: true,
+          data: filteredOpportunities,
+          meta: buildMeta(selectedExchanges, symbols, filteredOpportunities)
+        });
+        return;
+      }
+    } catch (dbError) {
+      console.warn('Database query failed, falling back to live API:', dbError.message);
+    }
+
+    // Fallback to live API calls if no database data
     const clients = buildExchangeClients(selectedExchanges);
 
     if (!Object.keys(clients).length) {

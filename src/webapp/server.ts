@@ -41,8 +41,10 @@ export class WebAppServer {
 
     // CORS middleware
     this.app.use(cors({
-      origin: true,
-      credentials: true
+      origin: process.env.WEBAPP_URL || '*',
+      credentials: true,
+      methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+      allowedHeaders: ['Content-Type', 'Authorization']
     }));
 
     // JSON middleware

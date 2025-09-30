@@ -1,7 +1,6 @@
 export declare class BackgroundProcessor {
     private db;
-    private exchangeManager;
-    private arbitrageCalculator;
+    private arbitrageScanner;
     private isProcessing;
     private healthcheckInterval;
     constructor();

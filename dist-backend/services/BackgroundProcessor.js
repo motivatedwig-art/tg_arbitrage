@@ -1,54 +1,36 @@
 import dotenv from 'dotenv';
-import { DatabaseManagerPostgres } from '../database/DatabasePostgres.js';
-import { ExchangeManager } from '../exchanges/ExchangeManager.js';
-import { ArbitrageCalculator } from '../arbitrage/calculator/ArbitrageCalculator.js';
+import { DatabaseManager } from '../database/Database.js';
+import { ArbitrageScanner } from './ArbitrageScanner.js';
 dotenv.config();
 export class BackgroundProcessor {
     constructor() {
         this.isProcessing = false;
-        this.db = DatabaseManagerPostgres.getInstance();
-        this.exchangeManager = ExchangeManager.getInstance();
-        this.arbitrageCalculator = new ArbitrageCalculator(parseFloat(process.env.MIN_PROFIT_THRESHOLD || '0.5'), parseFloat(process.env.MAX_PROFIT_THRESHOLD || '110'));
+        this.db = DatabaseManager.getInstance();
+        this.arbitrageScanner = new ArbitrageScanner();
     }
     async start() {
         try {
             console.log('🚀 Starting Background Arbitrage Processor...');
             // Initialize database
             await this.db.init();
-            // Initialize exchanges
-            console.log('🔌 Initializing exchanges...');
-            await this.exchangeManager.initializeExchanges();
-            // Start processing loop
-            this.startProcessingLoop();
+            // Start arbitrage scanner
+            console.log('🔌 Starting arbitrage scanner...');
+            await this.arbitrageScanner.start();
             // Start healthcheck (for Railway monitoring)
             this.startHealthcheck();
             console.log('✅ Background Processor is running!');
-            console.log(`📊 Processing every ${process.env.UPDATE_INTERVAL || '30000'}ms`);
-            console.log(`💰 Min profit threshold: ${this.arbitrageCalculator.getMinProfitThreshold()}%`);
+            console.log(`📊 Scanner running with ${process.env.SCAN_INTERVAL_MS || '15000'}ms interval`);
+            console.log(`💰 Profit threshold: ${process.env.PROFIT_THRESHOLD || '0.002'} (${(Number(process.env.PROFIT_THRESHOLD || '0.002') * 100).toFixed(2)}%)`);
         }
         catch (error) {
             console.error('❌ Failed to start processor:', error);
             process.exit(1);
         }
     }
+    // Processing loop is now handled by ArbitrageScanner
+    // This method is kept for compatibility but does nothing
     startProcessingLoop() {
-        const interval = parseInt(process.env.UPDATE_INTERVAL || '30000');
-        setInterval(async () => {
-            if (this.isProcessing) {
-                console.log('⏳ Skipping - previous process still running');
-                return;
-            }
-            try {
-                this.isProcessing = true;
-                await this.processArbitrageData();
-            }
-            catch (error) {
-                console.error('❌ Error in processing loop:', error);
-            }
-            finally {
-                this.isProcessing = false;
-            }
-        }, interval);
+        // No longer needed - ArbitrageScanner handles its own interval
     }
     startHealthcheck() {
         // Log health status every 5 minutes
@@ -58,65 +40,23 @@ export class BackgroundProcessor {
                 timestamp: new Date().toISOString(),
                 memory: Math.round(memoryUsage.heapUsed / 1024 / 1024) + 'MB',
                 uptime: Math.round(process.uptime()) + 's',
-                processing: this.isProcessing
+                scannerActive: this.arbitrageScanner.isActive()
             });
         }, 5 * 60 * 1000);
     }
+    // This method is no longer needed - ArbitrageScanner handles all processing
     async processArbitrageData() {
-        const startTime = Date.now();
-        console.log('📊 Processing arbitrage data...');
-        try {
-            // Update ticker data from all exchanges
-            await this.exchangeManager.updateAllTickers();
-            // Calculate arbitrage opportunities
-            const allTickers = this.exchangeManager.getAllTickers();
-            const opportunities = this.arbitrageCalculator.calculateArbitrageOpportunities(allTickers);
-            console.log(`🔍 Found ${opportunities.length} arbitrage opportunities`);
-            if (opportunities.length > 0) {
-                // Store opportunities in database
-                await this.db.insertOpportunities(opportunities);
-                // Filter high-profit opportunities for summary
-                const highProfitOpportunities = opportunities.filter(opp => opp.profitPercentage >= 2.0 &&
-                    opp.profitPercentage <= this.arbitrageCalculator.getMaxProfitThreshold());
-                if (highProfitOpportunities.length > 0) {
-                    console.log(`📈 Found ${highProfitOpportunities.length} high-profit opportunities (>=2%)`);
-                    // Log top 3 opportunities
-                    highProfitOpportunities.slice(0, 3).forEach((opp, index) => {
-                        console.log(`🏆 #${index + 1}: ${opp.symbol} - ${opp.profitPercentage.toFixed(2)}% profit (${opp.buyExchange} → ${opp.sellExchange})`);
-                    });
-                }
-                else {
-                    // Log top opportunity even if not high-profit
-                    const topOpportunity = opportunities[0];
-                    console.log(`🏆 Top: ${topOpportunity.symbol} - ${topOpportunity.profitPercentage.toFixed(2)}% profit`);
-                }
-                const processingTime = Date.now() - startTime;
-                console.log(`✅ Processed ${opportunities.length} opportunities in ${processingTime}ms`);
-            }
-            else {
-                console.log('ℹ️ No arbitrage opportunities found');
-            }
-        }
-        catch (error) {
-            console.error('❌ Error processing arbitrage data:', error);
-            // Log detailed error for debugging
-            if (error instanceof Error) {
-                console.error('Error details:', {
-                    message: error.message,
-                    stack: error.stack
-                });
-            }
-        }
+        // No longer needed - ArbitrageScanner handles all processing
     }
     async stop() {
         console.log('🛑 Stopping Background Processor...');
         try {
+            // Stop arbitrage scanner
+            this.arbitrageScanner.stop();
             // Clear intervals
             if (this.healthcheckInterval) {
                 clearInterval(this.healthcheckInterval);
             }
-            // Disconnect exchanges
-            await this.exchangeManager.disconnect();
             // Close database connection
             await this.db.close();
             console.log('✅ Background Processor stopped successfully');
@@ -134,7 +74,7 @@ export class BackgroundProcessor {
                 heapUsed: Math.round(memoryUsage.heapUsed / 1024 / 1024) + 'MB',
                 heapTotal: Math.round(memoryUsage.heapTotal / 1024 / 1024) + 'MB'
             },
-            processing: this.isProcessing,
+            scannerActive: this.arbitrageScanner.isActive(),
             timestamp: new Date().toISOString()
         };
     }

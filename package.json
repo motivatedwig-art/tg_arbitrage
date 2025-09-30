@@ -16,7 +16,8 @@
     "preview": "vite preview",
     "lint": "eslint src --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
     "bot": "node -r dotenv/config dist/index.js",
-    "bot:dev": "npx tsc -p tsconfig.backend.json && npm run bot"
+    "bot:dev": "npx tsc -p tsconfig.backend.json && npm run bot",
+    "migrate": "tsx scripts/migrate-to-postgres.ts"
   },
   "engines": {
     "node": ">=18.0.0"
@@ -38,11 +39,13 @@
     "node-cron": "^3.0.0",
     "node-telegram-bot-api": "^0.64.0",
     "pg": "^8.16.3",
+    "pg-hstore": "^2.3.4",
     "psql": "^0.0.1",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-i18next": "^13.5.0",
     "react-query": "^3.39.0",
+    "sequelize": "^6.35.0",
     "sqlite3": "^5.1.0",
     "styled-components": "^6.0.0",
     "typescript": "^5.0.0"
