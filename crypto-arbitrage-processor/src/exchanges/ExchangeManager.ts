@@ -69,14 +69,15 @@ export class ExchangeManager {
         enableRateLimit: true,
         rateLimit: 120
       },
-      {
-        name: ExchangeName.BITGET,
-        apiKey: process.env.BITGET_API_KEY || '',
-        apiSecret: process.env.BITGET_API_SECRET || '',
-        passphrase: process.env.BITGET_PASSPHRASE || '',
-        enableRateLimit: true,
-        rateLimit: 100
-      },
+      // Temporarily disabled - API endpoint issues
+      // {
+      //   name: ExchangeName.BITGET,
+      //   apiKey: process.env.BITGET_API_KEY || '',
+      //   apiSecret: process.env.BITGET_API_SECRET || '',
+      //   passphrase: process.env.BITGET_PASSPHRASE || '',
+      //   enableRateLimit: true,
+      //   rateLimit: 100
+      // },
       {
         name: ExchangeName.MEXC,
         apiKey: process.env.MEXC_API_KEY || '',
@@ -84,13 +85,14 @@ export class ExchangeManager {
         enableRateLimit: true,
         rateLimit: 50
       },
-      {
-        name: ExchangeName.BINGX,
-        apiKey: process.env.BINGX_API_KEY || '',
-        apiSecret: process.env.BINGX_API_SECRET || '',
-        enableRateLimit: true,
-        rateLimit: 100
-      },
+      // Temporarily disabled - API endpoint issues
+      // {
+      //   name: ExchangeName.BINGX,
+      //   apiKey: process.env.BINGX_API_KEY || '',
+      //   apiSecret: process.env.BINGX_API_SECRET || '',
+      //   enableRateLimit: true,
+      //   rateLimit: 100
+      // },
       {
         name: ExchangeName.GATE_IO,
         apiKey: process.env.GATE_IO_API_KEY || '',
