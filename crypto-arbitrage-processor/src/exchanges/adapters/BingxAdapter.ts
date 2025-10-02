@@ -38,7 +38,7 @@ export class BingxAdapter implements ExchangeAdapter {
 
     try {
       console.log('Fetching real BingX tickers...');
-      const response = await fetch('https://open-api.bingx.com/openApi/spot/v1/ticker/24hr');
+      const response = await fetch('https://open-api.bingx.com/openApi/spot/v1/ticker/price');
       
       if (!response.ok) {
         throw new Error(`BingX API error: ${response.status}`);
@@ -48,17 +48,20 @@ export class BingxAdapter implements ExchangeAdapter {
       console.log(`Received ${data?.data?.length || 0} tickers from BingX`);
       
       const tickers: Ticker[] = (data.data || [])
-        .filter((ticker: any) => ticker.bidPrice && ticker.askPrice)
-        .map((ticker: any) => ({
-          symbol: ticker.symbol,
-          bid: parseFloat(ticker.bidPrice),
-          ask: parseFloat(ticker.askPrice),
-          timestamp: ticker.closeTime || Date.now(),
-          exchange: 'bingx',
-          volume: parseFloat(ticker.volume) || 0,
-          blockchain: undefined,
-          contractAddress: undefined
-        }));
+        .filter((ticker: any) => ticker.symbol && ticker.price && ticker.symbol.includes('USDT'))
+        .map((ticker: any) => {
+          const price = parseFloat(ticker.price);
+          return {
+            symbol: ticker.symbol,
+            bid: price * 0.9999, // Approximate bid/ask spread
+            ask: price * 1.0001,
+            timestamp: Date.now(),
+            exchange: 'bingx',
+            volume: 0, // Price endpoint doesn't include volume
+            blockchain: undefined,
+            contractAddress: undefined
+          };
+        });
 
       if (!tickers || tickers.length === 0) {
         console.error('No real data received from BingX, falling back to mock');
