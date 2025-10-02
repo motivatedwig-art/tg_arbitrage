@@ -92,6 +92,7 @@ const ExchangeLogo = styled.div`
   margin-right: 16px;
   background: var(--surface-elevated);
   flex-shrink: 0;
+  border: 1px solid var(--separator);
 `;
 
 const ExchangeInfo = styled.div`
@@ -101,8 +102,8 @@ const ExchangeInfo = styled.div`
 
 const ExchangeName = styled.div<{ isSelected: boolean }>`
   font-family: var(--font-family-text);
-  font-size: 16px;
-  font-weight: 600;
+  font-size: 17px;
+  font-weight: 500;
   color: var(--text-primary);
   margin-bottom: 4px;
 `;

@@ -113,68 +113,103 @@ const StatsBar = styled.div`
 `;
 
 const StatCard = styled.div`
-  background: rgba(255, 214, 10, 0.1);
+  background: var(--surface-elevated);
   border-radius: 12px;
   padding: 16px;
   text-align: center;
-  border: 1px solid #38383A;
+  border: 1px solid var(--separator);
+  position: relative;
+  overflow: hidden;
+`;
+
+const StatCardOverlay = styled.div`
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><pattern id="pattern" x="0" y="0" width="20" height="20" patternUnits="userSpaceOnUse"><circle cx="10" cy="10" r="1" fill="%23FFFFFF" opacity="0.1"/></pattern></defs><rect width="100" height="100" fill="url(%23pattern)"/></svg>') repeat;
+  pointer-events: none;
+  opacity: 0.5;
 `;
 
 const StatValue = styled.div`
-  font-family: 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', Consolas, 'Courier New', monospace;
+  font-family: var(--font-family-mono);
   font-size: 20px;
   font-weight: 600;
-  color: #FFFFFF;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-primary);
   margin-bottom: 4px;
+  position: relative;
+  z-index: 1;
 `;
 
 const StatLabel = styled.div`
-  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', Roboto, sans-serif;
+  font-family: var(--font-family-text);
   font-size: 12px;
-  color: #8E8E93;
+  font-weight: 400;
+  color: var(--text-secondary);
   text-transform: uppercase;
   letter-spacing: 0.5px;
+  position: relative;
+  z-index: 1;
 `;
 
 const OpportunityCard = styled(motion.div)`
-  background: #2C2C2E;
-  border-radius: 16px;
-  padding: 16px;
+  background: var(--bg-secondary);
+  border-radius: var(--border-radius-card);
+  padding: var(--spacing-base);
   margin-bottom: 12px;
-  border-left: 4px solid #FFD60A;
+  border-left: 4px solid var(--accent-yellow);
   transition: all 0.2s ease;
-  border: 1px solid #38383A;
+  border: 1px solid var(--separator);
+  position: relative;
+  overflow: hidden;
   
   &:hover {
-    background: #3A3A3C;
+    background: var(--surface-elevated);
     transform: translateY(-2px);
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+    box-shadow: var(--shadow-card);
+  }
+  
+  &::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><pattern id="pattern" x="0" y="0" width="20" height="20" patternUnits="userSpaceOnUse"><circle cx="10" cy="10" r="1" fill="%23FFFFFF" opacity="0.05"/></pattern></defs><rect width="100" height="100" fill="url(%23pattern)"/></svg>') repeat;
+    pointer-events: none;
+    opacity: 0.6;
   }
 `;
 
 const OpportunityHeader = styled.div`
   display: flex;
-  justify-content: between;
+  justify-content: space-between;
   align-items: flex-start;
   margin-bottom: 12px;
 `;
 
 const PairInfo = styled.div`
   flex: 1;
+  position: relative;
+  z-index: 1;
 `;
 
 const PairSymbol = styled.div`
-  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', Roboto, sans-serif;
+  font-family: var(--font-family-text);
   font-size: 18px;
   font-weight: 600;
-  color: #FFFFFF;
+  color: var(--text-primary);
   margin-bottom: 4px;
 `;
 
 const PairDetails = styled.div`
-  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', Roboto, sans-serif;
+  font-family: var(--font-family-text);
   font-size: 13px;
-  color: #8E8E93;
+  color: var(--text-secondary);
 `;
 
 const ProfitBadge = styled.div<{ profitability: 'high' | 'medium' | 'low' }>`
@@ -183,13 +218,15 @@ const ProfitBadge = styled.div<{ profitability: 'high' | 'medium' | 'low' }>`
   font-size: 13px;
   font-weight: 600;
   background: ${props => 
-    props.profitability === 'high' ? '#FF453A' :
-    props.profitability === 'medium' ? '#FF9F0A' :
-    '#30D158'};
+    props.profitability === 'high' ? 'var(--negative)' :
+    props.profitability === 'medium' ? 'var(--warning)' :
+    'var(--positive)'};
   color: white;
   display: flex;
   align-items: center;
   gap: 4px;
+  position: relative;
+  z-index: 1;
 `;
 
 const ExchangeRow = styled.div`
@@ -203,30 +240,34 @@ const ExchangeCard = styled.div`
   background: rgba(255, 255, 255, 0.05);
   border-radius: 8px;
   padding: 12px;
+  position: relative;
+  z-index: 1;
 `;
 
 const ExchangeLabel = styled.div`
-  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', Roboto, sans-serif;
+  font-family: var(--font-family-text);
   font-size: 11px;
-  color: #8E8E93;
+  font-weight: 400;
+  color: var(--text-secondary);
   margin-bottom: 4px;
   text-transform: uppercase;
   letter-spacing: 0.5px;
 `;
 
 const ExchangeName = styled.div`
-  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', Roboto, sans-serif;
+  font-family: var(--font-family-text);
   font-size: 14px;
   font-weight: 600;
-  color: #FFFFFF;
+  color: var(--text-primary);
   margin-bottom: 4px;
 `;
 
 const ExchangePrice = styled.div`
-  font-family: 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', Consolas, 'Courier New', monospace;
+  font-family: var(--font-family-mono);
   font-size: 16px;
   font-weight: 600;
-  color: #FFD60A;
+  font-variant-numeric: tabular-nums;
+  color: var(--accent-yellow);
 `;
 
 const ActionRow = styled.div`
@@ -235,21 +276,24 @@ const ActionRow = styled.div`
   align-items: center;
   margin-top: 12px;
   padding-top: 12px;
-  border-top: 1px solid #38383A;
+  border-top: 1px solid var(--separator);
+  position: relative;
+  z-index: 1;
 `;
 
 const SpreadInfo = styled.div`
-  font-family: 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', Consolas, 'Courier New', monospace;
+  font-family: var(--font-family-mono);
   font-size: 13px;
-  color: #8E8E93;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-secondary);
 `;
 
 const ViewButton = styled(motion.a)`
   padding: 8px 16px;
   border-radius: 20px;
-  background: #FFD60A;
+  background: var(--accent-yellow);
   color: #000000;
-  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', Roboto, sans-serif;
+  font-family: var(--font-family-text);
   font-size: 13px;
   font-weight: 500;
   display: flex;
@@ -409,14 +453,17 @@ const TableScreen: React.FC<TableScreenProps> = ({ selectedExchanges, onBack }) 
       <Content>
         <StatsBar>
           <StatCard>
+            <StatCardOverlay />
             <StatValue>{stats.total}</StatValue>
             <StatLabel>{t('table.headers.opportunities')}</StatLabel>
           </StatCard>
           <StatCard>
+            <StatCardOverlay />
             <StatValue>{stats.avgProfit}%</StatValue>
             <StatLabel>{t('table.headers.avg_profit')}</StatLabel>
           </StatCard>
           <StatCard>
+            <StatCardOverlay />
             <StatValue>{stats.maxProfit}%</StatValue>
             <StatLabel>{t('table.headers.max_profit')}</StatLabel>
           </StatCard>
@@ -436,7 +483,7 @@ const TableScreen: React.FC<TableScreenProps> = ({ selectedExchanges, onBack }) 
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: i * 0.1 }}
                 >
-                  <RefreshCw className="loading-spinner" size={24} />
+                  <RefreshCw className="loading-spinner pulse" size={24} />
                 </LoadingCard>
               ))}
             </motion.div>

@@ -73,8 +73,23 @@ a {
   100% { transform: rotate(360deg); }
 }
 
+@keyframes pulse {
+  0%, 100% { 
+    opacity: 0.6;
+    transform: scale(1);
+  }
+  50% { 
+    opacity: 0.3;
+    transform: scale(1.05);
+  }
+}
+
 .loading-spinner {
   animation: spin 1s linear infinite;
+}
+
+.loading-spinner.pulse {
+  animation: pulse 1.5s ease-in-out infinite;
 }
 
 /* Fade in animation */

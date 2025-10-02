@@ -2,6 +2,7 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';
 import './i18n';
+import './styles/globals.css';
 
 // Ensure the Telegram WebApp script is loaded
 if (!window.Telegram) {
