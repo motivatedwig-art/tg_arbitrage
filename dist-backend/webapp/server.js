@@ -32,7 +32,11 @@ export class WebAppServer {
         }));
         // CORS middleware
         this.app.use(cors({
-            origin: process.env.WEBAPP_URL || '*',
+            origin: [
+                process.env.WEBAPP_URL || '*',
+                'https://webapp-production-c779.up.railway.app',
+                'https://web.telegram.org'
+            ],
             credentials: true,
             methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
             allowedHeaders: ['Content-Type', 'Authorization']
@@ -56,6 +60,13 @@ export class WebAppServer {
         });
         // Serve React mini app static assets
         this.app.use('/assets', express.static(path.join(__dirname, '../../dist/assets')));
+        // Serve additional static files from dist
+        this.app.use('/favicon.svg', express.static(path.join(__dirname, '../../dist/favicon.svg')));
+        this.app.use('/manifest.webmanifest', express.static(path.join(__dirname, '../../dist/manifest.webmanifest')));
+        this.app.use('/registerSW.js', express.static(path.join(__dirname, '../../dist/registerSW.js')));
+        this.app.use('/sw.js', express.static(path.join(__dirname, '../../dist/sw.js')));
+        this.app.use('/workbox-5ffe50d4.js', express.static(path.join(__dirname, '../../dist/workbox-5ffe50d4.js')));
+        this.app.use('/telegram-init.js', express.static(path.join(__dirname, '../../dist/telegram-init.js')));
         // Fallback for React mini app routing
         this.app.get('/miniapp*', (req, res) => {
             const miniappPath = path.join(__dirname, '../../dist/index.html');
