@@ -38,7 +38,7 @@ export class MexcAdapter implements ExchangeAdapter {
 
     try {
       console.log('Fetching real MEXC tickers...');
-      const response = await fetch('https://api.mexc.com/api/v3/ticker/price');
+      const response = await fetch(process.env.MEXC_ALL_PRICES_API || 'https://api.mexc.com/api/v3/ticker/price');
       
       if (!response.ok) {
         throw new Error(`MEXC API error: ${response.status}`);

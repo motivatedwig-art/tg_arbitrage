@@ -39,7 +39,7 @@ export class BinanceAdapter implements ExchangeAdapter {
 
     try {
       console.log('Fetching real Binance tickers...');
-      const response = await fetch('https://api.binance.com/api/v3/ticker/price');
+      const response = await fetch(process.env.BINANCE_ALL_PRICES_API || 'https://api.binance.com/api/v3/ticker/price');
       
       if (!response.ok) {
         throw new Error(`Binance API error: ${response.status}`);

@@ -38,7 +38,7 @@ export class BingxAdapter implements ExchangeAdapter {
 
     try {
       console.log('Fetching real BingX tickers...');
-      const response = await fetch('https://open-api.bingx.com/openApi/spot/v1/ticker/price');
+      const response = await fetch(process.env.BINGX_ALL_PRICES_API || 'https://open-api.bingx.com/openApi/spot/v1/ticker/price');
       
       if (!response.ok) {
         throw new Error(`BingX API error: ${response.status}`);
