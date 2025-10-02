@@ -1,0 +1,10 @@
+# Ignore Node.js files for PostgreSQL service
+package.json
+package-lock.json
+src/
+*.ts
+*.tsx
+dist/
+dist-backend/
+node_modules/
+.git/
