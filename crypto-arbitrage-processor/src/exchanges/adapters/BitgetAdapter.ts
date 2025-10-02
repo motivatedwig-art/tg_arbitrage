@@ -48,17 +48,20 @@ export class BitgetAdapter implements ExchangeAdapter {
       console.log(`Received ${data?.data?.length || 0} tickers from Bitget`);
       
       const tickers: Ticker[] = (data.data || [])
-        .filter((ticker: any) => ticker.bestBid && ticker.bestAsk)
-        .map((ticker: any) => ({
-          symbol: ticker.symbol,
-          bid: parseFloat(ticker.bestBid),
-          ask: parseFloat(ticker.bestAsk),
-          timestamp: parseInt(ticker.ts) || Date.now(),
-          exchange: 'bitget',
-          volume: parseFloat(ticker.baseVolume) || 0,
-          blockchain: undefined,
-          contractAddress: undefined
-        }));
+        .filter((ticker: any) => ticker.symbol && ticker.lastPr && ticker.symbol.includes('USDT'))
+        .map((ticker: any) => {
+          const price = parseFloat(ticker.lastPr);
+          return {
+            symbol: ticker.symbol,
+            bid: price * 0.9999, // Approximate bid/ask spread
+            ask: price * 1.0001,
+            timestamp: parseInt(ticker.ts) || Date.now(),
+            exchange: 'bitget',
+            volume: parseFloat(ticker.baseVolume) || 0,
+            blockchain: undefined,
+            contractAddress: undefined
+          };
+        });
 
       if (!tickers || tickers.length === 0) {
         console.error('No real data received from Bitget, falling back to mock');

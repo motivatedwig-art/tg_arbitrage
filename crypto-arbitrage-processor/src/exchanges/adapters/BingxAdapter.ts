@@ -48,11 +48,12 @@ export class BingxAdapter implements ExchangeAdapter {
       console.log(`Received ${data?.data?.length || 0} tickers from BingX`);
       
       const tickers: Ticker[] = (data.data || [])
-        .filter((ticker: any) => ticker.symbol && ticker.price && ticker.symbol.includes('USDT'))
+        .filter((ticker: any) => ticker.symbol && ticker.trades && ticker.trades[0] && ticker.trades[0].price && ticker.symbol.includes('_USDT'))
         .map((ticker: any) => {
-          const price = parseFloat(ticker.price);
+          const price = parseFloat(ticker.trades[0].price);
+          const cleanSymbol = ticker.symbol.replace('_', ''); // Convert OGN_USDT to OGNUSDT
           return {
-            symbol: ticker.symbol,
+            symbol: cleanSymbol,
             bid: price * 0.9999, // Approximate bid/ask spread
             ask: price * 1.0001,
             timestamp: Date.now(),
