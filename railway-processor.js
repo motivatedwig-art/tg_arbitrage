@@ -1,6 +1,6 @@
 import dotenv from 'dotenv';
 import express from 'express';
-import { BackgroundProcessor } from './src/services/BackgroundProcessor.js';
+import { BackgroundProcessor } from './dist-backend/services/BackgroundProcessor.js';
 
 // Load environment variables
 dotenv.config();
