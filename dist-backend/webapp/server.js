@@ -2,13 +2,12 @@ import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import path from 'path';
-import { fileURLToPath } from 'url';
-import { dirname } from 'path';
 import fs from 'fs';
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
+import { fileURLToPath } from 'url';
 import { DatabaseManager } from '../database/Database.js';
 import { ExchangeManager } from '../exchanges/ExchangeManager.js';
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 export class WebAppServer {
     constructor() {
         this.app = express();
@@ -26,17 +25,27 @@ export class WebAppServer {
                     scriptSrc: ["'self'", "'unsafe-inline'", "https://telegram.org"],
                     styleSrc: ["'self'", "'unsafe-inline'"],
                     imgSrc: ["'self'", "data:", "https:"],
-                    connectSrc: ["'self'", "wss:", "https:"],
+                    connectSrc: ["'self'", "https://api.binance.com", "https://www.okx.com", "https://api.bybit.com"],
                 },
             },
         }));
-        // CORS middleware
+        // Configure CORS for Telegram and your domains
         this.app.use(cors({
-            origin: [
-                process.env.WEBAPP_URL || '*',
-                'https://webapp-production-c779.up.railway.app',
-                'https://web.telegram.org'
-            ],
+            origin: (origin, callback) => {
+                const allowedOrigins = [
+                    'https://web.telegram.org',
+                    'https://telegram.org',
+                    process.env.WEBAPP_URL,
+                    'http://localhost:3000',
+                    'http://localhost:5173'
+                ];
+                if (!origin || allowedOrigins.includes(origin) || origin.includes('.telegram.org')) {
+                    callback(null, true);
+                }
+                else {
+                    callback(null, true); // Allow all origins for Telegram compatibility
+                }
+            },
             credentials: true,
             methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
             allowedHeaders: ['Content-Type', 'Authorization']
@@ -81,17 +90,35 @@ export class WebAppServer {
         this.app.get('/api/opportunities', async (req, res) => {
             try {
                 const opportunities = await this.db.getArbitrageModel().getRecentOpportunities(30);
+                // Filter out mock data characteristics
+                const realOpportunities = opportunities.filter(opp => {
+                    return opp.profitPercentage > 0.1 &&
+                        opp.profitPercentage < 5 && // Realistic profit range
+                        opp.buyPrice > 0 &&
+                        opp.sellPrice > 0;
+                });
                 res.json({
                     success: true,
-                    data: opportunities,
+                    data: realOpportunities.map(opp => ({
+                        symbol: opp.symbol,
+                        buyExchange: opp.buyExchange,
+                        sellExchange: opp.sellExchange,
+                        buyPrice: opp.buyPrice,
+                        sellPrice: opp.sellPrice,
+                        profitPercentage: opp.profitPercentage,
+                        profitAmount: opp.profitAmount,
+                        volume: opp.volume,
+                        timestamp: opp.timestamp
+                    })),
                     timestamp: Date.now()
                 });
             }
             catch (error) {
-                console.error('Error fetching opportunities:', error);
+                console.error('API error:', error);
                 res.status(500).json({
                     success: false,
-                    error: 'Failed to fetch opportunities'
+                    error: 'Failed to fetch opportunities',
+                    message: error.message
                 });
             }
         });
@@ -135,9 +162,22 @@ export class WebAppServer {
                 });
             }
         });
-        // Health check
+        // Health check endpoint
+        this.app.get('/api/health', (req, res) => {
+            res.json({
+                status: 'OK',
+                timestamp: Date.now(),
+                environment: process.env.NODE_ENV,
+                mockData: process.env.USE_MOCK_DATA === 'true'
+            });
+        });
+        // Legacy health check
         this.app.get('/health', (req, res) => {
             res.json({ status: 'OK', timestamp: Date.now() });
+        });
+        // Serve React app for all other routes
+        this.app.get('*', (req, res) => {
+            res.sendFile(path.join(__dirname, '../../dist/index.html'));
         });
     }
     start(port = 3000) {
@@ -145,9 +185,9 @@ export class WebAppServer {
             // Try to find an available port
             const tryPort = (attemptPort) => {
                 this.server = this.app.listen(attemptPort, () => {
-                    console.log(`🌐 Web app server running on port ${attemptPort}`);
-                    const webAppUrl = process.env.WEBAPP_URL || `http://localhost:${attemptPort}`;
-                    console.log(`📱 Mini app URL: ${webAppUrl}`);
+                    console.log(`🌐 Web server running on port ${attemptPort}`);
+                    console.log(`📊 Environment: ${process.env.NODE_ENV}`);
+                    console.log(`📡 Mock Data: ${process.env.USE_MOCK_DATA === 'true' ? 'ENABLED' : 'DISABLED'}`);
                     resolve();
                 });
                 this.server.on('error', (error) => {

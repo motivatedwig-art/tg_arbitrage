@@ -41,7 +41,53 @@ export class BaseExchangeAdapter {
         }
     }
     async getTickers() {
-        // Check if we should use mock data
+        // Force real data in production
+        if (process.env.NODE_ENV === 'production' || process.env.USE_MOCK_DATA === 'false') {
+            if (!this.connected) {
+                await this.connect();
+            }
+            // For production, always attempt real API calls
+            try {
+                const tickers = await this.exchange.fetchTickers();
+                const result = [];
+                for (const [symbol, ticker] of Object.entries(tickers)) {
+                    const t = ticker; // Type assertion for ccxt ticker
+                    if (t.bid && t.ask) {
+                        // Get blockchain information for this token
+                        const blockchain = this.tokenMetadataService.getTokenBlockchain(symbol, this.name);
+                        const contractAddress = blockchain ? this.tokenMetadataService.getTokenContractAddress(symbol, blockchain) : undefined;
+                        result.push({
+                            symbol: symbol,
+                            bid: t.bid,
+                            ask: t.ask,
+                            timestamp: t.timestamp || Date.now(),
+                            exchange: this.name,
+                            volume: t.baseVolume,
+                            blockchain: blockchain || undefined,
+                            contractAddress: contractAddress || undefined
+                        });
+                    }
+                }
+                if (!result || result.length === 0) {
+                    console.error(`No real data received from ${this.name} in production`);
+                    return []; // Return empty array in production
+                }
+                console.log(`${this.name}: Fetched ${result.length} real tickers`);
+                return result;
+            }
+            catch (error) {
+                this.errorCount++;
+                this.lastError = error instanceof Error ? error.message : 'Unknown error';
+                console.error(`Exchange API error for ${this.name}:`, error);
+                // In production, return empty array instead of mock data
+                if (process.env.NODE_ENV === 'production') {
+                    return [];
+                }
+                // In development, still return mock data for testing
+                return this.generateMockTickers();
+            }
+        }
+        // Check if we should use mock data in development
         if (process.env.USE_MOCK_DATA === 'true') {
             console.warn(`Using mock data for ${this.name} - USE_MOCK_DATA is true`);
             return this.generateMockTickers();
@@ -49,7 +95,7 @@ export class BaseExchangeAdapter {
         if (!this.connected) {
             throw new Error(`${this.name} is not connected`);
         }
-        // For production, always attempt real API calls
+        // Fallback for development
         try {
             const tickers = await this.exchange.fetchTickers();
             const result = [];
@@ -71,20 +117,10 @@ export class BaseExchangeAdapter {
                     });
                 }
             }
-            if (!result || result.length === 0) {
-                console.error(`No real data received from ${this.name}, falling back to mock`);
-                return this.generateMockTickers();
-            }
-            return result;
+            return result.length > 0 ? result : this.generateMockTickers();
         }
         catch (error) {
-            this.errorCount++;
-            this.lastError = error instanceof Error ? error.message : 'Unknown error';
             console.error(`Exchange API error for ${this.name}:`, error);
-            // In production, throw the error instead of silently returning mock data
-            if (process.env.NODE_ENV === 'production') {
-                throw new Error(`Failed to fetch real data from ${this.name}: ${error instanceof Error ? error.message : 'Unknown error'}`);
-            }
             return this.generateMockTickers();
         }
     }

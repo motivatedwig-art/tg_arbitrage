@@ -27,54 +27,62 @@ export class BinanceAdapter implements ExchangeAdapter {
   }
 
   async getTickers(): Promise<Ticker[]> {
-    // Check if we should use mock data
-    if (process.env.USE_MOCK_DATA === 'true') {
-      console.warn('Using mock data for Binance - USE_MOCK_DATA is true');
-      return this.generateMockTickers();
-    }
-
-    if (!this.connected) {
-      throw new Error('Binance is not connected');
-    }
-
-    try {
-      console.log('Fetching real Binance tickers...');
-      const response = await fetch('https://api.binance.com/api/v3/ticker/24hr');
-      
-      if (!response.ok) {
-        throw new Error(`Binance API error: ${response.status}`);
+    // Force real data in production
+    if (process.env.NODE_ENV === 'production' || process.env.USE_MOCK_DATA === 'false') {
+      if (!this.connected) {
+        await this.connect();
       }
-      
-      const data = await response.json();
-      console.log(`Received ${data?.length || 0} tickers from Binance`);
-      
-      const tickers: Ticker[] = data
-        .filter((ticker: any) => ticker.bidPrice && ticker.askPrice)
-        .map((ticker: any) => ({
-          symbol: ticker.symbol,
-          bid: parseFloat(ticker.bidPrice),
-          ask: parseFloat(ticker.askPrice),
-          timestamp: ticker.closeTime || Date.now(),
-          exchange: 'binance',
-          volume: parseFloat(ticker.volume) || 0,
-          blockchain: undefined,
-          contractAddress: undefined
-        }));
 
-      if (!tickers || tickers.length === 0) {
-        console.error('No real data received from Binance, falling back to mock');
+      try {
+        console.log('Fetching real Binance tickers...');
+        const response = await fetch('https://api.binance.com/api/v3/ticker/24hr', {
+          method: 'GET',
+          headers: {
+            'Accept': 'application/json',
+          }
+        });
+        
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
+        const data = await response.json();
+        
+        // Filter and parse real ticker data
+        const tickers = data
+          .filter((item: any) => {
+            return item.symbol.endsWith('USDT') && 
+                   parseFloat(item.volume) > 0 &&
+                   parseFloat(item.bidPrice) > 0 &&
+                   parseFloat(item.askPrice) > 0;
+          })
+          .slice(0, 20) // Get more pairs for better opportunities
+          .map((item: any) => ({
+            symbol: this.formatSymbol(item.symbol),
+            bid: parseFloat(item.bidPrice),
+            ask: parseFloat(item.askPrice),
+            timestamp: Date.now(),
+            exchange: 'binance',
+            volume: parseFloat(item.volume)
+          }));
+
+        console.log(`Binance: Fetched ${tickers.length} real tickers`);
+        return tickers;
+        
+      } catch (error) {
+        console.error('Binance API error:', error);
+        // Only return empty array in production to avoid mock data
+        if (process.env.NODE_ENV === 'production') {
+          return [];
+        }
+        // In development, still return mock data for testing
         return this.generateMockTickers();
       }
-
-      return tickers;
-    } catch (error) {
-      console.error('Binance API error:', error);
-      // In production, throw the error instead of silently returning mock data
-      if (process.env.NODE_ENV === 'production') {
-        throw new Error(`Failed to fetch real data from Binance: ${error instanceof Error ? error.message : 'Unknown error'}`);
-      }
-      return this.generateMockTickers();
     }
+    
+    // Only use mock data in development
+    console.warn('Using mock data for Binance - USE_MOCK_DATA is true');
+    return this.generateMockTickers();
   }
 
   async getOrderBook(symbol: string): Promise<OrderBook> {
@@ -105,6 +113,11 @@ export class BinanceAdapter implements ExchangeAdapter {
 
   isConnected(): boolean {
     return this.connected;
+  }
+
+  private formatSymbol(symbol: string): string {
+    // Convert BTCUSDT to BTC/USDT
+    return symbol.replace('USDT', '/USDT');
   }
 
   private generateMockTickers(): Ticker[] {

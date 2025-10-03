@@ -8,6 +8,7 @@ export declare class BinanceAdapter implements ExchangeAdapter {
     getOrderBook(symbol: string): Promise<OrderBook>;
     disconnect(): void;
     isConnected(): boolean;
+    private formatSymbol;
     private generateMockTickers;
 }
 //# sourceMappingURL=BinanceAdapter.d.ts.map

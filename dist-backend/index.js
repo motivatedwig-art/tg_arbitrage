@@ -7,6 +7,14 @@ import { WebAppServer } from './webapp/server.js';
 import cron from 'node-cron';
 // Load environment variables
 dotenv.config();
+// Validate environment
+if (process.env.NODE_ENV === 'production') {
+    process.env.USE_MOCK_DATA = 'false'; // Force disable mock data in production
+}
+console.log('🔧 Configuration:');
+console.log(`  - Environment: ${process.env.NODE_ENV || 'development'}`);
+console.log(`  - Mock Data: ${process.env.USE_MOCK_DATA === 'true' ? 'ENABLED' : 'DISABLED'}`);
+console.log(`  - Port: ${process.env.PORT || 3000}`);
 class CryptoArbitrageApp {
     constructor() {
         const botToken = process.env.TELEGRAM_BOT_TOKEN;
