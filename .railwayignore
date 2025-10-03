@@ -1,10 +1,7 @@
-# Ignore Node.js files for PostgreSQL service
-package.json
-package-lock.json
-src/
-*.ts
-*.tsx
+# Ignore unnecessary files for Railway deployment
 dist/
 dist-backend/
 node_modules/
 .git/
+.DS_Store
+*.log
