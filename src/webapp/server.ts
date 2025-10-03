@@ -5,7 +5,7 @@ import path from 'path';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
 import { DatabaseManager } from '../database/Database.js';
-import { ExchangeManager } from '../exchanges/ExchangeManager.js';
+import { UnifiedArbitrageService } from '../services/UnifiedArbitrageService.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -14,12 +14,12 @@ export class WebAppServer {
   private app: express.Application;
   private server: any;
   private db: DatabaseManager;
-  private exchangeManager: ExchangeManager;
+  private arbitrageService: UnifiedArbitrageService;
 
   constructor() {
     this.app = express();
     this.db = DatabaseManager.getInstance();
-    this.exchangeManager = ExchangeManager.getInstance();
+    this.arbitrageService = UnifiedArbitrageService.getInstance();
     this.setupMiddleware();
     this.setupRoutes();
   }
@@ -141,9 +141,10 @@ export class WebAppServer {
     // API route to get exchange status
     this.app.get('/api/status', async (req, res) => {
       try {
-        const exchangeStatuses = this.exchangeManager.getExchangeStatus();
-        const connectedExchanges = this.exchangeManager.getConnectedExchanges();
-        const lastUpdate = this.exchangeManager.getLastUpdateTime();
+        const exchangeManager = this.arbitrageService.getExchangeManager();
+        const exchangeStatuses = exchangeManager.getExchangeStatus();
+        const connectedExchanges = exchangeManager.getConnectedExchanges();
+        const lastUpdate = exchangeManager.getLastUpdateTime();
 
         res.json({
           success: true,
