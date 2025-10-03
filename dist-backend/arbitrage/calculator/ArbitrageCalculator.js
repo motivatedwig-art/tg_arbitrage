@@ -1,11 +1,14 @@
 import { TokenMetadataService } from '../../services/TokenMetadataService.js';
 export class ArbitrageCalculator {
-    constructor(minProfitThreshold = 0.5, maxProfitThreshold = 110) {
+    constructor(minProfitThreshold = 0.5, maxProfitThreshold = 110, minVolumeThreshold = 1000) {
         this.tradingFees = new Map();
+        this.chainTransferCosts = new Map();
         this.minProfitThreshold = minProfitThreshold;
         this.maxProfitThreshold = maxProfitThreshold;
+        this.minVolumeThreshold = minVolumeThreshold;
         this.tokenMetadataService = TokenMetadataService.getInstance();
         this.initializeTradingFees();
+        this.initializeChainTransferCosts();
     }
     initializeTradingFees() {
         // Default trading fees for each exchange (maker fees)
@@ -17,6 +20,19 @@ export class ArbitrageCalculator {
         this.tradingFees.set('bingx', 0.1); // 0.1%
         this.tradingFees.set('gateio', 0.2); // 0.2%
         this.tradingFees.set('kucoin', 0.1); // 0.1%
+    }
+    initializeChainTransferCosts() {
+        // Estimated transfer costs between different blockchains (in USD)
+        // These are rough estimates and should be updated based on current gas fees
+        this.chainTransferCosts.set('ethereum-to-bsc', 10); // ~$5-15 depending on gas
+        this.chainTransferCosts.set('ethereum-to-polygon', 5); // ~$2-10
+        this.chainTransferCosts.set('ethereum-to-arbitrum', 3); // ~$1-8
+        this.chainTransferCosts.set('ethereum-to-optimism', 3); // ~$1-8
+        this.chainTransferCosts.set('bsc-to-ethereum', 15); // Higher cost for BSC→ETH
+        this.chainTransferCosts.set('bsc-to-polygon', 8); // ~$3-12
+        this.chainTransferCosts.set('polygon-to-ethereum', 12); // ~$5-20
+        this.chainTransferCosts.set('polygon-to-bsc', 6); // ~$2-10
+        this.chainTransferCosts.set('same-chain', 0); // No transfer cost for same blockchain
     }
     calculateArbitrageOpportunities(allTickers) {
         console.log(`Calculating arbitrage for ${allTickers.size} exchanges`);
@@ -143,16 +159,24 @@ export class ArbitrageCalculator {
         // Calculate fees
         const buyFee = this.tradingFees.get(buyTicker.exchange.toLowerCase()) || 0.1;
         const sellFee = this.tradingFees.get(sellTicker.exchange.toLowerCase()) || 0.1;
-        // Calculate net prices after fees
+        // Calculate transfer costs between blockchains
+        const transferCost = this.calculateTransferCost(buyTicker.blockchain, sellTicker.blockchain);
+        // Calculate net prices after fees and transfer costs
         const netBuyPrice = buyPrice * (1 + buyFee / 100);
         const netSellPrice = sellPrice * (1 - sellFee / 100);
-        if (netBuyPrice >= netSellPrice)
-            return null; // No profit after fees
+        // Adjust sell price by transfer cost per unit
+        const adjustedSellPrice = netSellPrice - transferCost;
+        if (netBuyPrice >= adjustedSellPrice)
+            return null; // No profit after fees and transfer costs
         // Calculate profit
-        const profitAmount = netSellPrice - netBuyPrice;
+        const profitAmount = adjustedSellPrice - netBuyPrice;
         const profitPercentage = (profitAmount / netBuyPrice) * 100;
-        // Use minimum volume between exchanges
+        // Use minimum volume between exchanges and apply volume filtering
         const volume = Math.min(buyTicker.volume || 0, sellTicker.volume || 0);
+        // Apply volume filtering - skip opportunities with insufficient volume
+        if (volume < this.minVolumeThreshold) {
+            return null;
+        }
         return {
             symbol: symbol,
             buyExchange: buyTicker.exchange,
@@ -162,10 +186,12 @@ export class ArbitrageCalculator {
             profitPercentage: profitPercentage,
             profitAmount: profitAmount,
             volume: volume,
+            volume_24h: buyTicker.volume_24h || sellTicker.volume_24h || volume,
             timestamp: Math.max(buyTicker.timestamp, sellTicker.timestamp),
             fees: {
                 buyFee: buyFee,
-                sellFee: sellFee
+                sellFee: sellFee,
+                transferCost: transferCost
             }
         };
     }
@@ -194,6 +220,31 @@ export class ArbitrageCalculator {
     // Validate if an opportunity is still valid (not too old)
     isOpportunityValid(opportunity, maxAgeMs = 60000) {
         return (Date.now() - opportunity.timestamp) <= maxAgeMs;
+    }
+    calculateTransferCost(buyChain, sellChain) {
+        if (!buyChain || !sellChain) {
+            return 0; // No blockchain info available or assume same chain
+        }
+        if (buyChain === sellChain) {
+            return this.chainTransferCosts.get('same-chain') || 0;
+        }
+        // Create transfer cost key
+        const transferKey = `${buyChain}-to-${sellChain}`;
+        return this.chainTransferCosts.get(transferKey) || 5; // Default $5 cost for unknown transfers
+    }
+    setMinVolumeThreshold(threshold) {
+        this.minVolumeThreshold = threshold;
+    }
+    getMinVolumeThreshold() {
+        return this.minVolumeThreshold;
+    }
+    updateTransferCost(fromChain, toChain, cost) {
+        this.chainTransferCosts.set(`${fromChain}-to-${toChain}`, cost);
+    }
+    getOpportunitiesByVolume(minVolume) {
+        // This would need to be implemented with database integration
+        // For now, this is a placeholder for volume-based filtering
+        return [];
     }
 }
 //# sourceMappingURL=ArbitrageCalculator.js.map

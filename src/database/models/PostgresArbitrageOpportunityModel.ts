@@ -48,17 +48,25 @@ export class PostgresArbitrageOpportunityModel {
       `;
       
       for (const opp of opportunities) {
+        // Validate and sanitize data before inserting
+        const sanitizedOpportunity = this.sanitizeOpportunity(opp);
+        
+        // Skip invalid opportunities
+        if (!this.isValidOpportunity(sanitizedOpportunity)) {
+          continue;
+        }
+        
         await client.query(sql, [
-          opp.symbol,
-          opp.buyExchange,
-          opp.sellExchange,
-          opp.buyPrice,
-          opp.sellPrice,
-          opp.profitPercentage,
-          opp.profitAmount,
-          opp.volume,
-          opp.volume_24h || opp.volume, // Use volume_24h if available
-          opp.timestamp
+          sanitizedOpportunity.symbol,
+          sanitizedOpportunity.buyExchange,
+          sanitizedOpportunity.sellExchange,
+          sanitizedOpportunity.buyPrice,
+          sanitizedOpportunity.sellPrice,
+          sanitizedOpportunity.profitPercentage,
+          sanitizedOpportunity.profitAmount,
+          sanitizedOpportunity.volume,
+          sanitizedOpportunity.volume_24h || sanitizedOpportunity.volume,
+          sanitizedOpportunity.timestamp
         ]);
       }
       
@@ -273,5 +281,51 @@ export class PostgresArbitrageOpportunityModel {
       console.error('Error getting user-filtered opportunities:', error);
       return [];
     }
+  }
+
+  private sanitizeOpportunity(opp: ArbitrageOpportunity): ArbitrageOpportunity {
+    return {
+      ...opp,
+      buyPrice: Math.max(opp.buyPrice, 0.00000001), // Prevent zero prices
+      sellPrice: Math.max(opp.sellPrice, 0.00000001), // Prevent zero prices
+      profitPercentage: this.sanitizePercentage(opp.profitPercentage),
+      profitAmount: Math.max(opp.profitAmount, 0),
+      volume: Math.max(opp.volume, 0),
+      volume_24h: opp.volume_24h ? Math.max(opp.volume_24h, 0) : undefined,
+      timestamp: Date.now()
+    };
+  }
+
+  private sanitizePercentage(percentage: number): number {
+    // Handle infinity, NaN, and extreme values
+    if (!isFinite(percentage) || isNaN(percentage)) {
+      return 0;
+    }
+    
+    // Cap extreme percentages to prevent database overflow
+    if (percentage > 1000000) { // Max 1,000,000%
+      return 1000000;
+    }
+    
+    if (percentage < -1000000) { // Min -1,000,000%
+      return -1000000;
+    }
+    
+    return Math.round(percentage * 10000) / 10000; // Round to 4 decimal places
+  }
+
+  private isValidOpportunity(opp: ArbitrageOpportunity): boolean {
+    return (
+      opp.symbol && 
+      opp.buyExchange && 
+      opp.sellExchange &&
+      opp.buyPrice > 0 && 
+      opp.sellPrice > 0 &&
+      isFinite(opp.profitPercentage) &&
+      !isNaN(opp.profitPercentage) &&
+      opp.profitPercentage >= -1000 && // Reasonable lower bound
+      opp.profitPercentage <= 1000000 && // Cap at 1M%
+      opp.timestamp > 0
+    );
   }
 }

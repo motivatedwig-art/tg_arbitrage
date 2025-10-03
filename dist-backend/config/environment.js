@@ -30,10 +30,10 @@ const getEnvBoolean = (key, defaultValue) => {
 export const config = {
     // Telegram Bot
     telegramBotToken: getEnvVar('TELEGRAM_BOT_TOKEN'),
-    webappUrl: getEnvVar('WEBAPP_URL', 'https://tg-arbitrage.vercel.app'),
+    webappUrl: getEnvVar('WEBAPP_URL', 'https://webapp-production-c779.up.railway.app'),
     // API Configuration
-    apiBaseUrl: getEnvVar('VITE_API_BASE_URL', 'https://tg-arbitrage.vercel.app/api'),
-    apiUrl: getEnvVar('VITE_API_URL', 'https://tg-arbitrage.vercel.app/api'),
+    apiBaseUrl: getEnvVar('VITE_API_BASE_URL', 'https://web.telegram.org'),
+    apiUrl: getEnvVar('VITE_API_URL', 'https://web.telegram.org'),
     // Application Settings
     port: getEnvNumber('PORT', 3000),
     nodeEnv: getEnvVar('NODE_ENV', 'development'),

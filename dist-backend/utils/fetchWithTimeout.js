@@ -1,4 +1,4 @@
-export async function fetchWithTimeout(promise, timeoutMs = 9000 // 9 seconds for Vercel
+export async function fetchWithTimeout(promise, timeoutMs = 10000 // 10 seconds timeout
 ) {
     const timeout = new Promise((_, reject) => setTimeout(() => reject(new Error(`Request timeout after ${timeoutMs}ms`)), timeoutMs));
     return Promise.race([promise, timeout]);

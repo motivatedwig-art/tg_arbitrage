@@ -13,6 +13,7 @@ export interface Ticker {
     timestamp: number;
     exchange: string;
     volume?: number;
+    volume_24h?: number;
     blockchain?: string;
     contractAddress?: string;
 }
@@ -32,10 +33,12 @@ export interface ArbitrageOpportunity {
     profitPercentage: number;
     profitAmount: number;
     volume: number;
+    volume_24h?: number;
     timestamp: number;
     fees?: {
         buyFee: number;
         sellFee: number;
+        transferCost?: number;
     };
 }
 export interface ExchangeConfig {

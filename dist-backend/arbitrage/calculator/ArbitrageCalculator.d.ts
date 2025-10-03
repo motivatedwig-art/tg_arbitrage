@@ -2,10 +2,13 @@ import { Ticker, ArbitrageOpportunity } from '../../exchanges/types/index.js';
 export declare class ArbitrageCalculator {
     private minProfitThreshold;
     private maxProfitThreshold;
+    private minVolumeThreshold;
     private tradingFees;
+    private chainTransferCosts;
     private tokenMetadataService;
-    constructor(minProfitThreshold?: number, maxProfitThreshold?: number);
+    constructor(minProfitThreshold?: number, maxProfitThreshold?: number, minVolumeThreshold?: number);
     private initializeTradingFees;
+    private initializeChainTransferCosts;
     calculateArbitrageOpportunities(allTickers: Map<string, Ticker[]>): ArbitrageOpportunity[];
     private isMockData;
     /**
@@ -24,5 +27,10 @@ export declare class ArbitrageCalculator {
     getTradingFee(exchange: string): number;
     calculatePotentialProfit(opportunity: ArbitrageOpportunity, investmentAmount: number): number;
     isOpportunityValid(opportunity: ArbitrageOpportunity, maxAgeMs?: number): boolean;
+    private calculateTransferCost;
+    setMinVolumeThreshold(threshold: number): void;
+    getMinVolumeThreshold(): number;
+    updateTransferCost(fromChain: string, toChain: string, cost: number): void;
+    getOpportunitiesByVolume(minVolume: number): ArbitrageOpportunity[];
 }
 //# sourceMappingURL=ArbitrageCalculator.d.ts.map

@@ -1,7 +1,6 @@
 import dotenv from 'dotenv';
 import { CryptoArbitrageBot } from './bot/TelegramBot.js';
-import { ExchangeManager } from './exchanges/ExchangeManager.js';
-import { ArbitrageCalculator } from './arbitrage/calculator/ArbitrageCalculator.js';
+import { UnifiedArbitrageService } from './services/UnifiedArbitrageService.js';
 import { DatabaseManager } from './database/Database.js';
 import { WebAppServer } from './webapp/server.js';
 import cron from 'node-cron';
@@ -17,55 +16,67 @@ console.log(`  - Mock Data: ${process.env.USE_MOCK_DATA === 'true' ? 'ENABLED' :
 console.log(`  - Port: ${process.env.PORT || 3000}`);
 class CryptoArbitrageApp {
     constructor() {
-        const botToken = process.env.TELEGRAM_BOT_TOKEN;
-        if (!botToken) {
-            throw new Error('TELEGRAM_BOT_TOKEN is required');
+        try {
+            const botToken = process.env.TELEGRAM_BOT_TOKEN;
+            if (!botToken) {
+                throw new Error('TELEGRAM_BOT_TOKEN is required');
+            }
+            console.log('🔧 Initializing components...');
+            this.bot = new CryptoArbitrageBot(botToken);
+            console.log('✅ Telegram bot initialized');
+            this.arbitrageService = UnifiedArbitrageService.getInstance();
+            console.log('✅ Arbitrage service initialized');
+            this.db = DatabaseManager.getInstance();
+            console.log('✅ Database manager initialized');
+            this.webAppServer = new WebAppServer();
+            console.log('✅ Web app server initialized');
+            this.updateInterval = parseInt(process.env.UPDATE_INTERVAL || '30000');
+            console.log('✅ All components initialized successfully');
         }
-        this.bot = new CryptoArbitrageBot(botToken);
-        this.exchangeManager = ExchangeManager.getInstance();
-        this.arbitrageCalculator = new ArbitrageCalculator(parseFloat(process.env.MIN_PROFIT_THRESHOLD || '0.5'), parseFloat(process.env.MAX_PROFIT_THRESHOLD || '110'));
-        this.db = DatabaseManager.getInstance();
-        this.webAppServer = new WebAppServer();
-        this.updateInterval = parseInt(process.env.UPDATE_INTERVAL || '30000');
+        catch (error) {
+            console.error('❌ Failed to initialize components:', error);
+            throw error;
+        }
     }
     async start() {
         try {
             console.log('🚀 Starting Crypto Arbitrage Bot...');
-            // Start the Telegram bot
-            await this.bot.start();
-            // Initialize exchanges
-            console.log('🔌 Initializing exchanges...');
-            await this.exchangeManager.initializeExchanges();
-            // Start web app server
+            // Start web app server first (required for health checks)
             console.log('🌐 Starting web app server...');
-            await this.webAppServer.start(parseInt(process.env.PORT || '3000'));
-            // Schedule regular updates
-            this.scheduleUpdates();
-            // Perform initial data update
-            await this.updateArbitrageData();
+            try {
+                await this.webAppServer.start(parseInt(process.env.PORT || '3000'));
+                console.log('✅ Web app server started successfully');
+            }
+            catch (webError) {
+                console.error('❌ Web app server failed to start:', webError);
+                throw webError; // Don't continue if web server fails
+            }
+            // Start the unified arbitrage service
+            console.log('🔌 Starting unified arbitrage service...');
+            await this.arbitrageService.start();
+            // Start the Telegram bot (non-blocking)
+            try {
+                await this.bot.start();
+                console.log('✅ Telegram bot started successfully');
+            }
+            catch (botError) {
+                console.error('⚠️ Telegram bot failed to start:', botError);
+                console.log('🔄 Continuing without Telegram bot...');
+            }
+            // Schedule cleanup tasks
+            this.scheduleCleanup();
             console.log('✅ Crypto Arbitrage Bot is running!');
             console.log(`📊 Update interval: ${this.updateInterval / 1000} seconds`);
-            console.log(`💰 Min profit threshold: ${this.arbitrageCalculator.getMinProfitThreshold()}%`);
-            console.log(`🚨 Max profit threshold: ${this.arbitrageCalculator.getMaxProfitThreshold()}%`);
+            console.log(`💰 Min profit threshold: ${this.arbitrageService.getArbitrageCalculator().getMinProfitThreshold()}%`);
+            console.log(`🚨 Max profit threshold: ${this.arbitrageService.getArbitrageCalculator().getMaxProfitThreshold()}%`);
+            console.log(`📈 Min volume threshold: ${this.arbitrageService.getArbitrageCalculator().getMinVolumeThreshold()}`);
         }
         catch (error) {
             console.error('❌ Failed to start application:', error);
             process.exit(1);
         }
     }
-    scheduleUpdates() {
-        // Update every 30 seconds (or as configured)
-        const intervalSeconds = Math.max(30, this.updateInterval / 1000);
-        const cronExpression = `*/${intervalSeconds} * * * * *`;
-        console.log(`⏰ Scheduling updates every ${intervalSeconds} seconds`);
-        cron.schedule(cronExpression, async () => {
-            try {
-                await this.updateArbitrageData();
-            }
-            catch (error) {
-                console.error('Error in scheduled update:', error);
-            }
-        });
+    scheduleCleanup() {
         // Cleanup old data every hour
         cron.schedule('0 * * * *', async () => {
             try {
@@ -77,42 +88,12 @@ class CryptoArbitrageApp {
             }
         });
     }
-    async updateArbitrageData() {
-        try {
-            console.log('📊 Updating arbitrage data...');
-            // Update ticker data from all exchanges
-            await this.exchangeManager.updateAllTickers();
-            // Calculate arbitrage opportunities
-            const allTickers = this.exchangeManager.getAllTickers();
-            const opportunities = this.arbitrageCalculator.calculateArbitrageOpportunities(allTickers);
-            console.log(`🔍 Found ${opportunities.length} arbitrage opportunities`);
-            if (opportunities.length > 0) {
-                // Store opportunities in database
-                await this.db.getArbitrageModel().insert(opportunities);
-                // Collect high-profit deals for summary (respecting max threshold)
-                const highProfitOpportunities = opportunities.filter(opp => opp.profitPercentage >= 2.0 && opp.profitPercentage <= this.arbitrageCalculator.getMaxProfitThreshold());
-                for (const opportunity of highProfitOpportunities) {
-                    this.bot.collectHighProfitDeal(opportunity);
-                }
-                if (highProfitOpportunities.length > 0) {
-                    console.log(`📊 Collected ${highProfitOpportunities.length} high-profit deals for summary`);
-                }
-                // Log top opportunity
-                const topOpportunity = opportunities[0];
-                console.log(`🏆 Top opportunity: ${topOpportunity.symbol} - ${topOpportunity.profitPercentage.toFixed(2)}% profit (${topOpportunity.buyExchange} → ${topOpportunity.sellExchange})`);
-            }
-        }
-        catch (error) {
-            console.error('Error updating arbitrage data:', error);
-            await this.bot.sendSystemNotification(`System error: ${error instanceof Error ? error.message : 'Unknown error'}`, true);
-        }
-    }
     async stop() {
         console.log('🛑 Stopping Crypto Arbitrage Bot...');
         try {
+            this.arbitrageService.stop();
             await this.bot.stop();
             await this.webAppServer.stop();
-            await this.exchangeManager.disconnect();
             await this.db.close();
             console.log('✅ Application stopped successfully');
         }

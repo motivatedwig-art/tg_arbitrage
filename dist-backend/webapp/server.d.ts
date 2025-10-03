@@ -2,7 +2,7 @@ export declare class WebAppServer {
     private app;
     private server;
     private db;
-    private exchangeManager;
+    private arbitrageService;
     constructor();
     private setupMiddleware;
     private setupRoutes;

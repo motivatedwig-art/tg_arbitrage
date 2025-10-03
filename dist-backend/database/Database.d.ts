@@ -2,6 +2,8 @@ import sqlite3 from 'sqlite3';
 type SQLiteDatabase = sqlite3.Database;
 import { UserModel } from './models/User.js';
 import { ArbitrageOpportunityModel } from './models/ArbitrageOpportunity.js';
+import { PostgresUserModel } from './models/PostgresUserModel.js';
+import { PostgresArbitrageOpportunityModel } from './models/PostgresArbitrageOpportunityModel.js';
 import { DatabaseManagerPostgres } from './DatabasePostgres.js';
 export declare class DatabaseManager {
     private static instance;
@@ -12,13 +14,11 @@ export declare class DatabaseManager {
     private constructor();
     static getInstance(): DatabaseManager;
     init(): Promise<void>;
-    getUserModel(): UserModel;
-    getArbitrageModel(): ArbitrageOpportunityModel;
+    getUserModel(): UserModel | PostgresUserModel;
+    getArbitrageModel(): ArbitrageOpportunityModel | PostgresArbitrageOpportunityModel;
     getDatabase(): SQLiteDatabase | DatabaseManagerPostgres;
     close(): Promise<void>;
     runMigrations(): Promise<void>;
-    private createPostgresUserModel;
-    private createPostgresArbitrageModel;
 }
 export {};
 //# sourceMappingURL=Database.d.ts.map
