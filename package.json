@@ -11,8 +11,6 @@
     "build:backend": "tsc -p tsconfig.backend.json",
     "start": "NODE_ENV=production USE_MOCK_DATA=false node dist/index.js",
     "start:production": "NODE_ENV=production USE_MOCK_DATA=false node dist/index.js",
-    "vercel-build": "npm run build",
-    "test:api": "node -e \"fetch('`https://tg-arbitrage.vercel.app/api/debug').then(r=>r.json()).then(console.log)\"",
     "test:local": "NODE_ENV=production npm start",
     "preview": "vite preview",
     "lint": "eslint src --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
@@ -26,7 +24,6 @@
   "dependencies": {
     "@telegram-apps/sdk": "^1.0.0",
     "@types/pg": "^8.15.5",
-    "@vercel/node": "^3.0.0",
     "axios": "^1.5.0",
     "ccxt": "^4.1.0",
     "cors": "^2.8.5",

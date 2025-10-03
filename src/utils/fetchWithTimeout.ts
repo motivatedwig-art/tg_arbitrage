@@ -1,6 +1,6 @@
 export async function fetchWithTimeout<T>(
   promise: Promise<T>,
-  timeoutMs: number = 9000 // 9 seconds for Vercel
+  timeoutMs: number = 10000 // 10 seconds timeout
 ): Promise<T> {
   const timeout = new Promise<never>((_, reject) =>
     setTimeout(() => reject(new Error(`Request timeout after ${timeoutMs}ms`)), timeoutMs)

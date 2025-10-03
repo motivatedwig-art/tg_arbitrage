@@ -53,8 +53,8 @@ cp .env.example .env
 4. Configure your `.env` file with your Telegram Bot Token:
 ```env
 TELEGRAM_BOT_TOKEN=your_telegram_bot_token_here
-WEBAPP_URL=https://your-domain.vercel.app
-VITE_API_BASE_URL=https://your-domain.vercel.app/api
+WEBAPP_URL=https://webapp-production-c779.up.railway.app
+VITE_API_BASE_URL=https://webapp-production-c779.up.railway.app/api
 ```
 
 5. Start the development server:
@@ -69,11 +69,11 @@ npm run dev
 ```env
 # Telegram Bot Configuration
 TELEGRAM_BOT_TOKEN=your_telegram_bot_token_here
-WEBAPP_URL=https://your-domain.vercel.app
+WEBAPP_URL=https://webapp-production-c779.up.railway.app
 
 # Frontend API Configuration
-VITE_API_BASE_URL=https://your-domain.vercel.app/api
-VITE_API_URL=https://your-domain.vercel.app/api
+VITE_API_BASE_URL=https://webapp-production-c779.up.railway.app/api
+VITE_API_URL=https://webapp-production-c779.up.railway.app/api
 ```
 
 ### Optional Variables
@@ -164,10 +164,10 @@ npm run dev
 
 ## Deployment
 
-### Vercel (Recommended)
+### Railway (Recommended)
 
-1. Connect your repository to Vercel
-2. Set environment variables in Vercel dashboard
+1. Connect your repository to Railway
+2. Set environment variables in Railway dashboard
 3. Deploy automatically on push to main branch
 
 ### Manual Deployment
@@ -204,7 +204,7 @@ npm start
 ### Example
 
 ```bash
-curl "https://your-domain.vercel.app/api/opportunities?exchanges=binance,okx"
+curl "https://webapp-production-c779.up.railway.app/api/opportunities?exchanges=binance,okx"
 ```
 
 ## Contributing
