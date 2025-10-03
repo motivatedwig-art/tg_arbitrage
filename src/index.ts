@@ -48,16 +48,22 @@ class CryptoArbitrageApp {
     try {
       console.log('🚀 Starting Crypto Arbitrage Bot...');
 
-      // Start the Telegram bot
-      await this.bot.start();
+      // Start web app server first (required for health checks)
+      console.log('🌐 Starting web app server...');
+      await this.webAppServer.start(parseInt(process.env.PORT || '3000'));
 
-      // Initialize exchanges
+      // Initialize exchanges (non-blocking)
       console.log('🔌 Initializing exchanges...');
       await this.exchangeManager.initializeExchanges();
 
-      // Start web app server
-      console.log('🌐 Starting web app server...');
-      await this.webAppServer.start(parseInt(process.env.PORT || '3000'));
+      // Start the Telegram bot (non-blocking)
+      try {
+        await this.bot.start();
+        console.log('✅ Telegram bot started successfully');
+      } catch (botError) {
+        console.error('⚠️ Telegram bot failed to start:', botError);
+        console.log('🔄 Continuing without Telegram bot...');
+      }
 
       // Schedule regular updates
       this.scheduleUpdates();
