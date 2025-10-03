@@ -26,16 +26,31 @@ class CryptoArbitrageApp {
   private updateInterval: number;
 
   constructor() {
-    const botToken = process.env.TELEGRAM_BOT_TOKEN;
-    if (!botToken) {
-      throw new Error('TELEGRAM_BOT_TOKEN is required');
-    }
+    try {
+      const botToken = process.env.TELEGRAM_BOT_TOKEN;
+      if (!botToken) {
+        throw new Error('TELEGRAM_BOT_TOKEN is required');
+      }
 
-    this.bot = new CryptoArbitrageBot(botToken);
-    this.arbitrageService = UnifiedArbitrageService.getInstance();
-    this.db = DatabaseManager.getInstance();
-    this.webAppServer = new WebAppServer();
-    this.updateInterval = parseInt(process.env.UPDATE_INTERVAL || '30000');
+      console.log('🔧 Initializing components...');
+      this.bot = new CryptoArbitrageBot(botToken);
+      console.log('✅ Telegram bot initialized');
+      
+      this.arbitrageService = UnifiedArbitrageService.getInstance();
+      console.log('✅ Arbitrage service initialized');
+      
+      this.db = DatabaseManager.getInstance();
+      console.log('✅ Database manager initialized');
+      
+      this.webAppServer = new WebAppServer();
+      console.log('✅ Web app server initialized');
+      
+      this.updateInterval = parseInt(process.env.UPDATE_INTERVAL || '30000');
+      console.log('✅ All components initialized successfully');
+    } catch (error) {
+      console.error('❌ Failed to initialize components:', error);
+      throw error;
+    }
   }
 
   public async start(): Promise<void> {
@@ -44,7 +59,13 @@ class CryptoArbitrageApp {
 
       // Start web app server first (required for health checks)
       console.log('🌐 Starting web app server...');
-      await this.webAppServer.start(parseInt(process.env.PORT || '3000'));
+      try {
+        await this.webAppServer.start(parseInt(process.env.PORT || '3000'));
+        console.log('✅ Web app server started successfully');
+      } catch (webError) {
+        console.error('❌ Web app server failed to start:', webError);
+        throw webError; // Don't continue if web server fails
+      }
 
       // Start the unified arbitrage service
       console.log('🔌 Starting unified arbitrage service...');
