@@ -19,14 +19,17 @@ export const ArbitrageTable: React.FC<ArbitrageTableProps> = ({
 
   if (data.length === 0) {
     return (
-      <div className="text-center py-8">
-        <div className="text-4xl mb-4">📊</div>
-        <p className="text-[var(--tg-theme-hint-color)]">
+      <div className="text-center py-12">
+        <div className="text-6xl mb-6 opacity-75">📊</div>
+        <p className="text-[var(--tg-theme-text-color)] text-lg font-medium mb-2">
           No arbitrage opportunities found
         </p>
-        <p className="text-sm text-[var(--tg-theme-hint-color)] mt-2">
-          Try selecting different exchanges or check back later
+        <p className="text-sm text-[var(--tg-theme-hint-color)] mb-4 max-w-xs mx-auto">
+          Try selecting different exchanges or check back later for new opportunities
         </p>
+        <div className="text-xs text-[var(--tg-theme-hint-color)] opacity-75 mt-6">
+          💡 Markets are actively monitored - opportunities appear when price differences exist
+        </div>
       </div>
     );
   }
@@ -51,11 +54,11 @@ export const ArbitrageTable: React.FC<ArbitrageTableProps> = ({
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h3 className="text-lg font-semibold text-[var(--tg-theme-text-color)]">
-          Arbitrage Opportunities
+      <div className="flex items-center justify-between mb-6">
+        <h3 className="text-xl font-bold text-[var(--tg-theme-text-color)]">
+          📈 Arbitrage Opportunities
         </h3>
-        <span className="text-sm text-[var(--tg-theme-hint-color)]">
+        <span className="px-3 py-1 bg-[var(--tg-theme-secondary-bg-color)] text-[var(--tg-theme-text-color)] rounded-full text-sm font-medium">
           {data.length} found
         </span>
       </div>

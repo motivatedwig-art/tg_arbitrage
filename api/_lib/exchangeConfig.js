@@ -84,20 +84,6 @@ export const SUPPORTED_EXCHANGES = {
       secret: 'BYBIT_API_SECRET'
     })
   },
-  bitget: {
-    id: 'bitget',
-    ccxtId: 'bitget',
-    displayName: 'Bitget',
-    website: 'https://www.bitget.com',
-    pairUrlPattern: 'https://www.bitget.com/en/spot/{symbol}',
-    logo: '🔵',
-    tradeFee: toNumber(process.env.BITGET_TRADING_FEE || process.env.BITGET_TAKER_FEE, 0.1),
-    credentials: buildCredentials({
-      apiKey: 'BITGET_API_KEY',
-      secret: 'BITGET_API_SECRET',
-      password: 'BITGET_PASSPHRASE'
-    })
-  },
   mexc: {
     id: 'mexc',
     ccxtId: 'mexc',
@@ -109,19 +95,6 @@ export const SUPPORTED_EXCHANGES = {
     credentials: buildCredentials({
       apiKey: 'MEXC_API_KEY',
       secret: 'MEXC_API_SECRET'
-    })
-  },
-  bingx: {
-    id: 'bingx',
-    ccxtId: 'bingx',
-    displayName: 'BingX',
-    website: 'https://bingx.com',
-    pairUrlPattern: 'https://bingx.com/en-us/spot/{symbol}',
-    logo: '🔴',
-    tradeFee: toNumber(process.env.BINGX_TRADING_FEE || process.env.BINGX_TAKER_FEE, 0.1),
-    credentials: buildCredentials({
-      apiKey: 'BINGX_API_KEY',
-      secret: 'BINGX_API_SECRET'
     })
   },
   gateio: {

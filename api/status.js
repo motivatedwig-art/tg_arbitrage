@@ -1,8 +1,9 @@
 // Function to fetch real status from the bot
 async function fetchRealStatus() {
-  // Check if we should use mock data
-  if (process.env.USE_MOCK_DATA === 'true') {
-    console.warn('Using mock data - USE_MOCK_DATA is true');
+  // Check if we should use mock data (enable in development)
+  const useMockData = process.env.USE_MOCK_DATA === 'true' || process.env.NODE_ENV !== 'production';
+  if (useMockData) {
+    console.log('Using mock exchange status for development');
     return generateMockStatus();
   }
 
@@ -51,13 +52,11 @@ function generateMockStatus() {
       binance: { connected: true, lastUpdate: new Date().toISOString() },
       okx: { connected: true, lastUpdate: new Date().toISOString() },
       bybit: { connected: true, lastUpdate: new Date().toISOString() },
-      bitget: { connected: true, lastUpdate: new Date().toISOString() },
       mexc: { connected: true, lastUpdate: new Date().toISOString() },
-      bingx: { connected: true, lastUpdate: new Date().toISOString() },
       gateio: { connected: true, lastUpdate: new Date().toISOString() },
       kucoin: { connected: true, lastUpdate: new Date().toISOString() }
     },
-    connectedCount: 8,
+    connectedCount: 6,
     lastUpdate: new Date().toISOString()
   };
 }

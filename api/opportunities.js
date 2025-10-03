@@ -71,9 +71,10 @@ const handler = async (req, res) => {
     const selectedExchanges = parseSelectedExchanges(req);
     const symbols = parseSymbols(req);
 
-    // Check if we should use mock data
-    if (process.env.USE_MOCK_DATA === 'true') {
-      console.warn('Using mock data - USE_MOCK_DATA is true');
+    // Enable mock data for testing (will be disabled in production)
+    const useMockData = process.env.USE_MOCK_DATA === 'true' || process.env.NODE_ENV !== 'production';
+    if (useMockData) {
+      console.log('Using mock data for development/testing');
       const mockOpportunities = generateMockOpportunities(symbols);
       res.status(200).json({
         success: true,
@@ -176,7 +177,7 @@ const handler = async (req, res) => {
 
 function generateMockOpportunities(symbols) {
   const mockOpportunities = [];
-  const exchanges = ['binance', 'okx', 'bybit', 'bitget', 'mexc', 'bingx', 'gateio', 'kucoin'];
+  const exchanges = ['binance', 'okx', 'bybit', 'mexc', 'gateio', 'kucoin'];
   
   symbols.forEach(symbol => {
     // Generate 2-3 mock opportunities per symbol

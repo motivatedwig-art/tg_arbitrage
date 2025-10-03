@@ -3,9 +3,13 @@ import { ApiResponse, Exchange, ArbitrageOpportunity } from '../types';
 
 // Get API base URL with fallback
 const getAPIBaseURL = (): string => {
-  const envUrl = import.meta.env.VITE_API_BASE_URL;
-  
+  // Check for different environment variable names
+  const envUrl = import.meta.env.VITE_API_BASE_URL || 
+                 import.meta.env.VITE_API_URL || 
+                 process.env.WEBAPP_URL;
+                 
   if (envUrl) {
+    // Ensure it ends with /api
     return envUrl.endsWith('/api') ? envUrl : `${envUrl}/api`;
   }
   
@@ -14,8 +18,8 @@ const getAPIBaseURL = (): string => {
     return 'http://localhost:3000/api';
   }
   
-  // Production - this should be set via env var
-  throw new Error('VITE_API_BASE_URL not configured');
+  // Production fallback
+  return 'https://tg-arbitrage.vercel.app/api';
 };
 
 const API_BASE_URL = getAPIBaseURL();
@@ -225,9 +229,7 @@ export const apiService = {
         { id: 'binance', name: 'binance', displayName: 'Binance', logo: '🟡', baseUrl: 'https://binance.com' },
         { id: 'okx', name: 'okx', displayName: 'OKX', logo: '⚫', baseUrl: 'https://okx.com' },
         { id: 'bybit', name: 'bybit', displayName: 'Bybit', logo: '🟠', baseUrl: 'https://bybit.com' },
-        { id: 'bitget', name: 'bitget', displayName: 'Bitget', logo: '🔵', baseUrl: 'https://bitget.com' },
         { id: 'mexc', name: 'mexc', displayName: 'MEXC', logo: '🟢', baseUrl: 'https://mexc.com' },
-        { id: 'bingx', name: 'bingx', displayName: 'BingX', logo: '🔴', baseUrl: 'https://bingx.com' },
         { id: 'gateio', name: 'gateio', displayName: 'Gate.io', logo: '🟣', baseUrl: 'https://gate.io' },
         { id: 'kucoin', name: 'kucoin', displayName: 'KuCoin', logo: '🟦', baseUrl: 'https://kucoin.com' }
       ];
@@ -241,14 +243,12 @@ export const apiService = {
     } catch (error) {
       console.warn('Failed to fetch exchange status, using defaults:', error);
       
-      // Return default exchanges if API fails
+      // Return default exchanges if API fails (removed bitget and bingx)
       const defaultExchanges: Exchange[] = [
         { id: 'binance', name: 'binance', displayName: 'Binance', logo: '🟡', isSelected: true, baseUrl: 'https://binance.com', pairUrlPattern: 'https://binance.com/trade/{symbol}' },
         { id: 'okx', name: 'okx', displayName: 'OKX', logo: '⚫', isSelected: true, baseUrl: 'https://okx.com', pairUrlPattern: 'https://okx.com/trade/{symbol}' },
         { id: 'bybit', name: 'bybit', displayName: 'Bybit', logo: '🟠', isSelected: true, baseUrl: 'https://bybit.com', pairUrlPattern: 'https://bybit.com/trade/{symbol}' },
-        { id: 'bitget', name: 'bitget', displayName: 'Bitget', logo: '🔵', isSelected: true, baseUrl: 'https://bitget.com', pairUrlPattern: 'https://bitget.com/trade/{symbol}' },
         { id: 'mexc', name: 'mexc', displayName: 'MEXC', logo: '🟢', isSelected: true, baseUrl: 'https://mexc.com', pairUrlPattern: 'https://mexc.com/trade/{symbol}' },
-        { id: 'bingx', name: 'bingx', displayName: 'BingX', logo: '🔴', isSelected: true, baseUrl: 'https://bingx.com', pairUrlPattern: 'https://bingx.com/trade/{symbol}' },
         { id: 'gateio', name: 'gateio', displayName: 'Gate.io', logo: '🟣', isSelected: true, baseUrl: 'https://gate.io', pairUrlPattern: 'https://gate.io/trade/{symbol}' },
         { id: 'kucoin', name: 'kucoin', displayName: 'KuCoin', logo: '🟦', isSelected: true, baseUrl: 'https://kucoin.com', pairUrlPattern: 'https://kucoin.com/trade/{symbol}' }
       ];
