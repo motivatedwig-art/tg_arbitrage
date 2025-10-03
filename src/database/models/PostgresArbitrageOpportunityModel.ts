@@ -57,7 +57,7 @@ export class PostgresArbitrageOpportunityModel {
           opp.profitPercentage,
           opp.profitAmount,
           opp.volume,
-          opp.volume24h || opp.volume, // Use volume24h if available
+          opp.volume_24h || opp.volume, // Use volume_24h if available
           opp.timestamp
         ]);
       }

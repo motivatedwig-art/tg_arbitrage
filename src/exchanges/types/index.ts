@@ -14,6 +14,7 @@ export interface Ticker {
   timestamp: number;
   exchange: string;
   volume?: number;
+  volume_24h?: number;
   blockchain?: string; // e.g., 'ethereum', 'solana', 'bsc', 'polygon'
   contractAddress?: string; // Token contract address for verification
 }
