@@ -10,10 +10,16 @@ const app = express();
 const port = process.env.PORT || 3000;
 
 // Health check endpoint (required by Railway)
-app.get('/health', (req, res) => {
+app.get('/api/health', (req, res) => {
   try {
     const status = processor ? processor.getStatus() : { status: 'starting' };
-    res.status(200).json(status);
+    res.status(200).json({
+      status: 'OK',
+      timestamp: Date.now(),
+      uptime: process.uptime(),
+      service: 'crypto-arbitrage-processor',
+      ...status
+    });
   } catch (error) {
     res.status(500).json({ 
       status: 'error', 
@@ -21,6 +27,11 @@ app.get('/health', (req, res) => {
       timestamp: new Date().toISOString()
     });
   }
+});
+
+// Legacy health endpoint
+app.get('/health', (req, res) => {
+  res.json({ status: 'OK', timestamp: Date.now() });
 });
 
 // Root endpoint with status

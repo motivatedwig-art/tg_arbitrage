@@ -10,7 +10,7 @@
     "build:frontend": "vite build",
     "build:backend": "tsc -p tsconfig.backend.json",
     "start": "NODE_ENV=production USE_MOCK_DATA=false node dist/index.js",
-    "start:production": "NODE_ENV=production USE_MOCK_DATA=false node simple-server.js",
+    "start:production": "NODE_ENV=production USE_MOCK_DATA=false node dist/index.js",
     "vercel-build": "npm run build",
     "test:api": "node -e \"fetch('`https://tg-arbitrage.vercel.app/api/debug').then(r=>r.json()).then(console.log)\"",
     "test:local": "NODE_ENV=production npm start",
