@@ -206,19 +206,36 @@ export class WebAppServer {
 
     // Serve React app for all other routes
     this.app.get('*', (req, res) => {
-      res.sendFile(path.join(__dirname, '../../dist/index.html'));
+      const miniappPath = path.join(__dirname, '../../dist/index.html');
+      const fallbackPath = path.join(__dirname, 'public', 'index.html');
+      
+      if (fs.existsSync(miniappPath)) {
+        res.sendFile(miniappPath);
+      } else if (fs.existsSync(fallbackPath)) {
+        res.sendFile(fallbackPath);
+      } else {
+        // Simple fallback for health check issues
+        res.status(404).send('Application not ready. Health check at /api/health');
+      }
     });
   }
 
   public start(port: number = 3000): Promise<void> {
     return new Promise((resolve, reject) => {
+      // Use Railway's PORT environment variable if available
+      const portToUse = process.env.PORT ? parseInt(process.env.PORT) : 3000;
+      
+      console.log(`🚀 Starting web server on port ${portToUse}...`);
+      
       // Try to find an available port
       const tryPort = (attemptPort: number) => {
         this.server = this.app.listen(attemptPort, '0.0.0.0', () => {
-          console.log(`🌐 Web server running on port ${attemptPort}`);
+          console.log(`✅ Web server running on port ${attemptPort}`);
+          console.log(`🌍 PID: ${process.pid}`);
           console.log(`📊 Environment: ${process.env.NODE_ENV}`);
           console.log(`📡 Mock Data: ${process.env.USE_MOCK_DATA === 'true' ? 'ENABLED' : 'DISABLED'}`);
           console.log(`🏥 Health check available at: http://0.0.0.0:${attemptPort}/api/health`);
+          console.log('🔄 Server startup completed successfully');
           resolve();
         });
 
