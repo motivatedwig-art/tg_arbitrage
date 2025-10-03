@@ -19,7 +19,7 @@ const getAPIBaseURL = (): string => {
   }
   
   // Production fallback
-  return 'https://tg-arbitrage.vercel.app/api';
+  return 'https://webapp-production-c779.up.railway.app/api';
 };
 
 const API_BASE_URL = getAPIBaseURL();
