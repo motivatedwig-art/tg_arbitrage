@@ -5,12 +5,16 @@ import { BackgroundProcessor } from './src/services/BackgroundProcessor.js';
 // Load environment variables
 dotenv.config();
 
+console.log('🚀 CRYPTO-ARBITRAGE-PROCESSOR/RAILWAY-PROCESSOR.JS STARTING...');
+console.log('🔧 Environment:', process.env.NODE_ENV);
+console.log('🌐 Port:', process.env.PORT || 3000);
+
 // Create Express app for Railway health checks
 const app = express();
 const port = process.env.PORT || 3000;
 
 // Health check endpoint (required by Railway)
-app.get('/health', (req, res) => {
+app.get('/api/health', (req, res) => {
   try {
     const status = processor ? processor.getStatus() : { status: 'starting' };
     res.status(200).json(status);
