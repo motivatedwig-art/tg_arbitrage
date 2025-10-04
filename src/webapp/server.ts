@@ -712,7 +712,7 @@ export class WebAppServer {
         // Filter out mock data characteristics
         const realOpportunities = opportunities.filter(opp => {
           return opp.profitPercentage > 0.1 && 
-                 opp.profitPercentage < 5 && // Realistic profit range
+                 opp.profitPercentage < 50 && // Allow realistic arbitrage up to 50%
                  opp.buyPrice > 0 &&
                  opp.sellPrice > 0;
         });
