@@ -17,7 +17,7 @@ export class PostgresArbitrageOpportunityModel {
         sell_exchange VARCHAR(50) NOT NULL,
         buy_price DECIMAL(20,8) NOT NULL,
         sell_price DECIMAL(20,8) NOT NULL,
-        profit_percentage DECIMAL(10,4) NOT NULL,
+        profit_percentage DECIMAL(15,4) NOT NULL,
         profit_amount DECIMAL(20,8) NOT NULL,
         volume DECIMAL(20,8) NOT NULL DEFAULT 0,
         volume_24h DECIMAL(20,8),
@@ -299,16 +299,20 @@ export class PostgresArbitrageOpportunityModel {
   private sanitizePercentage(percentage: number): number {
     // Handle infinity, NaN, and extreme values
     if (!isFinite(percentage) || isNaN(percentage)) {
+      console.warn(`⚠️ Invalid profit percentage detected: ${percentage}, setting to 0`);
       return 0;
     }
     
     // Cap extreme percentages to prevent database overflow
-    if (percentage > 1000000) { // Max 1,000,000%
-      return 1000000;
+    // DECIMAL(15,4) can hold up to 999,999,999,999.9999
+    if (percentage > 999999999999) { // Max safe value for DECIMAL(15,4)
+      console.warn(`⚠️ Profit percentage too high: ${percentage}%, capping to 999999999999%`);
+      return 999999999999;
     }
     
-    if (percentage < -1000000) { // Min -1,000,000%
-      return -1000000;
+    if (percentage < -999999999999) { // Min safe value for DECIMAL(15,4)
+      console.warn(`⚠️ Profit percentage too low: ${percentage}%, capping to -999999999999%`);
+      return -999999999999;
     }
     
     return Math.round(percentage * 10000) / 10000; // Round to 4 decimal places
@@ -323,8 +327,8 @@ export class PostgresArbitrageOpportunityModel {
       opp.sellPrice > 0 &&
       isFinite(opp.profitPercentage) &&
       !isNaN(opp.profitPercentage) &&
-      opp.profitPercentage >= -1000 && // Reasonable lower bound
-      opp.profitPercentage <= 1000000 && // Cap at 1M%
+      opp.profitPercentage >= -999999999999 && // Reasonable lower bound
+      opp.profitPercentage <= 999999999999 && // Cap at safe DECIMAL(15,4) limit
       opp.timestamp > 0
     );
   }
