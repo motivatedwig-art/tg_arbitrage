@@ -704,6 +704,37 @@ export class WebAppServer {
       }
     });
 
+    // Debug API route to get all opportunities without filtering
+    this.app.get('/api/debug/opportunities', async (req, res) => {
+      try {
+        const opportunities = await this.db.getArbitrageModel().getRecentOpportunities(30);
+        
+        res.json({ 
+          success: true, 
+          data: opportunities.map(opp => ({
+            symbol: opp.symbol,
+            buyExchange: opp.buyExchange,
+            sellExchange: opp.sellExchange,
+            buyPrice: opp.buyPrice,
+            sellPrice: opp.sellPrice,
+            profitPercentage: opp.profitPercentage,
+            profitAmount: opp.profitAmount,
+            volume: opp.volume,
+            timestamp: opp.timestamp
+          })),
+          timestamp: Date.now(),
+          count: opportunities.length
+        });
+      } catch (error) {
+        console.error('Debug API error:', error);
+        res.status(500).json({ 
+          success: false, 
+          error: 'Failed to fetch opportunities',
+          message: error.message 
+        });
+      }
+    });
+
     // API route to get arbitrage opportunities
     this.app.get('/api/opportunities', async (req, res) => {
       try {
