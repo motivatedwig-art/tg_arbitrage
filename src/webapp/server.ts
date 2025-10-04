@@ -707,7 +707,7 @@ export class WebAppServer {
     // Debug API route to get all opportunities without filtering
     this.app.get('/api/debug/opportunities', async (req, res) => {
       try {
-        const opportunities = await this.db.getArbitrageModel().getRecentOpportunities(30);
+        const opportunities = await this.db.getArbitrageModel().getRecentOpportunities(60); // 60 minutes instead of 30
         
         res.json({ 
           success: true, 
@@ -723,7 +723,8 @@ export class WebAppServer {
             timestamp: opp.timestamp
           })),
           timestamp: Date.now(),
-          count: opportunities.length
+          count: opportunities.length,
+          cutoffTime: Date.now() - (60 * 60 * 1000)
         });
       } catch (error) {
         console.error('Debug API error:', error);
