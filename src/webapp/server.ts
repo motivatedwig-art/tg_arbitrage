@@ -311,9 +311,13 @@ export class WebAppServer {
         const exchangeManager = this.arbitrageService.getExchangeManager();
         const exchangeStatuses = exchangeManager.getExchangeStatus();
         
+        // Count connected exchanges
+        const connectedExchanges = exchangeStatuses.filter(status => status.isOnline).length;
+        
         res.json({
           database: 'connected',
-          exchanges: Object.keys(exchangeStatuses),
+          exchanges: exchangeStatuses.map(status => status.name),
+          connectedCount: connectedExchanges,
           lastUpdate: new Date().toISOString(),
           uptime: process.uptime()
         });
