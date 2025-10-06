@@ -117,38 +117,32 @@ export class WebAppServer {
         // API route to get arbitrage opportunities
         this.app.get('/api/opportunities', async (req, res) => {
             try {
-                // Try to get opportunities from database first
-                const opportunities = await this.db.getArbitrageModel().getRecentOpportunities(30);
-                if (opportunities && opportunities.length > 0) {
-                    console.log(`📊 Found ${opportunities.length} opportunities from database`);
-                    res.json({
-                        success: true,
-                        data: opportunities.map(opp => ({
-                            symbol: opp.symbol,
-                            buyExchange: opp.buyExchange,
-                            sellExchange: opp.sellExchange,
-                            buyPrice: opp.buyPrice,
-                            sellPrice: opp.sellPrice,
-                            profitPercentage: opp.profitPercentage,
-                            profitAmount: opp.profitAmount,
-                            volume: opp.volume,
-                            timestamp: opp.timestamp
-                        }))
-                    });
-                    return;
-                }
-            }
-            catch (dbError) {
-                console.warn('Database query failed, falling back to live arbitrage service:', dbError.message);
-            }
-            // Fallback: Get live opportunities from the arbitrage service
-            try {
+                // Get live opportunities from the arbitrage service (most recent data)
                 const liveOpportunities = await this.arbitrageService.getRecentOpportunities(5); // Last 5 minutes
                 console.log(`📊 Found ${liveOpportunities.length} live opportunities`);
                 if (liveOpportunities.length > 0) {
+                    // Deduplicate opportunities - keep only the most profitable per coin pair
+                    const uniqueOpportunities = liveOpportunities.reduce((acc, current) => {
+                        const key = `${current.symbol}-${current.buyExchange}-${current.sellExchange}`;
+                        const existing = acc.find(opp => opp.symbol === current.symbol &&
+                            opp.buyExchange === current.buyExchange &&
+                            opp.sellExchange === current.sellExchange);
+                        if (!existing || current.profitPercentage > existing.profitPercentage) {
+                            // Remove existing and add current (most profitable)
+                            const filtered = acc.filter(opp => !(opp.symbol === current.symbol &&
+                                opp.buyExchange === current.buyExchange &&
+                                opp.sellExchange === current.sellExchange));
+                            filtered.push(current);
+                            return filtered;
+                        }
+                        return acc;
+                    }, []);
+                    // Sort by profit percentage (highest first)
+                    uniqueOpportunities.sort((a, b) => b.profitPercentage - a.profitPercentage);
+                    console.log(`📊 Deduplicated to ${uniqueOpportunities.length} unique opportunities`);
                     res.json({
                         success: true,
-                        data: liveOpportunities.map(opp => ({
+                        data: uniqueOpportunities.map(opp => ({
                             symbol: opp.symbol,
                             buyExchange: opp.buyExchange,
                             sellExchange: opp.sellExchange,
@@ -165,6 +159,50 @@ export class WebAppServer {
             }
             catch (liveError) {
                 console.warn('Live opportunities API error:', liveError);
+            }
+            // Fallback: Try database with deduplication
+            try {
+                const opportunities = await this.db.getArbitrageModel().getRecentOpportunities(10); // Only last 10 minutes
+                if (opportunities && opportunities.length > 0) {
+                    console.log(`📊 Found ${opportunities.length} opportunities from database`);
+                    // Deduplicate opportunities - keep only the most profitable per coin pair
+                    const uniqueOpportunities = opportunities.reduce((acc, current) => {
+                        const key = `${current.symbol}-${current.buyExchange}-${current.sellExchange}`;
+                        const existing = acc.find(opp => opp.symbol === current.symbol &&
+                            opp.buyExchange === current.buyExchange &&
+                            opp.sellExchange === current.sellExchange);
+                        if (!existing || current.profitPercentage > existing.profitPercentage) {
+                            // Remove existing and add current (most profitable)
+                            const filtered = acc.filter(opp => !(opp.symbol === current.symbol &&
+                                opp.buyExchange === current.buyExchange &&
+                                opp.sellExchange === current.sellExchange));
+                            filtered.push(current);
+                            return filtered;
+                        }
+                        return acc;
+                    }, []);
+                    // Sort by profit percentage (highest first)
+                    uniqueOpportunities.sort((a, b) => b.profitPercentage - a.profitPercentage);
+                    console.log(`📊 Deduplicated to ${uniqueOpportunities.length} unique opportunities`);
+                    res.json({
+                        success: true,
+                        data: uniqueOpportunities.map(opp => ({
+                            symbol: opp.symbol,
+                            buyExchange: opp.buyExchange,
+                            sellExchange: opp.sellExchange,
+                            buyPrice: opp.buyPrice,
+                            sellPrice: opp.sellPrice,
+                            profitPercentage: opp.profitPercentage,
+                            profitAmount: opp.profitAmount,
+                            volume: opp.volume,
+                            timestamp: opp.timestamp
+                        }))
+                    });
+                    return;
+                }
+            }
+            catch (dbError) {
+                console.warn('Database query failed:', dbError.message);
             }
             // Final fallback: Generate some sample opportunities for UI testing
             console.log('📊 No opportunities found, generating sample data for UI testing');
@@ -253,17 +291,81 @@ export class WebAppServer {
         // API route to get statistics
         this.app.get('/api/stats', async (req, res) => {
             try {
-                const stats = await this.db.getArbitrageModel().getStatistics();
+                // Get live opportunities to calculate real-time stats
+                const liveOpportunities = await this.arbitrageService.getRecentOpportunities(30); // Last 30 minutes
+                if (liveOpportunities && liveOpportunities.length > 0) {
+                    // Deduplicate for accurate stats
+                    const uniqueOpportunities = liveOpportunities.reduce((acc, current) => {
+                        const existing = acc.find(opp => opp.symbol === current.symbol &&
+                            opp.buyExchange === current.buyExchange &&
+                            opp.sellExchange === current.sellExchange);
+                        if (!existing || current.profitPercentage > existing.profitPercentage) {
+                            const filtered = acc.filter(opp => !(opp.symbol === current.symbol &&
+                                opp.buyExchange === current.buyExchange &&
+                                opp.sellExchange === current.sellExchange));
+                            filtered.push(current);
+                            return filtered;
+                        }
+                        return acc;
+                    }, []);
+                    // Calculate stats
+                    const totalOpportunities = uniqueOpportunities.length;
+                    const profitPercentages = uniqueOpportunities.map(opp => opp.profitPercentage);
+                    const averageProfit = profitPercentages.length > 0
+                        ? profitPercentages.reduce((sum, profit) => sum + profit, 0) / profitPercentages.length
+                        : 0;
+                    const maxProfit = profitPercentages.length > 0 ? Math.max(...profitPercentages) : 0;
+                    // Count unique exchanges
+                    const exchanges = new Set();
+                    uniqueOpportunities.forEach(opp => {
+                        exchanges.add(opp.buyExchange);
+                        exchanges.add(opp.sellExchange);
+                    });
+                    const connectedExchanges = exchanges.size;
+                    const stats = {
+                        totalOpportunities,
+                        averageProfit: Math.round(averageProfit * 100) / 100,
+                        maxProfit: Math.round(maxProfit * 100) / 100,
+                        connectedExchanges
+                    };
+                    console.log(`📊 Calculated stats: ${JSON.stringify(stats)}`);
+                    res.json({
+                        success: true,
+                        data: stats
+                    });
+                    return;
+                }
+                // Fallback: Try database stats
+                const dbStats = await this.db.getArbitrageModel().getStatistics();
+                if (dbStats && Object.keys(dbStats).length > 0) {
+                    res.json({
+                        success: true,
+                        data: dbStats
+                    });
+                    return;
+                }
+                // Final fallback: Return zero stats
                 res.json({
                     success: true,
-                    ...stats
+                    data: {
+                        totalOpportunities: 0,
+                        averageProfit: 0,
+                        maxProfit: 0,
+                        connectedExchanges: 0
+                    }
                 });
             }
             catch (error) {
                 console.error('Stats API error:', error);
                 res.status(500).json({
                     success: false,
-                    error: 'Failed to get statistics'
+                    error: 'Failed to get statistics',
+                    data: {
+                        totalOpportunities: 0,
+                        averageProfit: 0,
+                        maxProfit: 0,
+                        connectedExchanges: 0
+                    }
                 });
             }
         });
