@@ -420,9 +420,9 @@
         <div class="header">
             <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 16px;">
                 <div style="flex: 1;">
-                    <h1>🚀 Crypto Arbitrage</h1>
-                    <p>Real-time arbitrage opportunities across exchanges</p>
-                    <p style="font-size: 12px; color: var(--text-tertiary); margin-top: 8px;">v2.0 - Crypto Wallet Design</p>
+                    <h1 id="headerTitle">🚀 Crypto Arbitrage</h1>
+                    <p id="headerSubtitle">Real-time arbitrage opportunities across exchanges</p>
+                    <p id="headerVersion" style="font-size: 12px; color: var(--text-tertiary); margin-top: 8px;">v2.0 - Crypto Wallet Design</p>
                 </div>
                 <button class="btn" onclick="toggleLanguage()" id="languageBtn" style="margin-left: 16px; background: var(--accent-yellow); color: #000000; padding: 8px 16px; font-size: 14px; font-weight: 600;">
                     <span id="languageText">RU</span>
@@ -455,10 +455,10 @@
                 <span id="connectionText">Connecting...</span>
             </div>
             <div class="status-item">
-                <span>Last Update: <span id="lastUpdate">Never</span></span>
+                <span id="lastUpdateLabel">Last Update: </span><span id="lastUpdate">Never</span>
             </div>
             <div class="status-item">
-                <span>Opportunities: <span id="opportunityCount">0</span></span>
+                <span id="opportunitiesLabel">Opportunities: </span><span id="opportunityCount">0</span>
             </div>
         </div>
 
@@ -557,17 +557,17 @@
 
         function updateUI() {
             // Update header elements
-            const titleElement = document.querySelector('.header h1');
+            const titleElement = document.getElementById('headerTitle');
             if (titleElement) {
                 titleElement.textContent = t('title');
             }
             
-            const subtitleElement = document.querySelector('.header p');
+            const subtitleElement = document.getElementById('headerSubtitle');
             if (subtitleElement) {
                 subtitleElement.textContent = t('subtitle');
             }
             
-            const versionElement = document.querySelector('.header p:last-child');
+            const versionElement = document.getElementById('headerVersion');
             if (versionElement) {
                 versionElement.textContent = t('version');
             }
@@ -600,6 +600,17 @@
                 if (loadingText) {
                     loadingText.textContent = t('loading');
                 }
+            }
+
+            // Update status bar labels
+            const lastUpdateLabel = document.getElementById('lastUpdateLabel');
+            if (lastUpdateLabel) {
+                lastUpdateLabel.textContent = t('lastUpdate');
+            }
+            
+            const opportunitiesLabel = document.getElementById('opportunitiesLabel');
+            if (opportunitiesLabel) {
+                opportunitiesLabel.textContent = t('opportunities');
             }
         }
 
