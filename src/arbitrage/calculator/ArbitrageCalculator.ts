@@ -90,20 +90,29 @@ export class ArbitrageCalculator {
   }
 
   private isMockData(allTickers: Map<string, Ticker[]>): boolean {
-    // Check for common mock data patterns
+    // Check for common mock data patterns - be more specific
+    let mockDataCount = 0;
+    let totalTickers = 0;
+    
     for (const tickers of allTickers.values()) {
+      totalTickers += tickers.length;
+      
       const suspiciousPrices = tickers.filter(ticker => 
-        ticker.bid === 100 || 
-        ticker.bid === 1000 || 
         ticker.exchange.includes('mock') ||
         ticker.exchange.includes('test') ||
-        (ticker.bid >= 100 && ticker.bid <= 110) // Mock data range
+        // Only flag as mock if it's exactly these specific mock values
+        ticker.bid === 100.0 || 
+        ticker.bid === 1000.0 ||
+        ticker.bid === 50.0 ||
+        ticker.bid === 200.0
       );
-      if (suspiciousPrices.length > 0) {
-        return true;
-      }
+      
+      mockDataCount += suspiciousPrices.length;
     }
-    return false;
+    
+    // Only consider it mock data if more than 50% of tickers are mock
+    const mockPercentage = totalTickers > 0 ? (mockDataCount / totalTickers) : 0;
+    return mockPercentage > 0.5;
   }
 
   /**

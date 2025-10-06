@@ -6,7 +6,5 @@ export declare class WebAppServer {
     constructor();
     private setupMiddleware;
     private setupRoutes;
-    start(port: number): Promise<void>;
-    stop(): Promise<void>;
 }
-//# sourceMappingURL=server.d.ts.map
+//# sourceMappingURL=server-backup.d.ts.map
