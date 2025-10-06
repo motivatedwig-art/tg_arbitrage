@@ -500,6 +500,9 @@
         // Translation system
         const translations = {
             ru: {
+                title: '🚀 Крипто Арбитраж',
+                subtitle: 'Возможности арбитража в реальном времени на различных биржах',
+                version: 'v2.0 - Дизайн Крипто Кошелька',
                 totalOpportunities: 'Всего возможностей',
                 averageProfit: 'Средняя прибыль',
                 maximumProfit: 'Максимальная прибыль',
@@ -519,6 +522,9 @@
                 sell: 'Продать'
             },
             en: {
+                title: '🚀 Crypto Arbitrage',
+                subtitle: 'Real-time arbitrage opportunities across exchanges',
+                version: 'v2.0 - Crypto Wallet Design',
                 totalOpportunities: 'Total Opportunities',
                 averageProfit: 'Average Profit',
                 maximumProfit: 'Maximum Profit',
@@ -550,6 +556,22 @@
         }
 
         function updateUI() {
+            // Update header elements
+            const titleElement = document.querySelector('.header h1');
+            if (titleElement) {
+                titleElement.textContent = t('title');
+            }
+            
+            const subtitleElement = document.querySelector('.header p');
+            if (subtitleElement) {
+                subtitleElement.textContent = t('subtitle');
+            }
+            
+            const versionElement = document.querySelector('.header p:last-child');
+            if (versionElement) {
+                versionElement.textContent = t('version');
+            }
+
             // Update stat labels
             document.querySelectorAll('.stat-label').forEach((label, index) => {
                 const keys = ['totalOpportunities', 'averageProfit', 'maximumProfit', 'connectedExchanges'];
@@ -777,8 +799,22 @@
 
             statusDot.className = status.connectedCount > 0 ? 'status-dot' : 'status-dot offline';
             statusText.textContent = status.connectedCount > 0 ? t('connected') : t('connecting');
-            lastUpdate.textContent = status.lastUpdate ? new Date(status.lastUpdate).toLocaleTimeString() : 'Never';
+            lastUpdate.textContent = status.lastUpdate ? new Date(status.lastUpdate).toLocaleTimeString() : 'Никогда';
             connectedExchanges.textContent = status.connectedCount;
+            
+            // Update status bar labels
+            const statusItems = document.querySelectorAll('.status-item span');
+            if (statusItems.length >= 2) {
+                // Update "Last Update:" label
+                const lastUpdateLabel = statusItems[1].textContent;
+                if (lastUpdateLabel.includes('Last Update:')) {
+                    statusItems[1].innerHTML = `${t('lastUpdate')} <span id="lastUpdate">${lastUpdate.textContent}</span>`;
+                }
+                // Update "Opportunities:" label  
+                if (statusItems[2] && statusItems[2].textContent.includes('Opportunities:')) {
+                    statusItems[2].innerHTML = `${t('opportunities')} <span id="opportunityCount">0</span>`;
+                }
+            }
             
             // Update UI with current language
             updateUI();
