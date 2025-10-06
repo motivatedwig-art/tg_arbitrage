@@ -543,7 +543,54 @@
             if (!urlPattern) {
                 return `https://${exchange.toLowerCase()}.com`;
             }
-            return urlPattern.replace('{symbol}', symbol);
+            
+            // Convert symbol format for different exchanges
+            let formattedSymbol = symbol;
+            
+            switch (exchange.toLowerCase()) {
+                case 'binance':
+                    // Binance uses BTCUSDT format
+                    formattedSymbol = symbol;
+                    break;
+                case 'okx':
+                    // OKX uses BTC-USDT format
+                    formattedSymbol = symbol.replace('USDT', '-USDT');
+                    break;
+                case 'bybit':
+                    // Bybit uses BTC/USDT format
+                    formattedSymbol = symbol.replace('USDT', '/USDT');
+                    break;
+                case 'bitget':
+                    // Bitget uses BTCUSDT format
+                    formattedSymbol = symbol;
+                    break;
+                case 'mexc':
+                    // MEXC uses BTC_USDT format
+                    formattedSymbol = symbol.replace('USDT', '_USDT');
+                    break;
+                case 'bingx':
+                    // BingX uses BTC-USDT format
+                    formattedSymbol = symbol.replace('USDT', '-USDT');
+                    break;
+                case 'gateio':
+                    // Gate.io uses BTC_USDT format
+                    formattedSymbol = symbol.replace('USDT', '_USDT');
+                    break;
+                case 'kucoin':
+                    // KuCoin uses BTC-USDT format
+                    formattedSymbol = symbol.replace('USDT', '-USDT');
+                    break;
+                case 'coinbase':
+                    // Coinbase uses BTC-USD format
+                    formattedSymbol = symbol.replace('USDT', '-USD');
+                    break;
+                case 'kraken':
+                    // Kraken uses BTCUSD format
+                    formattedSymbol = symbol.replace('USDT', 'USD');
+                    break;
+            }
+            
+            return urlPattern.replace('{symbol}', formattedSymbol);
         }
 
         // Get profit badge class based on profit percentage
