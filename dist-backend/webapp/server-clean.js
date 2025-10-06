@@ -117,118 +117,29 @@ export class WebAppServer {
         // API route to get arbitrage opportunities
         this.app.get('/api/opportunities', async (req, res) => {
             try {
-                // Try to get opportunities from database first
                 const opportunities = await this.db.getArbitrageModel().getRecentOpportunities(30);
-                if (opportunities && opportunities.length > 0) {
-                    console.log(`📊 Found ${opportunities.length} opportunities from database`);
-                    res.json({
-                        success: true,
-                        data: opportunities.map(opp => ({
-                            symbol: opp.symbol,
-                            buyExchange: opp.buyExchange,
-                            sellExchange: opp.sellExchange,
-                            buyPrice: opp.buyPrice,
-                            sellPrice: opp.sellPrice,
-                            profitPercentage: opp.profitPercentage,
-                            profitAmount: opp.profitAmount,
-                            volume: opp.volume,
-                            timestamp: opp.timestamp
-                        }))
-                    });
-                    return;
-                }
+                res.json({
+                    success: true,
+                    data: opportunities.map(opp => ({
+                        symbol: opp.symbol,
+                        buyExchange: opp.buyExchange,
+                        sellExchange: opp.sellExchange,
+                        buyPrice: opp.buyPrice,
+                        sellPrice: opp.sellPrice,
+                        profitPercentage: opp.profitPercentage,
+                        profitAmount: opp.profitAmount,
+                        volume: opp.volume,
+                        timestamp: opp.timestamp
+                    }))
+                });
             }
-            catch (dbError) {
-                console.warn('Database query failed, falling back to live arbitrage service:', dbError.message);
+            catch (error) {
+                console.error('Opportunities API error:', error);
+                res.status(500).json({
+                    success: false,
+                    error: 'Failed to fetch opportunities'
+                });
             }
-            // Fallback: Get live opportunities from the arbitrage service
-            try {
-                const liveOpportunities = await this.arbitrageService.getRecentOpportunities(5); // Last 5 minutes
-                console.log(`📊 Found ${liveOpportunities.length} live opportunities`);
-                if (liveOpportunities.length > 0) {
-                    res.json({
-                        success: true,
-                        data: liveOpportunities.map(opp => ({
-                            symbol: opp.symbol,
-                            buyExchange: opp.buyExchange,
-                            sellExchange: opp.sellExchange,
-                            buyPrice: opp.buyPrice,
-                            sellPrice: opp.sellPrice,
-                            profitPercentage: opp.profitPercentage,
-                            profitAmount: opp.profitAmount,
-                            volume: opp.volume,
-                            timestamp: opp.timestamp
-                        }))
-                    });
-                    return;
-                }
-            }
-            catch (liveError) {
-                console.warn('Live opportunities API error:', liveError);
-            }
-            // Final fallback: Generate some sample opportunities for UI testing
-            console.log('📊 No opportunities found, generating sample data for UI testing');
-            const sampleOpportunities = [
-                {
-                    symbol: 'DEFIUSDT',
-                    buyExchange: 'mexc',
-                    sellExchange: 'bybit',
-                    buyPrice: 0.001912,
-                    sellPrice: 0.002497,
-                    profitPercentage: 30.14,
-                    profitAmount: 0.000585,
-                    volume: 1000000,
-                    timestamp: Date.now()
-                },
-                {
-                    symbol: 'COAUSDT',
-                    buyExchange: 'mexc',
-                    sellExchange: 'bybit',
-                    buyPrice: 0.00543,
-                    sellPrice: 0.005694,
-                    profitPercentage: 4.55,
-                    profitAmount: 0.000264,
-                    volume: 500000,
-                    timestamp: Date.now()
-                },
-                {
-                    symbol: 'DUELUSDT',
-                    buyExchange: 'mexc',
-                    sellExchange: 'bybit',
-                    buyPrice: 0.000453,
-                    sellPrice: 0.0004613,
-                    profitPercentage: 1.53,
-                    profitAmount: 0.0000083,
-                    volume: 2000000,
-                    timestamp: Date.now()
-                },
-                {
-                    symbol: 'UUSDT',
-                    buyExchange: 'mexc',
-                    sellExchange: 'bybit',
-                    buyPrice: 0.010279,
-                    sellPrice: 0.010408,
-                    profitPercentage: 0.95,
-                    profitAmount: 0.000129,
-                    volume: 3000000,
-                    timestamp: Date.now()
-                },
-                {
-                    symbol: 'ELF-USDT',
-                    buyExchange: 'kucoin',
-                    sellExchange: 'okx',
-                    buyPrice: 0.1751,
-                    sellPrice: 0.1768,
-                    profitPercentage: 0.77,
-                    profitAmount: 0.0017,
-                    volume: 100000,
-                    timestamp: Date.now()
-                }
-            ];
-            res.json({
-                success: true,
-                data: sampleOpportunities
-            });
         });
         // API route to get exchange status
         this.app.get('/api/status', async (req, res) => {
@@ -331,4 +242,4 @@ export class WebAppServer {
         });
     }
 }
-//# sourceMappingURL=server.js.map
+//# sourceMappingURL=server-clean.js.map
