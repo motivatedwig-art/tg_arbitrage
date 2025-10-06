@@ -54,14 +54,26 @@ class CryptoArbitrageApp {
             // Start the unified arbitrage service
             console.log('🔌 Starting unified arbitrage service...');
             await this.arbitrageService.start();
-            // Start the Telegram bot (non-blocking)
-            try {
-                await this.bot.start();
-                console.log('✅ Telegram bot started successfully');
+            // Start the Telegram bot (non-blocking with graceful error handling)
+            if (process.env.DISABLE_TELEGRAM_BOT === 'true') {
+                console.log('🚫 Telegram bot disabled via DISABLE_TELEGRAM_BOT environment variable');
+                console.log('🌐 Web application will run without Telegram bot');
             }
-            catch (botError) {
-                console.error('⚠️ Telegram bot failed to start:', botError);
-                console.log('🔄 Continuing without Telegram bot...');
+            else {
+                try {
+                    await this.bot.start();
+                    console.log('✅ Telegram bot started successfully');
+                }
+                catch (botError) {
+                    if (botError.response?.body?.error_code === 409) {
+                        console.warn('⚠️ Telegram bot conflict - another instance is running');
+                        console.log('🔄 This is normal during Railway deployments - web app will continue');
+                    }
+                    else {
+                        console.error('⚠️ Telegram bot failed to start:', botError.message);
+                    }
+                    console.log('🌐 Web application will continue to function normally');
+                }
             }
             // Schedule cleanup tasks
             this.scheduleCleanup();

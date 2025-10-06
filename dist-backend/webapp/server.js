@@ -689,6 +689,37 @@ export class WebAppServer {
                 res.status(404).send('Mini app not found. Please build the React app first.');
             }
         });
+        // Debug API route to get all opportunities without filtering
+        this.app.get('/api/debug/opportunities', async (req, res) => {
+            try {
+                const opportunities = await this.db.getArbitrageModel().getRecentOpportunities(60); // 60 minutes instead of 30
+                res.json({
+                    success: true,
+                    data: opportunities.map(opp => ({
+                        symbol: opp.symbol,
+                        buyExchange: opp.buyExchange,
+                        sellExchange: opp.sellExchange,
+                        buyPrice: opp.buyPrice,
+                        sellPrice: opp.sellPrice,
+                        profitPercentage: opp.profitPercentage,
+                        profitAmount: opp.profitAmount,
+                        volume: opp.volume,
+                        timestamp: opp.timestamp
+                    })),
+                    timestamp: Date.now(),
+                    count: opportunities.length,
+                    cutoffTime: Date.now() - (60 * 60 * 1000)
+                });
+            }
+            catch (error) {
+                console.error('Debug API error:', error);
+                res.status(500).json({
+                    success: false,
+                    error: 'Failed to fetch opportunities',
+                    message: error.message
+                });
+            }
+        });
         // API route to get arbitrage opportunities
         this.app.get('/api/opportunities', async (req, res) => {
             try {
@@ -696,7 +727,7 @@ export class WebAppServer {
                 // Filter out mock data characteristics
                 const realOpportunities = opportunities.filter(opp => {
                     return opp.profitPercentage > 0.1 &&
-                        opp.profitPercentage < 5 && // Realistic profit range
+                        opp.profitPercentage < 50 && // Allow realistic arbitrage up to 50%
                         opp.buyPrice > 0 &&
                         opp.sellPrice > 0;
                 });

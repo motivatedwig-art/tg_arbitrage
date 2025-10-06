@@ -11,6 +11,7 @@ export declare class CryptoArbitrageBot {
     constructor(token: string);
     private setupEnvironmentLogging;
     start(): Promise<void>;
+    private startPolling;
     stop(): Promise<void>;
     private setupErrorHandling;
     private handleUnknownMessage;

@@ -9,7 +9,8 @@ export class CryptoArbitrageBot {
         this.summaryInterval = null;
         this.highProfitDeals = [];
         this.setupEnvironmentLogging();
-        this.bot = new TelegramBot(token, { polling: true });
+        // Initialize bot without polling to prevent conflicts
+        this.bot = new TelegramBot(token, { polling: false });
         this.db = DatabaseManager.getInstance();
         this.commandHandler = new CommandHandler(this.bot);
         this.callbackHandler = new CallbackHandler(this.bot);
@@ -45,6 +46,8 @@ export class CryptoArbitrageBot {
             this.callbackHandler.registerCallbacks();
             // Set up bot commands menu
             await this.setupBotCommands();
+            // Start polling with conflict handling
+            await this.startPolling();
             this.isRunning = true;
             console.log('🚀 Crypto Arbitrage Bot started successfully!');
             // Start the summary interval (every 30 minutes)
@@ -55,6 +58,32 @@ export class CryptoArbitrageBot {
         }
         catch (error) {
             console.error('Failed to start bot:', error);
+            throw error;
+        }
+    }
+    async startPolling() {
+        try {
+            console.log('🔄 Starting Telegram bot polling...');
+            // Start polling with error handling
+            this.bot.startPolling({
+                polling: {
+                    interval: 1000,
+                    autoStart: false,
+                    params: {
+                        timeout: 10
+                    }
+                }
+            });
+            console.log('✅ Telegram bot polling started successfully');
+        }
+        catch (error) {
+            if (error.response?.body?.error_code === 409) {
+                console.warn('⚠️ Telegram bot conflict detected - another instance is running');
+                console.log('🔄 This is normal during Railway deployments - bot will retry automatically');
+                // Don't throw error, just log it - the bot can still function for web app
+                return;
+            }
+            console.error('❌ Failed to start Telegram bot polling:', error);
             throw error;
         }
     }

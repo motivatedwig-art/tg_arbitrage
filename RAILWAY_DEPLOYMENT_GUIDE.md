@@ -115,3 +115,5 @@ The deployment likely failed due to missing environment variables. Make sure:
 - `USE_MOCK_DATA=false`
 - PostgreSQL database is added to Railway project
 
+
+
