@@ -8,6 +8,7 @@ export declare class ArbitrageOpportunityModel {
     getTopOpportunities(limit?: number): Promise<ArbitrageOpportunity[]>;
     getRecentOpportunities(minutes?: number): Promise<ArbitrageOpportunity[]>;
     cleanupOldData(hoursToKeep?: number): Promise<void>;
+    clearAllOpportunities(): Promise<void>;
     getStatistics(): Promise<{
         total: number;
         avgProfit: number;

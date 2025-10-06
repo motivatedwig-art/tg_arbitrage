@@ -90,6 +90,13 @@ export class UnifiedArbitrageService {
         return;
       }
 
+      // Clear old opportunities before storing new ones (fresh data each scan)
+      try {
+        await this.db.getArbitrageModel().clearAllOpportunities();
+      } catch (clearError) {
+        console.warn('⚠️ Failed to clear old opportunities, continuing with new data:', clearError.message);
+      }
+
       // Store opportunities in database
       await this.storeOpportunities(opportunities);
 

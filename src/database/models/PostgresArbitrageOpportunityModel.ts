@@ -160,6 +160,18 @@ export class PostgresArbitrageOpportunityModel {
     }
   }
 
+  public async clearAllOpportunities(): Promise<void> {
+    const sql = `DELETE FROM arbitrage_opportunities`;
+    
+    try {
+      const result = await this.db.query(sql);
+      console.log(`🗑️ Cleared all ${result.rowCount || 0} opportunities from PostgreSQL`);
+    } catch (error) {
+      console.error('Error clearing all opportunities:', error);
+      throw error;
+    }
+  }
+
   public async getStatistics(): Promise<{ total: number, avgProfit: number, maxProfit: number }> {
     const sql = `
       SELECT 

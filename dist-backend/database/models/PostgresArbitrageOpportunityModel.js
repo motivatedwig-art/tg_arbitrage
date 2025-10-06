@@ -139,6 +139,17 @@ export class PostgresArbitrageOpportunityModel {
             console.error('Error cleaning up old data:', error);
         }
     }
+    async clearAllOpportunities() {
+        const sql = `DELETE FROM arbitrage_opportunities`;
+        try {
+            const result = await this.db.query(sql);
+            console.log(`🗑️ Cleared all ${result.rowCount || 0} opportunities from PostgreSQL`);
+        }
+        catch (error) {
+            console.error('Error clearing all opportunities:', error);
+            throw error;
+        }
+    }
     async getStatistics() {
         const sql = `
       SELECT 

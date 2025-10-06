@@ -141,6 +141,22 @@ export class ArbitrageOpportunityModel {
     });
   }
 
+  public async clearAllOpportunities(): Promise<void> {
+    return new Promise((resolve, reject) => {
+      const sql = 'DELETE FROM arbitrage_opportunities';
+      
+      this.db.run(sql, (err) => {
+        if (err) {
+          console.error('Error clearing all opportunities:', err);
+          reject(err);
+        } else {
+          console.log('🗑️ Cleared all opportunities from SQLite');
+          resolve();
+        }
+      });
+    });
+  }
+
   public async getStatistics(): Promise<{ total: number, avgProfit: number, maxProfit: number }> {
     return new Promise((resolve, reject) => {
       const sql = `
