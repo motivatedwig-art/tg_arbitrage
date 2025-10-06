@@ -370,10 +370,10 @@ export class WebAppServer {
           const connectedExchanges = exchanges.size;
           
           const stats = {
-            totalOpportunities,
-            averageProfit: Math.round(averageProfit * 100) / 100,
+            total: totalOpportunities,
+            avgProfit: Math.round(averageProfit * 100) / 100,
             maxProfit: Math.round(maxProfit * 100) / 100,
-            connectedExchanges
+            connectedCount: connectedExchanges
           };
           
           console.log(`📊 Calculated stats: ${JSON.stringify(stats)}`);
@@ -399,10 +399,10 @@ export class WebAppServer {
         res.json({
           success: true,
           data: {
-            totalOpportunities: 0,
-            averageProfit: 0,
+            total: 0,
+            avgProfit: 0,
             maxProfit: 0,
-            connectedExchanges: 0
+            connectedCount: 0
           }
         });
         
@@ -412,10 +412,10 @@ export class WebAppServer {
           success: false, 
           error: 'Failed to get statistics',
           data: {
-            totalOpportunities: 0,
-            averageProfit: 0,
+            total: 0,
+            avgProfit: 0,
             maxProfit: 0,
-            connectedExchanges: 0
+            connectedCount: 0
           }
         });
       }
