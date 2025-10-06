@@ -422,7 +422,6 @@
                 <div style="flex: 1;">
                     <h1 id="headerTitle">🚀 Crypto Arbitrage</h1>
                     <p id="headerSubtitle">Real-time arbitrage opportunities across exchanges</p>
-                    <p id="headerVersion" style="font-size: 12px; color: var(--text-tertiary); margin-top: 8px;">v2.0 - Crypto Wallet Design</p>
                 </div>
                 <button class="btn" onclick="toggleLanguage()" id="languageBtn" style="margin-left: 16px; background: var(--accent-yellow); color: #000000; padding: 8px 16px; font-size: 14px; font-weight: 600;">
                     <span id="languageText">RU</span>
@@ -502,7 +501,6 @@
             ru: {
                 title: '🚀 Крипто Арбитраж',
                 subtitle: 'Возможности арбитража в реальном времени на различных биржах',
-                version: 'v2.0 - Дизайн Крипто Кошелька',
                 totalOpportunities: 'Всего возможностей',
                 averageProfit: 'Средняя прибыль',
                 maximumProfit: 'Максимальная прибыль',
@@ -524,7 +522,6 @@
             en: {
                 title: '🚀 Crypto Arbitrage',
                 subtitle: 'Real-time arbitrage opportunities across exchanges',
-                version: 'v2.0 - Crypto Wallet Design',
                 totalOpportunities: 'Total Opportunities',
                 averageProfit: 'Average Profit',
                 maximumProfit: 'Maximum Profit',
@@ -565,11 +562,6 @@
             const subtitleElement = document.getElementById('headerSubtitle');
             if (subtitleElement) {
                 subtitleElement.textContent = t('subtitle');
-            }
-            
-            const versionElement = document.getElementById('headerVersion');
-            if (versionElement) {
-                versionElement.textContent = t('version');
             }
 
             // Update stat labels
@@ -746,13 +738,10 @@
                 const buyUrl = getExchangeUrl(opp.buyExchange, opp.symbol);
                 const sellUrl = getExchangeUrl(opp.sellExchange, opp.symbol);
                 
-                // Format prices with more decimal places (up to 8 decimals)
+                // Format prices with full precision from exchange data
                 const formatPrice = (price) => {
-                    const str = price.toString();
-                    const decimalIndex = str.indexOf('.');
-                    if (decimalIndex === -1) return str;
-                    const decimals = str.substring(decimalIndex + 1);
-                    return decimals.length > 8 ? price.toFixed(8) : str;
+                    // Show the exact price as received from the exchange
+                    return price.toString();
                 };
                 
                 return `
