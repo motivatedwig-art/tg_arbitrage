@@ -188,18 +188,37 @@ export class CryptoArbitrageBot {
     console.log(`Collected high profit deal: ${opportunity.symbol} - ${opportunity.profitPercentage.toFixed(2)}%`);
   }
 
-  // Start the 30-minute summary interval
+  // Start the daily summary at 12:00 GMT+5
   private startSummaryInterval(): void {
-    // Send summary every 30 minutes (30 * 60 * 1000 ms)
-    this.summaryInterval = setInterval(async () => {
-      await this.sendProfitSummary();
-    }, 30 * 60 * 1000);
+    // Calculate time until next 12:00 GMT+5
+    const now = new Date();
+    const gmtPlus5 = new Date(now.getTime() + (5 * 60 * 60 * 1000)); // Convert to GMT+5
+    const next12PM = new Date(gmtPlus5);
+    next12PM.setHours(12, 0, 0, 0); // Set to 12:00
     
-    console.log('Summary interval started - summaries will be sent every 30 minutes');
+    // If it's already past 12:00 today, schedule for tomorrow
+    if (gmtPlus5.getHours() >= 12) {
+      next12PM.setDate(next12PM.getDate() + 1);
+    }
+    
+    const timeUntilNext = next12PM.getTime() - gmtPlus5.getTime();
+    
+    console.log(`Next daily summary scheduled for: ${next12PM.toISOString()} (GMT+5: 12:00)`);
+    
+    // Set initial timeout
+    setTimeout(() => {
+      this.sendDailySummary();
+      // Then set interval for every 24 hours
+      this.summaryInterval = setInterval(async () => {
+        await this.sendDailySummary();
+      }, 24 * 60 * 60 * 1000); // 24 hours
+    }, timeUntilNext);
+    
+    console.log('Daily summary interval started - summaries will be sent daily at 12:00 GMT+5');
   }
 
-  // Method to send profit summary to subscribed users
-  private async sendProfitSummary(): Promise<void> {
+  // Method to send daily summary to subscribed users
+  private async sendDailySummary(): Promise<void> {
     try {
       const users = await this.db.getUserModel().getAllActiveUsers();
       const subscribedUsers = users.filter(user => user.preferences.notifications);
@@ -209,22 +228,24 @@ export class CryptoArbitrageBot {
         return;
       }
 
-      const dealCount = this.highProfitDeals.length;
+      // Get opportunities from the last 24 hours
+      const opportunities = await this.db.getArbitrageModel().getRecentOpportunities(24 * 60); // 24 hours in minutes
+      const highProfitOpportunities = opportunities.filter(opp => opp.profitPercentage > 2);
       
       for (const user of subscribedUsers) {
         try {
           let message: string;
           
-          if (dealCount === 0) {
-            message = i18n.t('notifications.no_high_profit_deals', user.preferences.language);
+          if (highProfitOpportunities.length === 0) {
+            message = i18n.t('notifications.no_high_profit_deals_daily', user.preferences.language);
           } else {
-            const avgProfit = this.highProfitDeals.reduce((sum, deal) => sum + deal.profitPercentage, 0) / dealCount;
-            const maxProfit = Math.max(...this.highProfitDeals.map(deal => deal.profitPercentage));
+            const avgProfit = highProfitOpportunities.reduce((sum, deal) => sum + deal.profitPercentage, 0) / highProfitOpportunities.length;
+            const maxProfit = Math.max(...highProfitOpportunities.map(deal => deal.profitPercentage));
             
             message = i18n.formatMessage(
-              i18n.t('notifications.profit_summary', user.preferences.language),
+              i18n.t('notifications.daily_profit_summary', user.preferences.language),
               {
-                count: dealCount.toString(),
+                count: highProfitOpportunities.length.toString(),
                 avgProfit: avgProfit.toFixed(2),
                 maxProfit: maxProfit.toFixed(2)
               }
@@ -235,16 +256,14 @@ export class CryptoArbitrageBot {
             parse_mode: 'HTML'
           });
         } catch (error) {
-          console.error(`Failed to send summary to user ${user.telegramId}:`, error);
+          console.error(`Failed to send daily summary to user ${user.telegramId}:`, error);
         }
       }
 
-      // Clear the deals array after sending summary
-      this.highProfitDeals = [];
-      console.log(`Sent profit summary to ${subscribedUsers.length} users. Deal count: ${dealCount}`);
+      console.log(`Sent daily summary to ${subscribedUsers.length} users. High profit opportunities: ${highProfitOpportunities.length}`);
       
     } catch (error) {
-      console.error('Error sending profit summary:', error);
+      console.error('Error sending daily summary:', error);
     }
   }
 

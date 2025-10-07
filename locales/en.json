@@ -58,6 +58,8 @@
     "high_profit_alert": "🚨 High Profit Alert!\n\n{symbol}: {profit}% profit\nBuy on {buyExchange} at ${buyPrice}\nSell on {sellExchange} at ${sellPrice}",
     "profit_summary": "📊 <b>Profit Summary (Last 30 minutes)</b>\n\n💰 High-profit deals found: <b>{count}</b>\n📈 Average profit: <b>{avgProfit}%</b>\n🚀 Maximum profit: <b>{maxProfit}%</b>\n\nOpen the web app to see detailed opportunities!",
     "no_high_profit_deals": "📊 <b>Profit Summary (Last 30 minutes)</b>\n\n💤 No high-profit deals (>2%) were found in the last 30 minutes.\n\nCheck the web app for current opportunities!",
+    "daily_profit_summary": "📊 <b>Daily Profit Summary (Last 24 hours)</b>\n\n💰 High-profit deals found: <b>{count}</b>\n📈 Average profit: <b>{avgProfit}%</b>\n🚀 Maximum profit: <b>{maxProfit}%</b>\n\nOpen the web app to see detailed opportunities!",
+    "no_high_profit_deals_daily": "📊 <b>Daily Profit Summary (Last 24 hours)</b>\n\n💤 No high-profit deals (>2%) were found in the last 24 hours.\n\nCheck the web app for current opportunities!",
     "system_error": "⚠️ System Error: {error}",
     "exchange_offline": "⚠️ Exchange {exchange} is offline"
   },
