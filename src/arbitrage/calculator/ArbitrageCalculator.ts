@@ -9,7 +9,7 @@ export class ArbitrageCalculator {
   private chainTransferCosts: Map<string, number> = new Map();
   private tokenMetadataService: TokenMetadataService;
 
-  constructor(minProfitThreshold: number = 0.5, maxProfitThreshold: number = 110, minVolumeThreshold: number = 1000) {
+  constructor(minProfitThreshold: number = 0.5, maxProfitThreshold: number = 50, minVolumeThreshold: number = 1000) {
     this.minProfitThreshold = minProfitThreshold;
     this.maxProfitThreshold = maxProfitThreshold;
     this.minVolumeThreshold = minVolumeThreshold;

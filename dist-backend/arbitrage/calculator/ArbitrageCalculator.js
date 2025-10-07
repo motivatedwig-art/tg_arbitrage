@@ -1,6 +1,6 @@
 import { TokenMetadataService } from '../../services/TokenMetadataService.js';
 export class ArbitrageCalculator {
-    constructor(minProfitThreshold = 0.5, maxProfitThreshold = 110, minVolumeThreshold = 1000) {
+    constructor(minProfitThreshold = 0.5, maxProfitThreshold = 50, minVolumeThreshold = 1000) {
         this.tradingFees = new Map();
         this.chainTransferCosts = new Map();
         this.minProfitThreshold = minProfitThreshold;

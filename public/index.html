@@ -515,7 +515,6 @@
                 tryAgain: 'Попробуйте обновить или проверьте позже.',
                 buyOn: 'Купить на',
                 sellOn: 'Продать на',
-                spread: 'Спред:',
                 buy: 'Купить',
                 sell: 'Продать'
             },
@@ -536,7 +535,6 @@
                 tryAgain: 'Try refreshing or check back later.',
                 buyOn: 'Buy on',
                 sellOn: 'Sell on',
-                spread: 'Spread:',
                 buy: 'Buy',
                 sell: 'Sell'
             }
@@ -806,10 +804,7 @@
                         </div>
 
                         <div class="action-row">
-                            <div class="spread-info">
-                                ${t('spread')} $${formatPrice(opp.profitAmount)}
-                            </div>
-                            <div style="display: flex; gap: 8px;">
+                            <div style="display: flex; gap: 8px; margin-left: auto;">
                                 <a href="${buyUrl}" target="_blank" class="view-button">
                                     ${t('buy')} ↗️
                                 </a>
