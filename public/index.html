@@ -606,10 +606,10 @@
             }
         }
 
-        // API functions
+        // API functions with cache-busting
         async function fetchOpportunities() {
             try {
-                const response = await fetch('/api/opportunities');
+                const response = await fetch(`/api/opportunities?t=${Date.now()}`);
                 const data = await response.json();
                 return data.success ? data.data : [];
             } catch (error) {
@@ -620,7 +620,7 @@
 
         async function fetchStatus() {
             try {
-                const response = await fetch('/api/status');
+                const response = await fetch(`/api/status?t=${Date.now()}`);
                 const data = await response.json();
                 return data; // Status API returns data directly, not wrapped in success/data
             } catch (error) {
@@ -631,7 +631,7 @@
 
         async function fetchStats() {
             try {
-                const response = await fetch('/api/stats');
+                const response = await fetch(`/api/stats?t=${Date.now()}`);
                 const data = await response.json();
                 return data.success ? data.data : null;
             } catch (error) {

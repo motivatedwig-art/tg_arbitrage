@@ -132,6 +132,13 @@ export class WebAppServer {
 
     // API route to get arbitrage opportunities
     this.app.get('/api/opportunities', async (req, res) => {
+      // Add cache-busting headers to prevent browser caching of stale data
+      res.set({
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
+        'Pragma': 'no-cache',
+        'Expires': '0'
+      });
+      
       try {
         // Get live opportunities from the arbitrage service (most recent data)
         const liveOpportunities = await this.arbitrageService.getRecentOpportunities(5); // Last 5 minutes
@@ -307,6 +314,13 @@ export class WebAppServer {
 
     // API route to get exchange status
     this.app.get('/api/status', async (req, res) => {
+      // Add cache-busting headers to prevent browser caching of stale data
+      res.set({
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
+        'Pragma': 'no-cache',
+        'Expires': '0'
+      });
+      
       try {
         const exchangeManager = this.arbitrageService.getExchangeManager();
         const exchangeStatuses = exchangeManager.getExchangeStatus();
@@ -332,6 +346,13 @@ export class WebAppServer {
 
     // API route to get statistics
     this.app.get('/api/stats', async (req, res) => {
+      // Add cache-busting headers to prevent browser caching of stale data
+      res.set({
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
+        'Pragma': 'no-cache',
+        'Expires': '0'
+      });
+      
       try {
         // Get live opportunities to calculate real-time stats
         const liveOpportunities = await this.arbitrageService.getRecentOpportunities(30); // Last 30 minutes
