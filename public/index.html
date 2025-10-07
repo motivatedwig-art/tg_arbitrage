@@ -671,11 +671,23 @@
                     break;
                 case 'okx':
                     // OKX uses BTC-USDT format
-                    formattedSymbol = symbol.replace('USDT', '-USDT');
+                    if (symbol.includes('-')) {
+                        // Already in correct format (e.g., ELF-USDT)
+                        formattedSymbol = symbol;
+                    } else {
+                        // Convert BTCUSDT to BTC-USDT
+                        formattedSymbol = symbol.replace('USDT', '-USDT');
+                    }
                     break;
                 case 'bybit':
                     // Bybit uses BTC/USDT format
-                    formattedSymbol = symbol.replace('USDT', '/USDT');
+                    if (symbol.includes('/')) {
+                        // Already in correct format
+                        formattedSymbol = symbol;
+                    } else {
+                        // Convert BTCUSDT to BTC/USDT
+                        formattedSymbol = symbol.replace('USDT', '/USDT');
+                    }
                     break;
                 case 'bitget':
                     // Bitget uses BTCUSDT format
@@ -683,19 +695,43 @@
                     break;
                 case 'mexc':
                     // MEXC uses BTC_USDT format
-                    formattedSymbol = symbol.replace('USDT', '_USDT');
+                    if (symbol.includes('_')) {
+                        // Already in correct format
+                        formattedSymbol = symbol;
+                    } else {
+                        // Convert BTCUSDT to BTC_USDT
+                        formattedSymbol = symbol.replace('USDT', '_USDT');
+                    }
                     break;
                 case 'bingx':
                     // BingX uses BTC-USDT format
-                    formattedSymbol = symbol.replace('USDT', '-USDT');
+                    if (symbol.includes('-')) {
+                        // Already in correct format
+                        formattedSymbol = symbol;
+                    } else {
+                        // Convert BTCUSDT to BTC-USDT
+                        formattedSymbol = symbol.replace('USDT', '-USDT');
+                    }
                     break;
                 case 'gateio':
                     // Gate.io uses BTC_USDT format
-                    formattedSymbol = symbol.replace('USDT', '_USDT');
+                    if (symbol.includes('_')) {
+                        // Already in correct format
+                        formattedSymbol = symbol;
+                    } else {
+                        // Convert BTCUSDT to BTC_USDT
+                        formattedSymbol = symbol.replace('USDT', '_USDT');
+                    }
                     break;
                 case 'kucoin':
                     // KuCoin uses BTC-USDT format
-                    formattedSymbol = symbol.replace('USDT', '-USDT');
+                    if (symbol.includes('-')) {
+                        // Already in correct format (e.g., ELF-USDT)
+                        formattedSymbol = symbol;
+                    } else {
+                        // Convert BTCUSDT to BTC-USDT
+                        formattedSymbol = symbol.replace('USDT', '-USDT');
+                    }
                     break;
                 case 'coinbase':
                     // Coinbase uses BTC-USD format
