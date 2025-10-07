@@ -11,7 +11,7 @@ I have a Telegram crypto arbitrage bot hosted on Railway that fetches price data
 
 ### 2. Mock Data Showing Instead of Real Exchange Data
 **Problem**: The bot displays mock/fake data instead of fetching real prices from exchanges.
-**Symptoms**: Unrealistic profit percentages, same prices across exchanges, mock data in terminal.
+**Symptoms**: Unrealistic profit percentages, same prices acrosrais exchanges, mock data in terminal.
 
 ### 3. Frontend Not Loading on Vercel
 **Problem**: When deployed to Vercel, the frontend doesn't load or display anything.

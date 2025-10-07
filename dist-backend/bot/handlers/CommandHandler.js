@@ -93,7 +93,8 @@ export class CommandHandler {
         }
         catch (error) {
             console.error('Error in handleStart:', error);
-            await this.bot.sendMessage(msg.chat.id, 'An error occurred. Please try again.');
+            const lng = await this.getUserLanguage(msg.from.id);
+            await this.bot.sendMessage(msg.chat.id, i18n.t('errors.generic', lng));
         }
     }
     async handleHelp(msg) {
@@ -106,7 +107,8 @@ export class CommandHandler {
         }
         catch (error) {
             console.error('Error in handleHelp:', error);
-            await this.bot.sendMessage(msg.chat.id, 'An error occurred. Please try again.');
+            const lng = await this.getUserLanguage(msg.from.id);
+            await this.bot.sendMessage(msg.chat.id, i18n.t('errors.generic', lng));
         }
     }
     async handleStatus(msg) {
@@ -129,7 +131,8 @@ export class CommandHandler {
         }
         catch (error) {
             console.error('Error in handleStatus:', error);
-            await this.bot.sendMessage(msg.chat.id, 'An error occurred. Please try again.');
+            const lng = await this.getUserLanguage(msg.from.id);
+            await this.bot.sendMessage(msg.chat.id, i18n.t('errors.generic', lng));
         }
     }
     async handleSettings(msg) {
@@ -143,7 +146,8 @@ export class CommandHandler {
         }
         catch (error) {
             console.error('Error in handleSettings:', error);
-            await this.bot.sendMessage(msg.chat.id, 'An error occurred. Please try again.');
+            const lng = await this.getUserLanguage(msg.from.id);
+            await this.bot.sendMessage(msg.chat.id, i18n.t('errors.generic', lng));
         }
     }
     async handleLanguage(msg) {
@@ -156,7 +160,8 @@ export class CommandHandler {
         }
         catch (error) {
             console.error('Error in handleLanguage:', error);
-            await this.bot.sendMessage(msg.chat.id, 'An error occurred. Please try again.');
+            const lng = await this.getUserLanguage(msg.from.id);
+            await this.bot.sendMessage(msg.chat.id, i18n.t('errors.generic', lng));
         }
     }
     async handleTop(msg) {
@@ -222,7 +227,8 @@ export class CommandHandler {
         }
         catch (error) {
             console.error('Error in handleSubscribe:', error);
-            await this.bot.sendMessage(msg.chat.id, 'An error occurred. Please try again.');
+            const lng = await this.getUserLanguage(msg.from.id);
+            await this.bot.sendMessage(msg.chat.id, i18n.t('errors.generic', lng));
         }
     }
     async handleWebApp(msg) {
@@ -235,7 +241,8 @@ export class CommandHandler {
         }
         catch (error) {
             console.error('Error in handleWebApp:', error);
-            await this.bot.sendMessage(msg.chat.id, 'An error occurred. Please try again.');
+            const lng = await this.getUserLanguage(msg.from.id);
+            await this.bot.sendMessage(msg.chat.id, i18n.t('errors.generic', lng));
         }
     }
     async handleStats(msg) {
@@ -251,7 +258,8 @@ export class CommandHandler {
         }
         catch (error) {
             console.error('Error in handleStats:', error);
-            await this.bot.sendMessage(msg.chat.id, 'An error occurred. Please try again.');
+            const lng = await this.getUserLanguage(msg.from.id);
+            await this.bot.sendMessage(msg.chat.id, i18n.t('errors.generic', lng));
         }
     }
 }

@@ -156,22 +156,21 @@ export class CryptoArbitrageBot {
   }
 
   private async setupBotCommands(): Promise<void> {
-    // Set up commands in both languages
     const commands = [
-      { command: 'start', description: 'Start the bot / Запустить бота' },
-      { command: 'help', description: 'Show help / Показать справку' },
-      { command: 'status', description: 'System status / Статус системы' },
-      { command: 'settings', description: 'Configure settings / Настройки' },
-      { command: 'language', description: 'Change language / Сменить язык' },
-      { command: 'top', description: 'Top opportunities / Лучшие возможности' },
-      { command: 'subscribe', description: 'Toggle notifications / Уведомления' },
-      { command: 'webapp', description: 'Open web app / Открыть веб-приложение' },
-      { command: 'stats', description: 'Show statistics / Статистика' }
+      { command: 'start', description: 'Start the bot' },
+      { command: 'help', description: 'Show help information' },
+      { command: 'status', description: 'Show system status' },
+      { command: 'settings', description: 'Configure settings' },
+      { command: 'language', description: 'Change language' },
+      { command: 'top', description: 'Show top opportunities' },
+      { command: 'subscribe', description: 'Toggle notifications' },
+      { command: 'webapp', description: 'Open web application' },
+      { command: 'stats', description: 'Show statistics' }
     ];
 
     try {
       await this.bot.setMyCommands(commands);
-      console.log('Bot commands menu set up successfully (bilingual)');
+      console.log('Bot commands menu set up successfully');
     } catch (error) {
       console.error('Failed to set up bot commands:', error);
     }
