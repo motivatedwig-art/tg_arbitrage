@@ -59,9 +59,9 @@ export class CommandHandler {
   private async getUserLanguage(telegramId: number): Promise<string> {
     try {
       const user = await this.db.getUserModel().findByTelegramId(telegramId);
-      return user?.preferences.language || 'en';
+      return user?.preferences.language || 'ru';
     } catch (error) {
-      return 'en';
+      return 'ru';
     }
   }
 
@@ -71,7 +71,7 @@ export class CommandHandler {
     
     if (!user) {
       const defaultPreferences: UserPreferences = {
-        language: msg.from?.language_code === 'ru' ? 'ru' : 'en',
+        language: msg.from?.language_code === 'en' ? 'en' : 'ru',
         notifications: true,
         minProfitThreshold: 0.5,
         preferredExchanges: [],
@@ -193,7 +193,7 @@ export class CommandHandler {
       const opportunities = await this.db.getArbitrageModel().getTopOpportunities(10);
       
       if (!opportunities || opportunities.length === 0) {
-        await this.bot.sendMessage(msg.chat.id, '❌ No arbitrage opportunities found. This might indicate an issue with exchange connections.');
+        await this.bot.sendMessage(msg.chat.id, i18n.t('errors.no_opportunities', lng));
         return;
       }
       
@@ -204,7 +204,7 @@ export class CommandHandler {
       const isMock = this.detectMockData(opportunities);
       if (isMock) {
         console.warn('WARNING: Mock data detected in opportunities');
-        await this.bot.sendMessage(msg.chat.id, '⚠️ Warning: Using test data. Real exchange data not available.');
+        await this.bot.sendMessage(msg.chat.id, i18n.t('errors.test_data_warning', lng));
       }
       
       let message = `${i18n.t('commands.top_opportunities', lng)}\n\n`;
@@ -222,7 +222,7 @@ export class CommandHandler {
       });
     } catch (error) {
       console.error('Error in handleTop:', error);
-      await this.bot.sendMessage(msg.chat.id, '❌ Error fetching data. Check logs for details.');
+      await this.bot.sendMessage(msg.chat.id, i18n.t('errors.fetch_error', lng));
     }
   }
 

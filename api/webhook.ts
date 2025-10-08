@@ -36,11 +36,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const chatId = msg.chat.id;
         const webappUrl = process.env.WEBAPP_URL || 'https://crypto-arbitrage-tg.vercel.app';
         
-        bot.sendMessage(chatId, `🚀 Welcome to Crypto Arbitrage Bot!\n\nClick the button below to open the arbitrage scanner:`, {
+        bot.sendMessage(chatId, `🚀 Добро пожаловать в Crypto Arbitrage Bot!\n\nНажмите кнопку ниже, чтобы открыть сканер арбитража:`, {
           reply_markup: {
             inline_keyboard: [[
               {
-                text: '📊 Open Arbitrage Scanner',
+                text: '📊 Открыть сканер арбитража',
                 web_app: { url: webappUrl }
               }
             ]]
@@ -50,7 +50,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       
       bot.onText(/\/help/, (msg) => {
         const chatId = msg.chat.id;
-        bot.sendMessage(chatId, `🤖 Crypto Arbitrage Bot Help\n\nCommands:\n/start - Start the bot\n/help - Show this help\n\nUse the web app to view real-time arbitrage opportunities across multiple exchanges.`);
+        bot.sendMessage(chatId, `🤖 Помощь по Crypto Arbitrage Bot\n\nКоманды:\n/start - Запустить бота\n/help - Показать эту справку\n\nИспользуйте веб-приложение для просмотра арбитражных возможностей в реальном времени на различных биржах.`);
       });
       
       console.log('Bot initialized successfully');
