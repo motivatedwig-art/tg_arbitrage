@@ -20,8 +20,8 @@ export class I18nManager {
         await i18next
             .use(Backend)
             .init({
-            lng: 'en',
-            fallbackLng: 'en',
+            lng: 'ru',
+            fallbackLng: 'ru',
             debug: process.env.NODE_ENV === 'development',
             backend: {
                 loadPath: path.join(__dirname, '../../locales/{{lng}}.json'),
@@ -33,7 +33,7 @@ export class I18nManager {
         });
         this.initialized = true;
     }
-    t(key, lng = 'en', options) {
+    t(key, lng = 'ru', options) {
         return i18next.t(key, { lng, ...options });
     }
     changeLanguage(lng) {

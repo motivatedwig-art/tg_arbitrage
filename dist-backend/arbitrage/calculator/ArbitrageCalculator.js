@@ -15,9 +15,7 @@ export class ArbitrageCalculator {
         this.tradingFees.set('binance', 0.1); // 0.1%
         this.tradingFees.set('okx', 0.1); // 0.1%
         this.tradingFees.set('bybit', 0.1); // 0.1%
-        this.tradingFees.set('bitget', 0.1); // 0.1%
         this.tradingFees.set('mexc', 0.2); // 0.2%
-        this.tradingFees.set('bingx', 0.1); // 0.1%
         this.tradingFees.set('gateio', 0.2); // 0.2%
         this.tradingFees.set('kucoin', 0.1); // 0.1%
     }
@@ -196,6 +194,7 @@ export class ArbitrageCalculator {
             volume: volume,
             volume_24h: buyTicker.volume_24h || sellTicker.volume_24h || volume,
             timestamp: Math.max(buyTicker.timestamp, sellTicker.timestamp),
+            blockchain: this.determineBlockchain(buyTicker, sellTicker),
             fees: {
                 buyFee: buyFee,
                 sellFee: sellFee,
@@ -253,6 +252,40 @@ export class ArbitrageCalculator {
         // This would need to be implemented with database integration
         // For now, this is a placeholder for volume-based filtering
         return [];
+    }
+    /**
+     * Determine the primary blockchain for an arbitrage opportunity
+     * If both tickers have the same blockchain, use that; otherwise use the most common one
+     */
+    determineBlockchain(buyTicker, sellTicker) {
+        // If both tickers have blockchain info and they match, use that
+        if (buyTicker.blockchain && sellTicker.blockchain && buyTicker.blockchain === sellTicker.blockchain) {
+            return buyTicker.blockchain;
+        }
+        // If only one has blockchain info, use that
+        if (buyTicker.blockchain)
+            return buyTicker.blockchain;
+        if (sellTicker.blockchain)
+            return sellTicker.blockchain;
+        // Fallback: determine based on symbol patterns
+        const symbol = buyTicker.symbol || sellTicker.symbol || '';
+        // Common token patterns that indicate blockchain
+        if (symbol.includes('ETH') || symbol.includes('WETH'))
+            return 'ethereum';
+        if (symbol.includes('BNB') || symbol.includes('WBNB'))
+            return 'bsc';
+        if (symbol.includes('MATIC') || symbol.includes('WMATIC'))
+            return 'polygon';
+        if (symbol.includes('SOL') || symbol.includes('WSOL'))
+            return 'solana';
+        if (symbol.includes('TRX') || symbol.includes('TRON'))
+            return 'tron';
+        if (symbol.includes('ARB'))
+            return 'arbitrum';
+        if (symbol.includes('OP'))
+            return 'optimism';
+        // Default to ethereum for most ERC-20 tokens
+        return 'ethereum';
     }
 }
 //# sourceMappingURL=ArbitrageCalculator.js.map

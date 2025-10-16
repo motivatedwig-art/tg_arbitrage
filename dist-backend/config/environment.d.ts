@@ -28,16 +28,7 @@ export interface EnvironmentConfig {
             key: string;
             secret: string;
         };
-        bitget: {
-            key: string;
-            secret: string;
-            passphrase: string;
-        };
         mexc: {
-            key: string;
-            secret: string;
-        };
-        bingx: {
             key: string;
             secret: string;
         };
@@ -65,16 +56,7 @@ export interface EnvironmentConfig {
             spotPrice: string;
             allSpot: string;
         };
-        bitget: {
-            price: string;
-            allTickers: string;
-        };
         mexc: {
-            price: string;
-            price24hr: string;
-            allPrices: string;
-        };
-        bingx: {
             price: string;
             price24hr: string;
             allPrices: string;

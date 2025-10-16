@@ -51,21 +51,6 @@ class BybitAdapter {
         }));
     }
 }
-/* ---------------- Bitget ---------------- */
-class BitgetAdapter {
-    constructor() {
-        this.name = "BITGET";
-    }
-    async fetchAllTickers() {
-        const res = await axios.get("https://api.bitget.com/api/v2/spot/market/tickers");
-        return res.data.data.map((t) => ({
-            exchange: this.name,
-            symbol: normalizeSymbol(t.symbol),
-            bid: safeNum(t.bestBid),
-            ask: safeNum(t.bestAsk),
-        }));
-    }
-}
 /* ---------------- MEXC ---------------- */
 class MexcAdapter {
     constructor() {
@@ -75,21 +60,6 @@ class MexcAdapter {
         // Using ticker/24hr for bid/ask since ticker/price has only last price
         const res = await axios.get("https://api.mexc.com/api/v3/ticker/bookTicker");
         return res.data.map((t) => ({
-            exchange: this.name,
-            symbol: normalizeSymbol(t.symbol),
-            bid: safeNum(t.bidPrice),
-            ask: safeNum(t.askPrice),
-        }));
-    }
-}
-/* ---------------- BingX ---------------- */
-class BingxAdapter {
-    constructor() {
-        this.name = "BINGX";
-    }
-    async fetchAllTickers() {
-        const res = await axios.get("https://open-api.bingx.com/openApi/spot/v1/ticker/bookTicker");
-        return res.data.data.map((t) => ({
             exchange: this.name,
             symbol: normalizeSymbol(t.symbol),
             bid: safeNum(t.bidPrice),
@@ -139,9 +109,7 @@ export class ArbitrageScanner {
             new BinanceAdapter(),
             new OkxAdapter(),
             new BybitAdapter(),
-            new BitgetAdapter(),
             new MexcAdapter(),
-            new BingxAdapter(),
             new GateioAdapter(),
             new KucoinAdapter(),
         ];

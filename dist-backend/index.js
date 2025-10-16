@@ -30,7 +30,7 @@ class CryptoArbitrageApp {
             console.log('✅ Database manager initialized');
             this.webAppServer = new WebAppServer();
             console.log('✅ Web app server initialized');
-            this.updateInterval = parseInt(process.env.UPDATE_INTERVAL || '30000');
+            this.updateInterval = parseInt(process.env.UPDATE_INTERVAL || '600000');
             console.log('✅ All components initialized successfully');
         }
         catch (error) {

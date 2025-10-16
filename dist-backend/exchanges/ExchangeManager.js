@@ -2,9 +2,7 @@ import { ExchangeName } from './types/index.js';
 import { BinanceAdapter } from './adapters/BinanceAdapter.js';
 import { OKXAdapter } from './adapters/OKXAdapter.js';
 import { BybitAdapter } from './adapters/BybitAdapter.js';
-import { BitgetAdapter } from './adapters/BitgetAdapter.js';
 import { MexcAdapter } from './adapters/MexcAdapter.js';
-import { BingxAdapter } from './adapters/BingxAdapter.js';
 import { GateioAdapter } from './adapters/GateioAdapter.js';
 import { KucoinAdapter } from './adapters/KucoinAdapter.js';
 export class ExchangeManager {
@@ -64,26 +62,11 @@ export class ExchangeManager {
                 rateLimit: 120
             },
             {
-                name: ExchangeName.BITGET,
-                apiKey: process.env.BITGET_API_KEY || '',
-                apiSecret: process.env.BITGET_API_SECRET || '',
-                passphrase: process.env.BITGET_PASSPHRASE || '',
-                enableRateLimit: true,
-                rateLimit: 100
-            },
-            {
                 name: ExchangeName.MEXC,
                 apiKey: process.env.MEXC_API_KEY || '',
                 apiSecret: process.env.MEXC_API_SECRET || '',
                 enableRateLimit: true,
                 rateLimit: 50
-            },
-            {
-                name: ExchangeName.BINGX,
-                apiKey: process.env.BINGX_API_KEY || '',
-                apiSecret: process.env.BINGX_API_SECRET || '',
-                enableRateLimit: true,
-                rateLimit: 100
             },
             {
                 name: ExchangeName.GATE_IO,
@@ -110,12 +93,8 @@ export class ExchangeManager {
                 return new OKXAdapter();
             case ExchangeName.BYBIT:
                 return new BybitAdapter();
-            case ExchangeName.BITGET:
-                return new BitgetAdapter();
             case ExchangeName.MEXC:
                 return new MexcAdapter();
-            case ExchangeName.BINGX:
-                return new BingxAdapter();
             case ExchangeName.GATE_IO:
                 return new GateioAdapter();
             case ExchangeName.KUCOIN:
@@ -157,7 +136,7 @@ export class ExchangeManager {
     }
     generateMockTickers() {
         const mockSymbols = ['BTC/USDT', 'ETH/USDT', 'BNB/USDT', 'ADA/USDT', 'SOL/USDT'];
-        const exchanges = ['binance', 'okx', 'bybit', 'bitget', 'mexc', 'bingx', 'gateio', 'kucoin'];
+        const exchanges = ['binance', 'okx', 'bybit', 'mexc', 'gateio', 'kucoin'];
         exchanges.forEach(exchange => {
             const mockTickers = mockSymbols.map(symbol => ({
                 symbol,

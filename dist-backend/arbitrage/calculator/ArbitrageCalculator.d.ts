@@ -32,5 +32,10 @@ export declare class ArbitrageCalculator {
     getMinVolumeThreshold(): number;
     updateTransferCost(fromChain: string, toChain: string, cost: number): void;
     getOpportunitiesByVolume(minVolume: number): ArbitrageOpportunity[];
+    /**
+     * Determine the primary blockchain for an arbitrage opportunity
+     * If both tickers have the same blockchain, use that; otherwise use the most common one
+     */
+    private determineBlockchain;
 }
 //# sourceMappingURL=ArbitrageCalculator.d.ts.map

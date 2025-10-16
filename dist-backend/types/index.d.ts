@@ -29,6 +29,7 @@ export interface ArbitrageOpportunity {
     spreadPercentage: number;
     spreadAmount: number;
     profitability: 'high' | 'medium' | 'low';
+    blockchain?: string;
 }
 export interface ApiResponse {
     opportunities: ArbitrageOpportunity[];

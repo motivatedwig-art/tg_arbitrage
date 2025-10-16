@@ -31,8 +31,8 @@ class DatabaseManager {
       
       const sql = `
         INSERT INTO arbitrage_opportunities 
-        (symbol, buy_exchange, sell_exchange, buy_price, sell_price, profit_percentage, profit_amount, timestamp)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+        (symbol, buy_exchange, sell_exchange, buy_price, sell_price, profit_percentage, profit_amount, blockchain, timestamp)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
         ON CONFLICT DO NOTHING
       `;
       
@@ -45,6 +45,7 @@ class DatabaseManager {
           opp.sellPrice,
           opp.profitPercentage,
           opp.profitAmount,
+          opp.blockchain || null,
           new Date(opp.timestamp)
         ]);
       }
@@ -77,6 +78,7 @@ class DatabaseManager {
       profitPercentage: parseFloat(row.profit_percentage),
       profitAmount: parseFloat(row.profit_amount),
       volume: row.volume_24h ? parseFloat(row.volume_24h) : 0,
+      blockchain: row.blockchain,
       timestamp: new Date(row.timestamp).getTime()
     }));
   }

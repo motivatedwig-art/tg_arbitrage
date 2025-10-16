@@ -51,10 +51,10 @@ export class CommandHandler {
     async getUserLanguage(telegramId) {
         try {
             const user = await this.db.getUserModel().findByTelegramId(telegramId);
-            return user?.preferences.language || 'en';
+            return user?.preferences.language || 'ru';
         }
         catch (error) {
-            return 'en';
+            return 'ru';
         }
     }
     async ensureUser(msg) {
@@ -62,7 +62,7 @@ export class CommandHandler {
         let user = await this.db.getUserModel().findByTelegramId(telegramId);
         if (!user) {
             const defaultPreferences = {
-                language: msg.from?.language_code === 'ru' ? 'ru' : 'en',
+                language: msg.from?.language_code === 'en' ? 'en' : 'ru',
                 notifications: true,
                 minProfitThreshold: 0.5,
                 preferredExchanges: [],
@@ -120,9 +120,7 @@ export class CommandHandler {
                 `🟢 Binance: ${i18n.t('status.online', lng)}\n` +
                 `🟢 OKX: ${i18n.t('status.online', lng)}\n` +
                 `🟢 Bybit: ${i18n.t('status.online', lng)}\n` +
-                `🟡 BitGet: ${i18n.t('status.online', lng)}\n` +
                 `🟢 MEXC: ${i18n.t('status.online', lng)}\n` +
-                `🟢 BingX: ${i18n.t('status.online', lng)}\n` +
                 `🟢 Gate.io: ${i18n.t('status.online', lng)}\n` +
                 `🟢 KuCoin: ${i18n.t('status.online', lng)}\n\n` +
                 `${i18n.t('status.last_update', lng)} ${new Date().toLocaleString()}\n` +
@@ -171,7 +169,7 @@ export class CommandHandler {
             // Get top opportunities from database
             const opportunities = await this.db.getArbitrageModel().getTopOpportunities(10);
             if (!opportunities || opportunities.length === 0) {
-                await this.bot.sendMessage(msg.chat.id, '❌ No arbitrage opportunities found. This might indicate an issue with exchange connections.');
+                await this.bot.sendMessage(msg.chat.id, i18n.t('errors.no_opportunities', lng));
                 return;
             }
             // Log first opportunity to verify it's real data
@@ -180,7 +178,7 @@ export class CommandHandler {
             const isMock = this.detectMockData(opportunities);
             if (isMock) {
                 console.warn('WARNING: Mock data detected in opportunities');
-                await this.bot.sendMessage(msg.chat.id, '⚠️ Warning: Using test data. Real exchange data not available.');
+                await this.bot.sendMessage(msg.chat.id, i18n.t('errors.test_data_warning', lng));
             }
             let message = `${i18n.t('commands.top_opportunities', lng)}\n\n`;
             opportunities.forEach((opp, index) => {
@@ -196,7 +194,8 @@ export class CommandHandler {
         }
         catch (error) {
             console.error('Error in handleTop:', error);
-            await this.bot.sendMessage(msg.chat.id, '❌ Error fetching data. Check logs for details.');
+            const lng = await this.getUserLanguage(msg.from.id);
+            await this.bot.sendMessage(msg.chat.id, i18n.t('errors.fetch_error', lng));
         }
     }
     detectMockData(opportunities) {

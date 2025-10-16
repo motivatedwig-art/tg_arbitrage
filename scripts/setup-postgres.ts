@@ -35,6 +35,7 @@ async function setupPostgresTables() {
         profit_amount DECIMAL(20,8) NOT NULL,
         volume DECIMAL(20,8) NOT NULL DEFAULT 0,
         volume_24h DECIMAL(20,8),
+        blockchain VARCHAR(50),
         timestamp BIGINT NOT NULL,
         created_at TIMESTAMP DEFAULT NOW()
       )

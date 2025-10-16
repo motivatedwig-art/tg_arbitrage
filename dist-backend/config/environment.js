@@ -37,7 +37,7 @@ export const config = {
     // Application Settings
     port: getEnvNumber('PORT', 3000),
     nodeEnv: getEnvVar('NODE_ENV', 'development'),
-    updateInterval: getEnvNumber('UPDATE_INTERVAL', 30000),
+    updateInterval: getEnvNumber('UPDATE_INTERVAL', 600000),
     minProfitThreshold: getEnvNumber('MIN_PROFIT_THRESHOLD', 0.5),
     maxOpportunities: getEnvNumber('MAX_OPPORTUNITIES', 50),
     // Database
@@ -64,18 +64,9 @@ export const config = {
             key: getEnvVar('BYBIT_API_KEY', ''),
             secret: getEnvVar('BYBIT_API_SECRET', ''),
         },
-        bitget: {
-            key: getEnvVar('BITGET_API_KEY', ''),
-            secret: getEnvVar('BITGET_API_SECRET', ''),
-            passphrase: getEnvVar('BITGET_PASSPHRASE', ''),
-        },
         mexc: {
             key: getEnvVar('MEXC_API_KEY', ''),
             secret: getEnvVar('MEXC_API_SECRET', ''),
-        },
-        bingx: {
-            key: getEnvVar('BINGX_API_KEY', ''),
-            secret: getEnvVar('BINGX_API_SECRET', ''),
         },
         gateio: {
             key: getEnvVar('GATE_IO_API_KEY', ''),
@@ -102,19 +93,10 @@ export const config = {
             spotPrice: getEnvVar('BYBIT_SPOT_PRICE_API', 'https://api.bybit.com/v5/market/tickers?category=spot&symbol={symbol}'),
             allSpot: getEnvVar('BYBIT_ALL_SPOT_API', 'https://api.bybit.com/v5/market/tickers?category=spot'),
         },
-        bitget: {
-            price: getEnvVar('BITGET_PRICE_API', 'https://api.bitget.com/api/v2/spot/market/ticker?symbol={symbol}'),
-            allTickers: getEnvVar('BITGET_ALL_TICKERS_API', 'https://api.bitget.com/api/v2/spot/market/tickers'),
-        },
         mexc: {
             price: getEnvVar('MEXC_PRICE_API', 'https://api.mexc.com/api/v3/ticker/price?symbol={symbol}'),
             price24hr: getEnvVar('MEXC_24HR_API', 'https://api.mexc.com/api/v3/ticker/24hr?symbol={symbol}'),
             allPrices: getEnvVar('MEXC_ALL_PRICES_API', 'https://api.mexc.com/api/v3/ticker/price'),
-        },
-        bingx: {
-            price: getEnvVar('BINGX_PRICE_API', 'https://open-api.bingx.com/openApi/spot/v1/ticker/price?symbol={symbol}'),
-            price24hr: getEnvVar('BINGX_24HR_API', 'https://open-api.bingx.com/openApi/spot/v1/ticker/24hr?symbol={symbol}'),
-            allPrices: getEnvVar('BINGX_ALL_PRICES_API', 'https://open-api.bingx.com/openApi/spot/v1/ticker/price'),
         },
         gateio: {
             price: getEnvVar('GATE_IO_PRICE_API', 'https://api.gateio.ws/api/v4/spot/tickers?currency_pair={symbol}'),

@@ -24,9 +24,7 @@ export class TokenMetadataService {
         this.exchangeBlockchainMap.set('binance', ['ethereum', 'bsc', 'polygon', 'arbitrum', 'optimism']);
         this.exchangeBlockchainMap.set('okx', ['ethereum', 'bsc', 'polygon', 'arbitrum', 'optimism', 'solana']);
         this.exchangeBlockchainMap.set('bybit', ['ethereum', 'bsc', 'polygon', 'arbitrum', 'optimism']);
-        this.exchangeBlockchainMap.set('bitget', ['ethereum', 'bsc', 'polygon', 'arbitrum', 'optimism']);
         this.exchangeBlockchainMap.set('mexc', ['ethereum', 'bsc', 'polygon', 'arbitrum', 'optimism', 'solana']);
-        this.exchangeBlockchainMap.set('bingx', ['ethereum', 'bsc', 'polygon', 'arbitrum', 'optimism']);
         this.exchangeBlockchainMap.set('gateio', ['ethereum', 'bsc', 'polygon', 'arbitrum', 'optimism', 'solana']);
         this.exchangeBlockchainMap.set('kucoin', ['ethereum', 'bsc', 'polygon', 'arbitrum', 'optimism', 'solana']);
     }
