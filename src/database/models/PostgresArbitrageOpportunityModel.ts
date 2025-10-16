@@ -44,8 +44,8 @@ export class PostgresArbitrageOpportunityModel {
       
       const sql = `
         INSERT INTO arbitrage_opportunities 
-        (symbol, buy_exchange, sell_exchange, buy_price, sell_price, profit_percentage, profit_amount, volume, volume_24h, blockchain, timestamp)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+        (symbol, buy_exchange, sell_exchange, buy_price, sell_price, profit_percentage, profit_amount, volume, volume_24h, timestamp)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
       `;
       
       for (const opp of opportunities) {
@@ -67,7 +67,6 @@ export class PostgresArbitrageOpportunityModel {
           sanitizedOpportunity.profitAmount,
           sanitizedOpportunity.volume,
           sanitizedOpportunity.volume_24h || sanitizedOpportunity.volume,
-          sanitizedOpportunity.blockchain || null,
           sanitizedOpportunity.timestamp
         ]);
       }
@@ -107,7 +106,7 @@ export class PostgresArbitrageOpportunityModel {
         profitAmount: parseFloat(row.profit_amount),
         volume: parseFloat(row.volume),
         volume_24h: row.volume_24h ? parseFloat(row.volume_24h) : undefined,
-        blockchain: row.blockchain,
+        blockchain: 'ethereum', // Temporary fallback until database column is added
         timestamp: parseInt(row.timestamp)
       }));
     } catch (error) {
@@ -139,7 +138,7 @@ export class PostgresArbitrageOpportunityModel {
         profitAmount: parseFloat(row.profit_amount),
         volume: parseFloat(row.volume),
         volume_24h: row.volume_24h ? parseFloat(row.volume_24h) : undefined,
-        blockchain: row.blockchain,
+        blockchain: 'ethereum', // Temporary fallback until database column is added
         timestamp: parseInt(row.timestamp)
       }));
     } catch (error) {
@@ -233,7 +232,7 @@ export class PostgresArbitrageOpportunityModel {
         profitAmount: parseFloat(row.profit_amount),
         volume: parseFloat(row.volume),
         volume_24h: row.volume_24h ? parseFloat(row.volume_24h) : undefined,
-        blockchain: row.blockchain,
+        blockchain: 'ethereum', // Temporary fallback until database column is added
         timestamp: parseInt(row.timestamp)
       }));
     } catch (error) {
@@ -292,7 +291,7 @@ export class PostgresArbitrageOpportunityModel {
         profitAmount: parseFloat(row.profit_amount),
         volume: parseFloat(row.volume),
         volume_24h: row.volume_24h ? parseFloat(row.volume_24h) : undefined,
-        blockchain: row.blockchain,
+        blockchain: 'ethereum', // Temporary fallback until database column is added
         timestamp: parseInt(row.timestamp)
       }));
     } catch (error) {
