@@ -220,6 +220,7 @@ export class CommandHandler {
       });
     } catch (error) {
       console.error('Error in handleTop:', error);
+      const lng = await this.getUserLanguage(msg.from!.id);
       await this.bot.sendMessage(msg.chat.id, i18n.t('errors.fetch_error', lng));
     }
   }
