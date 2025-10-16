@@ -137,9 +137,7 @@ export class CommandHandler {
         `🟢 Binance: ${i18n.t('status.online', lng)}\n` +
         `🟢 OKX: ${i18n.t('status.online', lng)}\n` +
         `🟢 Bybit: ${i18n.t('status.online', lng)}\n` +
-        `🟡 BitGet: ${i18n.t('status.online', lng)}\n` +
         `🟢 MEXC: ${i18n.t('status.online', lng)}\n` +
-        `🟢 BingX: ${i18n.t('status.online', lng)}\n` +
         `🟢 Gate.io: ${i18n.t('status.online', lng)}\n` +
         `🟢 KuCoin: ${i18n.t('status.online', lng)}\n\n` +
         `${i18n.t('status.last_update', lng)} ${new Date().toLocaleString()}\n` +

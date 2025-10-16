@@ -643,9 +643,7 @@
             'binance': 'https://www.binance.com/en/trade/{symbol}',
             'okx': 'https://www.okx.com/trade-spot/{symbol}',
             'bybit': 'https://www.bybit.com/trade/spot/{symbol}',
-            'bitget': 'https://www.bitget.com/spot/{symbol}',
             'mexc': 'https://www.mexc.com/exchange/{symbol}',
-            'bingx': 'https://bingx.com/en/spot/{symbol}',
             'gateio': 'https://www.gate.com/trade/{symbol}',
             'kucoin': 'https://www.kucoin.com/trade/{symbol}',
             'coinbase': 'https://pro.coinbase.com/trade/{symbol}',
@@ -687,10 +685,6 @@
                         formattedSymbol = symbol.replace('USDT', '/USDT');
                     }
                     break;
-                case 'bitget':
-                    // Bitget uses BTCUSDT format
-                    formattedSymbol = symbol;
-                    break;
                 case 'mexc':
                     // MEXC uses BTC_USDT format
                     if (symbol.includes('_')) {
@@ -699,16 +693,6 @@
                     } else {
                         // Convert BTCUSDT to BTC_USDT
                         formattedSymbol = symbol.replace('USDT', '_USDT');
-                    }
-                    break;
-                case 'bingx':
-                    // BingX uses BTC-USDT format
-                    if (symbol.includes('-')) {
-                        // Already in correct format
-                        formattedSymbol = symbol;
-                    } else {
-                        // Convert BTCUSDT to BTC-USDT
-                        formattedSymbol = symbol.replace('USDT', '-USDT');
                     }
                     break;
                 case 'gateio':
@@ -902,9 +886,9 @@
             }
         }
 
-        // Auto-refresh every 30 seconds
+        // Auto-refresh every 10 minutes
         function startAutoRefresh() {
-            setInterval(refreshData, 30000);
+            setInterval(refreshData, 600000);
         }
 
         // Initialize

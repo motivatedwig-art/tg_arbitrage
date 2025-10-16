@@ -39,7 +39,7 @@ export class BackgroundProcessor {
       this.startHealthcheck();
 
       console.log('✅ Background Processor is running!');
-      console.log(`📊 Processing every ${process.env.UPDATE_INTERVAL || '30000'}ms`);
+      console.log(`📊 Processing every ${process.env.UPDATE_INTERVAL || '600000'}ms`);
       console.log(`💰 Min profit threshold: ${this.arbitrageCalculator.getMinProfitThreshold()}%`);
 
     } catch (error) {
@@ -49,7 +49,7 @@ export class BackgroundProcessor {
   }
 
   private startProcessingLoop(): void {
-    const interval = parseInt(process.env.UPDATE_INTERVAL || '30000');
+    const interval = parseInt(process.env.UPDATE_INTERVAL || '600000');
     
     setInterval(async () => {
       if (this.isProcessing) {

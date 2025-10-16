@@ -11,6 +11,7 @@ interface ArbitrageOpportunity {
   profitAmount: number;
   volume: number;
   timestamp: number;
+  blockchain?: string; // e.g., 'ethereum', 'bsc', 'polygon', 'arbitrum', 'optimism', 'solana', 'tron'
 }
 
 const App: React.FC = () => {
@@ -24,7 +25,7 @@ const App: React.FC = () => {
 
   useEffect(() => {
     fetchOpportunities();
-    const interval = setInterval(fetchOpportunities, 30000);
+    const interval = setInterval(fetchOpportunities, 600000);
     return () => clearInterval(interval);
   }, []);
 

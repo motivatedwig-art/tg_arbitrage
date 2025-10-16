@@ -5,6 +5,7 @@ import styled from 'styled-components';
 import { useTranslation } from 'react-i18next';
 import { useArbitrageData } from '../hooks/useArbitrageData';
 import LanguageSwitcher from '../components/LanguageSwitcher';
+import ChainMarker from '../components/ChainMarker';
 // import { ArbitrageOpportunity } from '../types';
 
 interface TableScreenProps {
@@ -342,9 +343,7 @@ const exchangeUrls: Record<string, string> = {
   'binance': 'https://www.binance.com/en/trade/{symbol}',
   'okx': 'https://www.okx.com/trade-spot/{symbol}',
   'bybit': 'https://www.bybit.com/trade/spot/{symbol}',
-  'bitget': 'https://www.bitget.com/en/spot/{symbol}',
   'mexc': 'https://www.mexc.com/exchange/{symbol}',
-  'bingx': 'https://bingx.com/en-us/spot/{symbol}',
   'gateio': 'https://www.gate.io/trade/{symbol}',
   'kucoin': 'https://trade.kucoin.com/{symbol}'
 };
@@ -360,7 +359,7 @@ const getExchangeUrl = (exchange: string, symbol: string): string => {
 const TableScreen: React.FC<TableScreenProps> = ({ selectedExchanges, onBack }) => {
   const { data, loading, error, refetch } = useArbitrageData(selectedExchanges);
   const [isRefreshing, setIsRefreshing] = useState(false);
-  const [countdown, setCountdown] = useState(30); // 30 seconds
+  const [countdown, setCountdown] = useState(600); // 10 minutes
   const { t } = useTranslation();
 
   // Countdown timer effect
@@ -369,7 +368,7 @@ const TableScreen: React.FC<TableScreenProps> = ({ selectedExchanges, onBack }) 
       setCountdown(prev => {
         if (prev <= 1) {
           refetch();
-          return 30;
+          return 600;
         }
         return prev - 1;
       });
@@ -382,7 +381,7 @@ const TableScreen: React.FC<TableScreenProps> = ({ selectedExchanges, onBack }) 
     setIsRefreshing(true);
     try {
       await refetch();
-      setCountdown(30);
+      setCountdown(600);
     } catch (error) {
       console.error('Refresh error:', error);
     } finally {
@@ -528,6 +527,9 @@ const TableScreen: React.FC<TableScreenProps> = ({ selectedExchanges, onBack }) 
                       <PairDetails>
                         {opportunity.pair.baseAsset}/{opportunity.pair.quoteAsset}
                       </PairDetails>
+                      {opportunity.blockchain && (
+                        <ChainMarker blockchain={opportunity.blockchain} showWarning={true} />
+                      )}
                     </PairInfo>
                     <ProfitBadge profitability={opportunity.profitability}>
                       <TrendingUp size={12} />

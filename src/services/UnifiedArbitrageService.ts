@@ -44,7 +44,7 @@ export class UnifiedArbitrageService {
     await this.scanForOpportunities();
 
     // Set up interval scanning
-    const scanIntervalMs = Number(process.env.SCAN_INTERVAL_MS || '30000');
+    const scanIntervalMs = Number(process.env.SCAN_INTERVAL_MS || '600000');
     this.scanInterval = setInterval(async () => {
       await this.scanForOpportunities();
     }, scanIntervalMs);

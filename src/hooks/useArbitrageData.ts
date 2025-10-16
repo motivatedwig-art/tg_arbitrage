@@ -31,11 +31,11 @@ export const useArbitrageData = (selectedExchanges: string[]) => {
     fetchData();
   }, [fetchData]);
 
-  // Auto-refresh every 30 seconds
+  // Auto-refresh every 10 minutes
   useEffect(() => {
     if (selectedExchanges.length === 0) return;
 
-    const interval = setInterval(fetchData, 30000); // 30 seconds
+    const interval = setInterval(fetchData, 600000); // 10 minutes
     return () => clearInterval(interval);
   }, [fetchData, selectedExchanges]);
 

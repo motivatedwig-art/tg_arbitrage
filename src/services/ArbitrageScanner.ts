@@ -77,19 +77,6 @@ class BybitAdapter implements ExchangeAdapter {
   }
 }
 
-/* ---------------- Bitget ---------------- */
-class BitgetAdapter implements ExchangeAdapter {
-  name = "BITGET";
-  async fetchAllTickers(): Promise<Ticker[]> {
-    const res = await axios.get("https://api.bitget.com/api/v2/spot/market/tickers");
-    return res.data.data.map((t: any) => ({
-      exchange: this.name,
-      symbol: normalizeSymbol(t.symbol),
-      bid: safeNum(t.bestBid),
-      ask: safeNum(t.bestAsk),
-    }));
-  }
-}
 
 /* ---------------- MEXC ---------------- */
 class MexcAdapter implements ExchangeAdapter {
@@ -106,19 +93,6 @@ class MexcAdapter implements ExchangeAdapter {
   }
 }
 
-/* ---------------- BingX ---------------- */
-class BingxAdapter implements ExchangeAdapter {
-  name = "BINGX";
-  async fetchAllTickers(): Promise<Ticker[]> {
-    const res = await axios.get("https://open-api.bingx.com/openApi/spot/v1/ticker/bookTicker");
-    return res.data.data.map((t: any) => ({
-      exchange: this.name,
-      symbol: normalizeSymbol(t.symbol),
-      bid: safeNum(t.bidPrice),
-      ask: safeNum(t.askPrice),
-    }));
-  }
-}
 
 /* ---------------- Gate.io ---------------- */
 class GateioAdapter implements ExchangeAdapter {
@@ -166,9 +140,7 @@ export class ArbitrageScanner {
       new BinanceAdapter(),
       new OkxAdapter(),
       new BybitAdapter(),
-      new BitgetAdapter(),
       new MexcAdapter(),
-      new BingxAdapter(),
       new GateioAdapter(),
       new KucoinAdapter(),
     ];

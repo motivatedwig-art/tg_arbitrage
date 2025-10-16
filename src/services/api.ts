@@ -115,7 +115,7 @@ export const apiService = {
       return {
         opportunities: opportunities.filter(opp => opp !== null), // Filter out invalid opportunities
         lastUpdate: responseData.meta?.generatedAt || responseData.lastUpdate || new Date().toISOString(),
-        nextUpdate: new Date(Date.now() + 30000).toISOString() // 30 seconds from now
+        nextUpdate: new Date(Date.now() + 600000).toISOString() // 10 minutes from now
       };
     } catch (error) {
       console.error('API Error in getArbitrageData:', error);
@@ -204,9 +204,7 @@ export const apiService = {
       binance: 'https://binance.com',
       okx: 'https://okx.com',
       bybit: 'https://bybit.com',
-      bitget: 'https://bitget.com',
       mexc: 'https://mexc.com',
-      bingx: 'https://bingx.com',
       gateio: 'https://gate.io',
       kucoin: 'https://kucoin.com'
     };

@@ -33,9 +33,7 @@ export class CryptoArbitrageBot {
       binance: !!process.env.BINANCE_API_KEY,
       okx: !!process.env.OKX_API_KEY,
       bybit: !!process.env.BYBIT_API_KEY,
-      bitget: !!process.env.BITGET_API_KEY,
       mexc: !!process.env.MEXC_API_KEY,
-      bingx: !!process.env.BINGX_API_KEY,
       gateio: !!process.env.GATE_IO_API_KEY,
       kucoin: !!process.env.KUCOIN_API_KEY,
     });

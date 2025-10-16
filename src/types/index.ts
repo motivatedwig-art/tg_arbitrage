@@ -32,6 +32,7 @@ export interface ArbitrageOpportunity {
   spreadPercentage: number;
   spreadAmount: number;
   profitability: 'high' | 'medium' | 'low';
+  blockchain?: string; // e.g., 'ethereum', 'bsc', 'polygon', 'arbitrum', 'optimism', 'solana', 'tron'
 }
 
 export interface ApiResponse {

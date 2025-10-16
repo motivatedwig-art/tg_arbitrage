@@ -674,9 +674,7 @@
             'binance': 'https://www.binance.com/en/trade/{symbol}',
             'okx': 'https://www.okx.com/trade-spot/{symbol}',
             'bybit': 'https://www.bybit.com/trade/spot/{symbol}',
-            'bitget': 'https://www.bitget.com/en/spot/{symbol}',
             'mexc': 'https://www.mexc.com/exchange/{symbol}',
-            'bingx': 'https://bingx.com/en-us/spot/{symbol}',
             'gateio': 'https://www.gate.io/trade/{symbol}',
             'kucoin': 'https://trade.kucoin.com/{symbol}',
             'coinbase': 'https://pro.coinbase.com/trade/{symbol}',
@@ -779,9 +777,9 @@
             }
         }
 
-        // Auto-refresh every 30 seconds
+        // Auto-refresh every 10 minutes
         function startAutoRefresh() {
-            setInterval(refreshData, 30000);
+            setInterval(refreshData, 600000);
         }
 
         // View toggle functionality

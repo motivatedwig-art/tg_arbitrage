@@ -2,9 +2,7 @@ import { ExchangeAdapter, ExchangeConfig, Ticker, ExchangeStatus, ExchangeName }
 import { BinanceAdapter } from './adapters/BinanceAdapter.js';
 import { OKXAdapter } from './adapters/OKXAdapter.js';
 import { BybitAdapter } from './adapters/BybitAdapter.js';
-import { BitgetAdapter } from './adapters/BitgetAdapter.js';
 import { MexcAdapter } from './adapters/MexcAdapter.js';
-import { BingxAdapter } from './adapters/BingxAdapter.js';
 import { GateioAdapter } from './adapters/GateioAdapter.js';
 import { KucoinAdapter } from './adapters/KucoinAdapter.js';
 
@@ -119,12 +117,8 @@ export class ExchangeManager {
         return new OKXAdapter();
       case ExchangeName.BYBIT:
         return new BybitAdapter();
-      case ExchangeName.BITGET:
-        return new BitgetAdapter();
       case ExchangeName.MEXC:
         return new MexcAdapter();
-      case ExchangeName.BINGX:
-        return new BingxAdapter();
       case ExchangeName.GATE_IO:
         return new GateioAdapter();
       case ExchangeName.KUCOIN:
@@ -171,7 +165,7 @@ export class ExchangeManager {
 
   private generateMockTickers(): void {
     const mockSymbols = ['BTC/USDT', 'ETH/USDT', 'BNB/USDT', 'ADA/USDT', 'SOL/USDT'];
-    const exchanges = ['binance', 'okx', 'bybit', 'bitget', 'mexc', 'bingx', 'gateio', 'kucoin'];
+    const exchanges = ['binance', 'okx', 'bybit', 'mexc', 'gateio', 'kucoin'];
     
     exchanges.forEach(exchange => {
       const mockTickers: Ticker[] = mockSymbols.map(symbol => ({

@@ -38,6 +38,7 @@ export interface ArbitrageOpportunity {
   volume: number;
   volume_24h?: number;
   timestamp: number;
+  blockchain?: string; // e.g., 'ethereum', 'bsc', 'polygon', 'arbitrum', 'optimism', 'solana', 'tron'
   fees?: {
     buyFee: number;
     sellFee: number;
@@ -86,9 +87,7 @@ export enum ExchangeName {
   BINANCE = 'binance',
   OKX = 'okx',
   BYBIT = 'bybit',
-  BITGET = 'bitget',
   MEXC = 'mexc',
-  BINGX = 'bingx',
   GATE_IO = 'gateio',
   KUCOIN = 'kucoin'
 }
