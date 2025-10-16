@@ -82,7 +82,7 @@ VITE_API_URL=https://webapp-production-c779.up.railway.app/api
 # Application Settings
 PORT=3000
 NODE_ENV=development
-UPDATE_INTERVAL=30000
+UPDATE_INTERVAL=600000
 MIN_PROFIT_THRESHOLD=0.5
 MAX_OPPORTUNITIES=50
 

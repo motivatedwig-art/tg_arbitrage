@@ -333,7 +333,7 @@ WEBAPP_URL=https://your-frontend.vercel.app
 # API Configuration
 PORT=3000
 NODE_ENV=production
-UPDATE_INTERVAL=30000
+UPDATE_INTERVAL=600000
 MIN_PROFIT_THRESHOLD=0.5
 
 # Frontend API URL (for Vercel)

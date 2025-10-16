@@ -21,7 +21,7 @@ DATABASE_URL=postgresql://username:password@hostname:port/database
 PORT=3000
 MIN_PROFIT_THRESHOLD=0.5
 MAX_PROFIT_THRESHOLD=110
-UPDATE_INTERVAL=30000
+UPDATE_INTERVAL=600000
 WEBAPP_URL=https://your-railway-domain.up.railway.app
 ```
 
