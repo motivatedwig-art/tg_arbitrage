@@ -61,6 +61,22 @@ class DatabaseManager {
 
   // Get recent opportunities
   async getRecentOpportunities(minutes = 30) {
+    // First, try to add the blockchain column if it doesn't exist
+    try {
+      await this.query(`
+        DO $$
+        BEGIN
+            IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='arbitrage_opportunities' AND column_name='blockchain') THEN
+                ALTER TABLE arbitrage_opportunities ADD COLUMN blockchain VARCHAR(50);
+                RAISE NOTICE 'Added blockchain column to arbitrage_opportunities table.';
+            END IF;
+        END
+        $$;
+      `);
+    } catch (error) {
+      console.warn('Could not add blockchain column:', error.message);
+    }
+
     const sql = `
       SELECT * FROM arbitrage_opportunities 
       WHERE timestamp > NOW() - INTERVAL '${minutes} minutes'
