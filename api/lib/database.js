@@ -85,6 +85,8 @@ class DatabaseManager {
     `;
     
     const result = await this.query(sql);
+    console.log('🔍 Database query result sample:', result.rows[0]);
+    console.log('🔍 Blockchain field value:', result.rows[0]?.blockchain);
     return result.rows.map(row => ({
       symbol: row.symbol,
       buyExchange: row.buy_exchange,
