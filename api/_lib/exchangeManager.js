@@ -172,6 +172,36 @@ export const fetchTickers = async (clients, symbols = DEFAULT_SYMBOLS) => {
   return results;
 };
 
+/**
+ * Determine the primary blockchain for an arbitrage opportunity
+ * If both tickers have the same blockchain, use that; otherwise use the most common one
+ */
+const determineBlockchain = (buyTicker, sellTicker) => {
+  // If both tickers have blockchain info and they match, use that
+  if (buyTicker.blockchain && sellTicker.blockchain && buyTicker.blockchain === sellTicker.blockchain) {
+    return buyTicker.blockchain;
+  }
+
+  // If only one has blockchain info, use that
+  if (buyTicker.blockchain) return buyTicker.blockchain;
+  if (sellTicker.blockchain) return sellTicker.blockchain;
+
+  // Fallback: determine based on symbol patterns
+  const symbol = buyTicker.symbol || sellTicker.symbol || '';
+  
+  // Common token patterns that indicate blockchain
+  if (symbol.includes('ETH') || symbol.includes('WETH')) return 'ethereum';
+  if (symbol.includes('BNB') || symbol.includes('WBNB')) return 'bsc';
+  if (symbol.includes('MATIC') || symbol.includes('WMATIC')) return 'polygon';
+  if (symbol.includes('SOL') || symbol.includes('WSOL')) return 'solana';
+  if (symbol.includes('TRX') || symbol.includes('TRON')) return 'tron';
+  if (symbol.includes('ARB')) return 'arbitrum';
+  if (symbol.includes('OP')) return 'optimism';
+
+  // Default to ethereum for most ERC-20 tokens
+  return 'ethereum';
+};
+
 const calculateOpportunity = ({
   symbol,
   buy,
@@ -206,6 +236,7 @@ const calculateOpportunity = ({
     profitAmount: netProfitAmount,
     volume: Math.min(buy.baseVolume || 0, sell.baseVolume || 0),
     timestamp: Date.now(),
+    blockchain: determineBlockchain(buy, sell),
     realData: true,
     fees: {
       buyFee,

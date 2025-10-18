@@ -178,6 +178,7 @@ const handler = async (req, res) => {
 function generateMockOpportunities(symbols) {
   const mockOpportunities = [];
   const exchanges = ['binance', 'okx', 'bybit', 'mexc', 'gateio', 'kucoin'];
+  const blockchains = ['ethereum', 'bsc', 'polygon', 'arbitrum', 'optimism', 'solana'];
   
   symbols.forEach(symbol => {
     // Generate 2-3 mock opportunities per symbol
@@ -191,6 +192,20 @@ function generateMockOpportunities(symbols) {
         const sellPrice = buyPrice + Math.random() * 2;
         const profitPercentage = ((sellPrice - buyPrice) / buyPrice) * 100;
         
+        // Determine blockchain based on symbol patterns or random selection
+        let blockchain = 'ethereum'; // default
+        if (symbol.includes('ETH') || symbol.includes('WETH')) blockchain = 'ethereum';
+        else if (symbol.includes('BNB') || symbol.includes('WBNB')) blockchain = 'bsc';
+        else if (symbol.includes('MATIC') || symbol.includes('WMATIC')) blockchain = 'polygon';
+        else if (symbol.includes('SOL') || symbol.includes('WSOL')) blockchain = 'solana';
+        else if (symbol.includes('TRX') || symbol.includes('TRON')) blockchain = 'tron';
+        else if (symbol.includes('ARB')) blockchain = 'arbitrum';
+        else if (symbol.includes('OP')) blockchain = 'optimism';
+        else {
+          // Random blockchain for variety in mock data
+          blockchain = blockchains[Math.floor(Math.random() * blockchains.length)];
+        }
+        
         mockOpportunities.push({
           symbol,
           buyExchange,
@@ -201,6 +216,7 @@ function generateMockOpportunities(symbols) {
           profitAmount: sellPrice - buyPrice,
           volume: Math.random() * 1000000,
           timestamp: Date.now(),
+          blockchain,
           realData: false,
           fees: {
             buyFee: 0.1,

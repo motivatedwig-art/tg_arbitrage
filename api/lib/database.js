@@ -97,7 +97,8 @@ class DatabaseManager {
       profitAmount: parseFloat(row.profit_amount),
       volume: row.volume_24h ? parseFloat(row.volume_24h) : 0,
       blockchain: row.blockchain || 'ethereum', // Fallback to ethereum if column doesn't exist
-      timestamp: new Date(row.timestamp).getTime()
+      timestamp: new Date(row.timestamp).getTime(),
+      realData: true // Mark as real data from database
     }));
   }
 
