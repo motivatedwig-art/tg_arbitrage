@@ -44,8 +44,8 @@ export class PostgresArbitrageOpportunityModel {
       
       const sql = `
         INSERT INTO arbitrage_opportunities 
-        (symbol, buy_exchange, sell_exchange, buy_price, sell_price, profit_percentage, profit_amount, volume, volume_24h, timestamp)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+        (symbol, buy_exchange, sell_exchange, buy_price, sell_price, profit_percentage, profit_amount, volume, volume_24h, blockchain, timestamp)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
       `;
       
       for (const opp of opportunities) {
@@ -67,6 +67,7 @@ export class PostgresArbitrageOpportunityModel {
           sanitizedOpportunity.profitAmount,
           sanitizedOpportunity.volume,
           sanitizedOpportunity.volume_24h || sanitizedOpportunity.volume,
+          sanitizedOpportunity.blockchain || 'ethereum',
           sanitizedOpportunity.timestamp
         ]);
       }
