@@ -90,14 +90,7 @@ export class UnifiedArbitrageService {
         return;
       }
 
-      // Clear old opportunities before storing new ones (fresh data each scan)
-      try {
-        await this.db.getArbitrageModel().clearAllOpportunities();
-      } catch (clearError) {
-        console.warn('⚠️ Failed to clear old opportunities, continuing with new data:', clearError.message);
-      }
-
-      // Store opportunities in database
+      // Store opportunities in database (will replace old ones with same timestamp threshold)
       await this.storeOpportunities(opportunities);
 
       // Log top opportunities
@@ -120,8 +113,16 @@ export class UnifiedArbitrageService {
 
   private async storeOpportunities(opportunities: ArbitrageOpportunity[]): Promise<void> {
     try {
+      // Log blockchain data for debugging
+      const blockchainSample = opportunities.slice(0, 3).map(opp => ({
+        symbol: opp.symbol,
+        blockchain: opp.blockchain,
+        profit: opp.profitPercentage
+      }));
+      console.log('🔍 Blockchain data sample:', JSON.stringify(blockchainSample, null, 2));
+      
       await this.db.getArbitrageModel().insert(opportunities);
-      console.log(`💾 Stored ${opportunities.length} opportunities in database`);
+      console.log(`💾 Stored ${opportunities.length} opportunities in database with blockchain data`);
       
     } catch (error) {
       console.error('❌ Failed to store opportunities:', error);
