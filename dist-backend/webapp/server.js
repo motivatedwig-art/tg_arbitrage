@@ -443,22 +443,42 @@ export class WebAppServer {
             }
         });
     }
-    // Chain diversity filter: cap Ethereum to 3 items, include others freely
+    // Chain diversity filter: cap Ethereum to 3 items, prioritize low-fee chains
     applyChainDiversityFilter(opportunities) {
-        const result = [];
-        let ethCount = 0;
+        console.log(`🔍 [CHAIN FILTER] Input: ${opportunities.length} opportunities`);
+        // Log blockchain distribution before filtering
+        const chainCounts = {};
+        opportunities.forEach(opp => {
+            const chain = (opp.blockchain || 'unknown').toLowerCase();
+            chainCounts[chain] = (chainCounts[chain] || 0) + 1;
+        });
+        console.log('📊 [CHAIN FILTER] Before filtering:', chainCounts);
+        // Separate Ethereum and non-Ethereum opportunities
+        const ethOpportunities = [];
+        const nonEthOpportunities = [];
         for (const opp of opportunities) {
-            const chain = (opp.blockchain || '').toLowerCase();
+            const chain = (opp.blockchain || 'ethereum').toLowerCase();
             if (chain === 'ethereum') {
-                if (ethCount < 3) {
-                    result.push(opp);
-                    ethCount += 1;
-                }
+                ethOpportunities.push(opp);
             }
             else {
-                result.push(opp);
+                nonEthOpportunities.push(opp);
             }
         }
+        // Take max 3 Ethereum opportunities (highest profit first)
+        const ethFiltered = ethOpportunities
+            .sort((a, b) => b.profitPercentage - a.profitPercentage)
+            .slice(0, 3);
+        // Combine: prioritize low-fee chains first, then add limited Ethereum
+        const result = [...nonEthOpportunities, ...ethFiltered];
+        // Log blockchain distribution after filtering
+        const chainCountsAfter = {};
+        result.forEach(opp => {
+            const chain = (opp.blockchain || 'unknown').toLowerCase();
+            chainCountsAfter[chain] = (chainCountsAfter[chain] || 0) + 1;
+        });
+        console.log('📊 [CHAIN FILTER] After filtering:', chainCountsAfter);
+        console.log(`✅ [CHAIN FILTER] Output: ${result.length} opportunities (limited ${ethFiltered.length} ETH)`);
         return result;
     }
     async start(port) {

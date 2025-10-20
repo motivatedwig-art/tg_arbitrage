@@ -78,6 +78,11 @@ export class UnifiedArbitrageService {
       console.log('📊 [ARBITRAGE SCAN] Starting scan at', new Date().toISOString());
       console.log('==================================================');
       
+      // Clear old opportunities before new scan to prevent stale data
+      console.log('🧹 Clearing old opportunities from database...');
+      await this.db.getArbitrageModel().clearAllOpportunities();
+      console.log('✅ Database cleared, starting fresh scan');
+      
       // Update ticker data from all exchanges
       console.log('🔄 Updating ticker data from all exchanges...');
       await this.exchangeManager.updateAllTickers();
