@@ -735,6 +735,57 @@
             return '';
         }
 
+        // Blockchain marker functions
+        function getBlockchainColor(blockchain) {
+            const colors = {
+                'ethereum': '#627eea',
+                'bsc': '#f0b90b',
+                'polygon': '#8247e5',
+                'arbitrum': '#28a0f0',
+                'optimism': '#ff0420',
+                'solana': '#14f195',
+                'avalanche': '#e84142',
+                'tron': '#ff0013'
+            };
+            return colors[blockchain] || '#627eea';
+        }
+
+        function getBlockchainIcon(blockchain) {
+            const icons = {
+                'ethereum': '⟠',
+                'bsc': 'Ⓑ',
+                'polygon': '⬡',
+                'arbitrum': '◆',
+                'optimism': '◯',
+                'solana': '◎',
+                'avalanche': '▲',
+                'tron': '◇'
+            };
+            return icons[blockchain] || '⟠';
+        }
+
+        function getBlockchainName(blockchain) {
+            const names = {
+                'ethereum': 'Ethereum',
+                'bsc': 'BSC',
+                'polygon': 'Polygon',
+                'arbitrum': 'Arbitrum',
+                'optimism': 'Optimism',
+                'solana': 'Solana',
+                'avalanche': 'Avalanche',
+                'tron': 'Tron'
+            };
+            return names[blockchain] || 'Ethereum';
+        }
+
+        function renderBlockchainMarker(blockchain) {
+            if (!blockchain) return '';
+            const color = getBlockchainColor(blockchain);
+            const icon = getBlockchainIcon(blockchain);
+            const name = getBlockchainName(blockchain);
+            return `<span class="blockchain-badge" style="background-color: ${color}; color: white; padding: 2px 8px; border-radius: 12px; font-size: 0.75rem; margin-left: 8px; display: inline-flex; align-items: center; gap: 4px;" title="${name}">${icon} ${name}</span>`;
+        }
+
         // Update functions
         function updateOpportunitiesContainer(opportunities) {
             const container = document.getElementById('opportunitiesContainer');
@@ -766,7 +817,7 @@
                     <div class="opportunity-card" style="animation-delay: ${index * 0.1}s">
                         <div class="opportunity-header">
                             <div class="pair-info">
-                                <div class="pair-symbol">${opp.symbol}</div>
+                                <div class="pair-symbol">${opp.symbol}${renderBlockchainMarker(opp.blockchain)}</div>
                                 <div class="pair-details">${opp.symbol.replace('USDT', '/USDT')}</div>
                             </div>
                             <div class="profit-badge ${profitClass}">
@@ -867,6 +918,10 @@
                     fetchStatus(),
                     fetchStats()
                 ]);
+
+                console.log('📊 Received opportunities:', opportunities.length);
+                console.log('🔍 First opportunity blockchain data:', opportunities[0]?.blockchain);
+                console.log('📋 Sample opportunity:', JSON.stringify(opportunities[0], null, 2));
 
                 updateOpportunitiesContainer(opportunities);
                 updateStatus(status);
