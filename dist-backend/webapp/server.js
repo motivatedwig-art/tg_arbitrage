@@ -6,6 +6,7 @@ import fs from 'fs';
 import { fileURLToPath } from 'url';
 import { DatabaseManager } from '../database/Database.js';
 import { UnifiedArbitrageService } from '../services/UnifiedArbitrageService.js';
+import { TokenMetadataService } from '../services/TokenMetadataService.js';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 export class WebAppServer {
@@ -13,6 +14,7 @@ export class WebAppServer {
         this.app = express();
         this.db = DatabaseManager.getInstance();
         this.arbitrageService = UnifiedArbitrageService.getInstance();
+        this.tokenMetadataService = TokenMetadataService.getInstance();
         this.setupMiddleware();
         this.setupRoutes();
     }
@@ -143,12 +145,14 @@ export class WebAppServer {
                         }
                         return acc;
                     }, []);
+                    // Apply chain diversity filter: limit Ethereum to max 3 opportunities
+                    const diverseOpportunities = this.applyChainDiversityFilter(uniqueOpportunities);
                     // Sort by profit percentage (highest first)
-                    uniqueOpportunities.sort((a, b) => b.profitPercentage - a.profitPercentage);
-                    console.log(`📊 Deduplicated to ${uniqueOpportunities.length} unique opportunities`);
+                    diverseOpportunities.sort((a, b) => b.profitPercentage - a.profitPercentage);
+                    console.log(`📊 Filtered to ${diverseOpportunities.length} diverse chain opportunities`);
                     res.json({
                         success: true,
-                        data: uniqueOpportunities.map(opp => ({
+                        data: diverseOpportunities.map(opp => ({
                             symbol: opp.symbol,
                             buyExchange: opp.buyExchange,
                             sellExchange: opp.sellExchange,
@@ -157,7 +161,9 @@ export class WebAppServer {
                             profitPercentage: opp.profitPercentage,
                             profitAmount: opp.profitAmount,
                             volume: opp.volume,
-                            blockchain: opp.blockchain || 'ethereum',
+                            // Multi-chain support
+                            blockchains: (this.tokenMetadataService.getTokenMetadata(opp.symbol) || []).map(m => m.blockchain),
+                            blockchain: opp.blockchain || (this.tokenMetadataService.getTokenMetadata(opp.symbol)?.[0]?.blockchain) || 'ethereum',
                             timestamp: opp.timestamp
                         }))
                     });
@@ -188,12 +194,14 @@ export class WebAppServer {
                         }
                         return acc;
                     }, []);
+                    // Apply chain diversity filter: limit Ethereum to max 3 opportunities
+                    const diverseOpportunities = this.applyChainDiversityFilter(uniqueOpportunities);
                     // Sort by profit percentage (highest first)
-                    uniqueOpportunities.sort((a, b) => b.profitPercentage - a.profitPercentage);
-                    console.log(`📊 Deduplicated to ${uniqueOpportunities.length} unique opportunities`);
+                    diverseOpportunities.sort((a, b) => b.profitPercentage - a.profitPercentage);
+                    console.log(`📊 Filtered to ${diverseOpportunities.length} diverse chain opportunities`);
                     res.json({
                         success: true,
-                        data: uniqueOpportunities.map(opp => ({
+                        data: diverseOpportunities.map(opp => ({
                             symbol: opp.symbol,
                             buyExchange: opp.buyExchange,
                             sellExchange: opp.sellExchange,
@@ -202,7 +210,9 @@ export class WebAppServer {
                             profitPercentage: opp.profitPercentage,
                             profitAmount: opp.profitAmount,
                             volume: opp.volume,
-                            blockchain: opp.blockchain || 'ethereum',
+                            // Multi-chain support
+                            blockchains: (this.tokenMetadataService.getTokenMetadata(opp.symbol) || []).map(m => m.blockchain),
+                            blockchain: opp.blockchain || (this.tokenMetadataService.getTokenMetadata(opp.symbol)?.[0]?.blockchain) || 'ethereum',
                             timestamp: opp.timestamp
                         }))
                     });
@@ -432,6 +442,24 @@ export class WebAppServer {
                 res.status(404).send('Application not ready. Health check at /api/health');
             }
         });
+    }
+    // Chain diversity filter: cap Ethereum to 3 items, include others freely
+    applyChainDiversityFilter(opportunities) {
+        const result = [];
+        let ethCount = 0;
+        for (const opp of opportunities) {
+            const chain = (opp.blockchain || '').toLowerCase();
+            if (chain === 'ethereum') {
+                if (ethCount < 3) {
+                    result.push(opp);
+                    ethCount += 1;
+                }
+            }
+            else {
+                result.push(opp);
+            }
+        }
+        return result;
     }
     async start(port) {
         return new Promise((resolve, reject) => {

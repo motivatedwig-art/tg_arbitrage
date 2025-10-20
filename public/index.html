@@ -786,6 +786,13 @@
             return `<span class="blockchain-badge" style="background-color: ${color}; color: white; padding: 2px 8px; border-radius: 12px; font-size: 0.75rem; margin-left: 8px; display: inline-flex; align-items: center; gap: 4px;" title="${name}">${icon} ${name}</span>`;
         }
 
+        // Render multiple blockchain markers (for multi-chain tokens)
+        function renderBlockchainMarkers(blockchains) {
+            if (!Array.isArray(blockchains) || blockchains.length === 0) return '';
+            const unique = Array.from(new Set(blockchains.map(b => (b || '').toLowerCase()))).slice(0, 4);
+            return unique.map(renderBlockchainMarker).join('');
+        }
+
         // Update functions
         function updateOpportunitiesContainer(opportunities) {
             const container = document.getElementById('opportunitiesContainer');
@@ -817,7 +824,7 @@
                     <div class="opportunity-card" style="animation-delay: ${index * 0.1}s">
                         <div class="opportunity-header">
                             <div class="pair-info">
-                                <div class="pair-symbol">${opp.symbol}${renderBlockchainMarker(opp.blockchain)}</div>
+                                <div class="pair-symbol">${opp.symbol}${renderBlockchainMarker(opp.blockchain)}${renderBlockchainMarkers(opp.blockchains)}</div>
                                 <div class="pair-details">${opp.symbol.replace('USDT', '/USDT')}</div>
                             </div>
                             <div class="profit-badge ${profitClass}">

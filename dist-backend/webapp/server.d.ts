@@ -3,9 +3,11 @@ export declare class WebAppServer {
     private server;
     private db;
     private arbitrageService;
+    private tokenMetadataService;
     constructor();
     private setupMiddleware;
     private setupRoutes;
+    private applyChainDiversityFilter;
     start(port: number): Promise<void>;
     stop(): Promise<void>;
 }
