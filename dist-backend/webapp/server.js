@@ -157,6 +157,7 @@ export class WebAppServer {
                             profitPercentage: opp.profitPercentage,
                             profitAmount: opp.profitAmount,
                             volume: opp.volume,
+                            blockchain: opp.blockchain || 'ethereum',
                             timestamp: opp.timestamp
                         }))
                     });
@@ -201,6 +202,7 @@ export class WebAppServer {
                             profitPercentage: opp.profitPercentage,
                             profitAmount: opp.profitAmount,
                             volume: opp.volume,
+                            blockchain: opp.blockchain || 'ethereum',
                             timestamp: opp.timestamp
                         }))
                     });
