@@ -50,15 +50,31 @@ export class UnifiedArbitrageService {
     }
     async scanForOpportunities() {
         try {
-            console.log('📊 Updating ticker data...');
+            console.log('==================================================');
+            console.log('📊 [ARBITRAGE SCAN] Starting scan at', new Date().toISOString());
+            console.log('==================================================');
             // Update ticker data from all exchanges
+            console.log('🔄 Updating ticker data from all exchanges...');
             await this.exchangeManager.updateAllTickers();
             // Calculate arbitrage opportunities
             const allTickers = this.exchangeManager.getAllTickers();
+            console.log(`📈 Retrieved ${Object.keys(allTickers).length} tickers from exchanges`);
             const opportunities = this.arbitrageCalculator.calculateArbitrageOpportunities(allTickers);
             console.log(`🔍 Found ${opportunities.length} arbitrage opportunities`);
+            // Log sample of opportunities with blockchain data
+            if (opportunities.length > 0) {
+                console.log('📋 Sample opportunities:');
+                opportunities.slice(0, 3).forEach((opp, idx) => {
+                    console.log(`  ${idx + 1}. ${opp.symbol} | ${opp.buyExchange} -> ${opp.sellExchange} | ${opp.profitPercentage.toFixed(2)}% | Blockchain: ${opp.blockchain || 'MISSING'}`);
+                });
+            }
             if (opportunities.length === 0) {
-                console.log(new Date().toISOString(), "No arbitrage opportunities found");
+                console.log('⚠️ [WARNING] No arbitrage opportunities found in this scan');
+                console.log('💡 This could mean:');
+                console.log('   - No profitable arbitrage exists currently');
+                console.log('   - Exchange APIs are not responding');
+                console.log('   - Profit thresholds are too high');
+                console.log('   - Volume thresholds are too high');
                 return;
             }
             // Store opportunities in database (will replace old ones with same timestamp threshold)
@@ -96,7 +112,19 @@ export class UnifiedArbitrageService {
     // Method to get recent opportunities (for API endpoints)
     async getRecentOpportunities(minutes = 30) {
         try {
-            return await this.db.getArbitrageModel().getRecentOpportunities(minutes);
+            console.log(`📥 [API] Fetching opportunities from last ${minutes} minutes...`);
+            const opportunities = await this.db.getArbitrageModel().getRecentOpportunities(minutes);
+            console.log(`📥 [API] Retrieved ${opportunities.length} opportunities from database`);
+            if (opportunities.length > 0) {
+                // Log blockchain data
+                const blockchainCount = opportunities.filter(o => o.blockchain).length;
+                console.log(`📥 [API] ${blockchainCount}/${opportunities.length} opportunities have blockchain data`);
+                console.log(`📥 [API] Sample: ${opportunities[0].symbol} - blockchain: ${opportunities[0].blockchain || 'MISSING'}`);
+            }
+            else {
+                console.log('⚠️ [API] WARNING: No opportunities found in database!');
+            }
+            return opportunities;
         }
         catch (error) {
             console.error('❌ Failed to get recent opportunities:', error);

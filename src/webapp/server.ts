@@ -141,8 +141,8 @@ export class WebAppServer {
       
       try {
         // Get live opportunities from the arbitrage service (most recent data)
-        const liveOpportunities = await this.arbitrageService.getRecentOpportunities(5); // Last 5 minutes
-        console.log(`📊 Found ${liveOpportunities.length} live opportunities`);
+        const liveOpportunities = await this.arbitrageService.getRecentOpportunities(30); // Last 30 minutes
+        console.log(`📊 Found ${liveOpportunities.length} live opportunities from arbitrage service`);
         
         if (liveOpportunities.length > 0) {
           // Deduplicate opportunities - keep only the most profitable per coin pair
@@ -195,7 +195,7 @@ export class WebAppServer {
 
       // Fallback: Try database with deduplication
       try {
-        const opportunities = await this.db.getArbitrageModel().getRecentOpportunities(10); // Only last 10 minutes
+        const opportunities = await this.db.getArbitrageModel().getRecentOpportunities(30); // Last 30 minutes
         
         if (opportunities && opportunities.length > 0) {
           console.log(`📊 Found ${opportunities.length} opportunities from database`);
@@ -249,7 +249,8 @@ export class WebAppServer {
       }
 
       // Final fallback: Generate some sample opportunities for UI testing
-      console.log('📊 No opportunities found, generating sample data for UI testing');
+      console.log('⚠️ WARNING: No real opportunities found in database!');
+      console.log('📊 Generating sample data for UI testing - THIS IS NOT REAL DATA');
       const sampleOpportunities = [
         {
           symbol: 'DEFIUSDT',
@@ -260,6 +261,7 @@ export class WebAppServer {
           profitPercentage: 30.14,
           profitAmount: 0.000585,
           volume: 1000000,
+          blockchain: 'ethereum',
           timestamp: Date.now()
         },
         {
@@ -271,6 +273,7 @@ export class WebAppServer {
           profitPercentage: 4.55,
           profitAmount: 0.000264,
           volume: 500000,
+          blockchain: 'bsc',
           timestamp: Date.now()
         },
         {
@@ -282,6 +285,7 @@ export class WebAppServer {
           profitPercentage: 1.53,
           profitAmount: 0.0000083,
           volume: 2000000,
+          blockchain: 'polygon',
           timestamp: Date.now()
         },
         {
@@ -293,6 +297,7 @@ export class WebAppServer {
           profitPercentage: 0.95,
           profitAmount: 0.000129,
           volume: 3000000,
+          blockchain: 'arbitrum',
           timestamp: Date.now()
         },
         {
@@ -304,13 +309,18 @@ export class WebAppServer {
           profitPercentage: 0.77,
           profitAmount: 0.0017,
           volume: 100000,
+          blockchain: 'solana',
           timestamp: Date.now()
         }
       ];
       
       res.json({
         success: true,
-        data: sampleOpportunities
+        data: sampleOpportunities,
+        meta: {
+          isSampleData: true,
+          message: 'Sample data - arbitrage scanner may not be running or no opportunities found'
+        }
       });
     });
 
