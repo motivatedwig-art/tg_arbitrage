@@ -222,77 +222,14 @@ export class WebAppServer {
             catch (dbError) {
                 console.warn('Database query failed:', dbError.message);
             }
-            // Final fallback: Generate some sample opportunities for UI testing
+            // NO SAMPLE DATA - Return empty array if no real data
             console.log('⚠️ WARNING: No real opportunities found in database!');
-            console.log('📊 Generating sample data for UI testing - THIS IS NOT REAL DATA');
-            const sampleOpportunities = [
-                {
-                    symbol: 'DEFIUSDT',
-                    buyExchange: 'mexc',
-                    sellExchange: 'bybit',
-                    buyPrice: 0.001912,
-                    sellPrice: 0.002497,
-                    profitPercentage: 30.14,
-                    profitAmount: 0.000585,
-                    volume: 1000000,
-                    blockchain: 'ethereum',
-                    timestamp: Date.now()
-                },
-                {
-                    symbol: 'COAUSDT',
-                    buyExchange: 'mexc',
-                    sellExchange: 'bybit',
-                    buyPrice: 0.00543,
-                    sellPrice: 0.005694,
-                    profitPercentage: 4.55,
-                    profitAmount: 0.000264,
-                    volume: 500000,
-                    blockchain: 'bsc',
-                    timestamp: Date.now()
-                },
-                {
-                    symbol: 'DUELUSDT',
-                    buyExchange: 'mexc',
-                    sellExchange: 'bybit',
-                    buyPrice: 0.000453,
-                    sellPrice: 0.0004613,
-                    profitPercentage: 1.53,
-                    profitAmount: 0.0000083,
-                    volume: 2000000,
-                    blockchain: 'polygon',
-                    timestamp: Date.now()
-                },
-                {
-                    symbol: 'UUSDT',
-                    buyExchange: 'mexc',
-                    sellExchange: 'bybit',
-                    buyPrice: 0.010279,
-                    sellPrice: 0.010408,
-                    profitPercentage: 0.95,
-                    profitAmount: 0.000129,
-                    volume: 3000000,
-                    blockchain: 'arbitrum',
-                    timestamp: Date.now()
-                },
-                {
-                    symbol: 'ELF-USDT',
-                    buyExchange: 'kucoin',
-                    sellExchange: 'okx',
-                    buyPrice: 0.1751,
-                    sellPrice: 0.1768,
-                    profitPercentage: 0.77,
-                    profitAmount: 0.0017,
-                    volume: 100000,
-                    blockchain: 'solana',
-                    timestamp: Date.now()
-                }
-            ];
+            console.log('❌ NOT generating sample data - returning empty array');
             res.json({
                 success: true,
-                data: sampleOpportunities,
+                data: [],
                 meta: {
-                    isSampleData: true,
-                    message: 'Sample data - arbitrage scanner may not be running or no opportunities found'
+                    message: 'No opportunities found - scanner is running but no profitable arbitrage detected'
                 }
             });
         });
@@ -443,43 +380,19 @@ export class WebAppServer {
             }
         });
     }
-    // Chain diversity filter: cap Ethereum to 3 items, prioritize low-fee chains
+    // Chain diversity filter: show ALL opportunities regardless of chain (removed limit)
     applyChainDiversityFilter(opportunities) {
         console.log(`🔍 [CHAIN FILTER] Input: ${opportunities.length} opportunities`);
-        // Log blockchain distribution before filtering
+        // Log blockchain distribution
         const chainCounts = {};
         opportunities.forEach(opp => {
             const chain = (opp.blockchain || 'unknown').toLowerCase();
             chainCounts[chain] = (chainCounts[chain] || 0) + 1;
         });
-        console.log('📊 [CHAIN FILTER] Before filtering:', chainCounts);
-        // Separate Ethereum and non-Ethereum opportunities
-        const ethOpportunities = [];
-        const nonEthOpportunities = [];
-        for (const opp of opportunities) {
-            const chain = (opp.blockchain || 'ethereum').toLowerCase();
-            if (chain === 'ethereum') {
-                ethOpportunities.push(opp);
-            }
-            else {
-                nonEthOpportunities.push(opp);
-            }
-        }
-        // Take max 3 Ethereum opportunities (highest profit first)
-        const ethFiltered = ethOpportunities
-            .sort((a, b) => b.profitPercentage - a.profitPercentage)
-            .slice(0, 3);
-        // Combine: prioritize low-fee chains first, then add limited Ethereum
-        const result = [...nonEthOpportunities, ...ethFiltered];
-        // Log blockchain distribution after filtering
-        const chainCountsAfter = {};
-        result.forEach(opp => {
-            const chain = (opp.blockchain || 'unknown').toLowerCase();
-            chainCountsAfter[chain] = (chainCountsAfter[chain] || 0) + 1;
-        });
-        console.log('📊 [CHAIN FILTER] After filtering:', chainCountsAfter);
-        console.log(`✅ [CHAIN FILTER] Output: ${result.length} opportunities (limited ${ethFiltered.length} ETH)`);
-        return result;
+        console.log('📊 [CHAIN FILTER] Blockchain distribution:', chainCounts);
+        // NO FILTERING - Show ALL real opportunities
+        console.log(`✅ [CHAIN FILTER] Showing ALL ${opportunities.length} opportunities (no chain limit)`);
+        return opportunities;
     }
     async start(port) {
         return new Promise((resolve, reject) => {
