@@ -1,7 +1,7 @@
 import { TokenMetadataService } from '../../services/TokenMetadataService.js';
 import { ExchangeManager } from '../../exchanges/ExchangeManager.js';
 export class ArbitrageCalculator {
-    constructor(minProfitThreshold = 0.5, maxProfitThreshold = 50, minVolumeThreshold = 1000) {
+    constructor(minProfitThreshold = 0.5, maxProfitThreshold = 50, minVolumeThreshold = 100) {
         this.tradingFees = new Map();
         this.chainTransferCosts = new Map();
         this.minProfitThreshold = minProfitThreshold;
@@ -11,6 +11,10 @@ export class ArbitrageCalculator {
         this.exchangeManager = ExchangeManager.getInstance();
         this.initializeTradingFees();
         this.initializeChainTransferCosts();
+        console.log(`📊 Arbitrage Calculator initialized with:`);
+        console.log(`   Min Profit: ${minProfitThreshold}%`);
+        console.log(`   Max Profit: ${maxProfitThreshold}%`);
+        console.log(`   Min Volume: $${minVolumeThreshold}`);
     }
     initializeTradingFees() {
         // Default trading fees for each exchange (maker fees)
@@ -35,37 +39,66 @@ export class ArbitrageCalculator {
         this.chainTransferCosts.set('same-chain', 0); // No transfer cost for same blockchain
     }
     async calculateArbitrageOpportunities(allTickers) {
-        console.log(`Calculating arbitrage for ${allTickers.size} exchanges`);
+        console.log(`📊 Calculating arbitrage for ${allTickers.size} exchanges`);
+        // Log ticker counts per exchange
+        let totalTickers = 0;
+        for (const [exchange, tickers] of allTickers) {
+            console.log(`   ${exchange}: ${tickers.length} tickers`);
+            totalTickers += tickers.length;
+        }
+        console.log(`   Total tickers across all exchanges: ${totalTickers}`);
         // Log first ticker sample to verify if data is real
         const firstExchange = Array.from(allTickers.keys())[0];
         const firstTickers = allTickers.get(firstExchange);
         if (firstTickers && firstTickers.length > 0) {
-            console.log('First ticker sample:', firstTickers[0]);
+            console.log('📈 First ticker sample:', firstTickers[0]);
         }
-        // Add validation for mock data
+        // Add validation for mock data - NEVER allow mock data
         if (this.isMockData(allTickers)) {
-            console.warn('WARNING: Mock data detected in arbitrage calculation');
+            console.error('❌ MOCK DATA DETECTED - Returning empty opportunities');
+            return [];
         }
         const opportunities = [];
         // Group tickers by symbol and filter for compatible chains only
         const symbolGroups = this.groupTickersBySymbol(allTickers);
+        console.log(`🔍 Grouped into ${symbolGroups.size} unique symbols`);
+        let symbolsProcessed = 0;
+        let symbolsSkipped = 0;
         for (const [symbol, tickers] of symbolGroups) {
-            // Pre-filter tickers to only include compatible chain pairs
-            const compatibleTickers = this.filterCompatibleTickers(tickers);
-            if (compatibleTickers.length < 2) {
-                continue; // Skip if not enough compatible tickers
+            // No pre-filtering - let the transfer availability check handle blockchain compatibility
+            // This allows us to find more opportunities and only filter when we definitively know transfer won't work
+            if (tickers.length < 2) {
+                symbolsSkipped++;
+                continue; // Skip if not enough tickers across exchanges
             }
-            const symbolOpportunities = await this.findArbitrageForSymbol(symbol, compatibleTickers);
+            symbolsProcessed++;
+            const symbolOpportunities = await this.findArbitrageForSymbol(symbol, tickers);
+            if (symbolOpportunities.length > 0) {
+                console.log(`   ✅ ${symbol}: Found ${symbolOpportunities.length} opportunities across ${tickers.length} exchanges`);
+            }
             opportunities.push(...symbolOpportunities);
         }
+        console.log(`📋 Processed ${symbolsProcessed} symbols (${symbolsSkipped} skipped due to single exchange)`);
+        console.log(`💎 Found ${opportunities.length} total opportunities before filtering`);
         // Filter opportunities by profit thresholds and add logging for unrealistic profits
+        let unrealisticCount = 0;
+        let lowProfitCount = 0;
         const filteredOpportunities = opportunities.filter(opp => {
             if (opp.profitPercentage > this.maxProfitThreshold) {
+                unrealisticCount++;
                 console.log(`🚨 Filtered out unrealistic opportunity: ${opp.symbol} - ${opp.profitPercentage.toFixed(2)}% profit (${opp.buyExchange} → ${opp.sellExchange})`);
                 return false;
             }
-            return opp.profitPercentage >= this.minProfitThreshold;
+            if (opp.profitPercentage < this.minProfitThreshold) {
+                lowProfitCount++;
+                return false;
+            }
+            return true;
         });
+        console.log(`🔽 Filtering results:`);
+        console.log(`   Unrealistic profit (>${this.maxProfitThreshold}%): ${unrealisticCount}`);
+        console.log(`   Too low profit (<${this.minProfitThreshold}%): ${lowProfitCount}`);
+        console.log(`   ✅ Final opportunities: ${filteredOpportunities.length}`);
         // Sort by profit percentage (highest first)
         return filteredOpportunities.sort((a, b) => b.profitPercentage - a.profitPercentage);
     }

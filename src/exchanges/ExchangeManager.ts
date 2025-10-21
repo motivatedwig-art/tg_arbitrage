@@ -114,12 +114,10 @@ export class ExchangeManager {
   }
 
   public async updateAllTickers(): Promise<void> {
-    // Check if we should use mock data
+    // NEVER use mock data - always fetch real data from exchanges
     if (process.env.USE_MOCK_DATA === 'true') {
-      console.warn('Using mock data - USE_MOCK_DATA is true');
-      this.generateMockTickers();
-      this.lastUpdate = Date.now();
-      return;
+      console.error('❌ USE_MOCK_DATA is set to true, but mock data is DISABLED');
+      console.error('❌ Will attempt to fetch real data instead');
     }
 
     const promises: Promise<void>[] = [];

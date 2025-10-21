@@ -17,7 +17,7 @@ export class UnifiedArbitrageService {
     this.arbitrageCalculator = new ArbitrageCalculator(
       parseFloat(process.env.MIN_PROFIT_THRESHOLD || '0.5'),
       parseFloat(process.env.MAX_PROFIT_THRESHOLD || '110'),
-      parseFloat(process.env.MIN_VOLUME_THRESHOLD || '1000')
+      parseFloat(process.env.MIN_VOLUME_THRESHOLD || '100')  // Lower threshold to find more opportunities
     );
   }
 
