@@ -926,7 +926,24 @@
             document.getElementById('maxProfit').textContent = `${(stats.maxProfit || 0).toFixed(2)}%`;
         }
 
-        // Main refresh function
+        // Trigger a fresh scan from exchanges
+        async function triggerScan() {
+            try {
+                console.log('🔄 Triggering fresh scan from exchanges...');
+                const response = await fetch('/api/scan/trigger', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+                const result = await response.json();
+                console.log('✅ Scan triggered:', result.message);
+                return result.success;
+            } catch (error) {
+                console.error('❌ Failed to trigger scan:', error);
+                return false;
+            }
+        }
+
+        // Main refresh function - now triggers fresh scan from exchanges
         async function refreshData() {
             const refreshBtn = document.getElementById('refreshBtn');
             const refreshIcon = document.getElementById('refreshIcon');
@@ -942,25 +959,47 @@
             refreshBtn.disabled = true;
             refreshIcon.textContent = '🔄';
             refreshIcon.classList.add('loading-spinner');
-            refreshText.textContent = 'Refreshing...';
+            refreshText.textContent = 'Scanning exchanges...';
 
             try {
+                // STEP 1: Trigger fresh scan from exchanges (this clears old data and scans fresh)
+                console.log('📡 Step 1: Triggering fresh exchange scan...');
+                const scanTriggered = await triggerScan();
+                
+                if (!scanTriggered) {
+                    throw new Error('Failed to trigger exchange scan');
+                }
+                
+                // STEP 2: Wait for scan to complete (30-45 seconds)
+                refreshText.textContent = 'Scanning... (30-45s)';
+                console.log('⏳ Waiting for scan to complete (35 seconds)...');
+                await new Promise(resolve => setTimeout(resolve, 35000)); // Wait 35 seconds
+                
+                // STEP 3: Fetch fresh results
+                refreshText.textContent = 'Loading results...';
+                console.log('📥 Fetching fresh results...');
+                
                 const [opportunities, status, stats] = await Promise.all([
                     fetchOpportunities(),
                     fetchStatus(),
                     fetchStats()
                 ]);
 
-            console.log('📊 Received opportunities:', opportunities.length);
-            console.log('🔍 First opportunity blockchain data:', opportunities[0]?.blockchain);
-            console.log('🔗 First opportunity transfer availability:', opportunities[0]?.transferAvailability);
-            console.log('📋 Sample opportunity:', JSON.stringify(opportunities[0], null, 2));
+                console.log('📊 Received opportunities:', opportunities.length);
+                console.log('🔍 First opportunity blockchain data:', opportunities[0]?.blockchain);
+                console.log('🔗 First opportunity transfer availability:', opportunities[0]?.transferAvailability);
 
                 updateOpportunitiesContainer(opportunities);
                 updateStatus(status);
                 updateStats(stats);
                 
                 document.getElementById('opportunityCount').textContent = opportunities.length;
+                
+                // Hide loading state after successful update
+                if (loadingState) {
+                    loadingState.style.display = 'none';
+                }
+                
             } catch (error) {
                 console.error('Error refreshing data:', error);
                 const container = document.getElementById('opportunitiesContainer');
@@ -974,9 +1013,33 @@
             }
         }
 
-        // Auto-refresh every 10 minutes
+        // Quick refresh - just fetch data without triggering scan (for auto-refresh and initial load)
+        async function quickRefreshData() {
+            try {
+                const [opportunities, status, stats] = await Promise.all([
+                    fetchOpportunities(),
+                    fetchStatus(),
+                    fetchStats()
+                ]);
+
+                updateOpportunitiesContainer(opportunities);
+                updateStatus(status);
+                updateStats(stats);
+                
+                document.getElementById('opportunityCount').textContent = opportunities.length;
+                
+                const loadingState = document.getElementById('loadingState');
+                if (loadingState) {
+                    loadingState.style.display = 'none';
+                }
+            } catch (error) {
+                console.error('Error in quick refresh:', error);
+            }
+        }
+
+        // Auto-refresh every 10 minutes (just fetch data, backend scans automatically)
         function startAutoRefresh() {
-            setInterval(refreshData, 600000);
+            setInterval(quickRefreshData, 600000); // 10 minutes
         }
 
         // Initialize
@@ -985,7 +1048,10 @@
             document.getElementById('languageText').textContent = currentLanguage.toUpperCase();
             updateUI();
             
-            refreshData();
+            // Initial load - just fetch existing data (fast)
+            quickRefreshData();
+            
+            // Start auto-refresh (fetches data every 10 minutes)
             startAutoRefresh();
         });
     </script>
