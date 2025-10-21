@@ -72,6 +72,12 @@ export class UnifiedArbitrageService {
     return this.isRunning;
   }
 
+  // Public method to manually trigger a scan (for API endpoints)
+  public async triggerManualScan(): Promise<void> {
+    console.log('🔄 [MANUAL TRIGGER] Starting manual scan...');
+    await this.scanForOpportunities();
+  }
+
   private async scanForOpportunities(): Promise<void> {
     try {
       console.log('==================================================');
@@ -89,17 +95,21 @@ export class UnifiedArbitrageService {
       
       // Calculate arbitrage opportunities
       const allTickers = this.exchangeManager.getAllTickers();
-      console.log(`📈 Retrieved ${Object.keys(allTickers).length} tickers from exchanges`);
+      let totalTickerCount = 0;
+      for (const tickers of allTickers.values()) {
+        totalTickerCount += tickers.length;
+      }
+      console.log(`📈 Retrieved ${allTickers.size} exchanges with ${totalTickerCount} total tickers`);
       
       const opportunities = await this.arbitrageCalculator.calculateArbitrageOpportunities(allTickers);
 
       console.log(`🔍 Found ${opportunities.length} arbitrage opportunities`);
       
-      // Log sample of opportunities with blockchain data
+      // Log top opportunities with blockchain data
       if (opportunities.length > 0) {
-        console.log('📋 Sample opportunities:');
-        opportunities.slice(0, 3).forEach((opp, idx) => {
-          console.log(`  ${idx + 1}. ${opp.symbol} | ${opp.buyExchange} -> ${opp.sellExchange} | ${opp.profitPercentage.toFixed(2)}% | Blockchain: ${opp.blockchain || 'MISSING'}`);
+        console.log('📋 Top opportunities found:');
+        opportunities.slice(0, 5).forEach((opp, idx) => {
+          console.log(`  ${idx + 1}. ${opp.symbol} | ${opp.buyExchange} -> ${opp.sellExchange} | ${opp.profitPercentage.toFixed(2)}% | Blockchain: ${opp.blockchain || 'UNKNOWN'}`);
         });
       }
 
@@ -137,12 +147,12 @@ export class UnifiedArbitrageService {
   private async storeOpportunities(opportunities: ArbitrageOpportunity[]): Promise<void> {
     try {
       // Log blockchain data for debugging
-      const blockchainSample = opportunities.slice(0, 3).map(opp => ({
+      const topThree = opportunities.slice(0, 3).map(opp => ({
         symbol: opp.symbol,
         blockchain: opp.blockchain,
-        profit: opp.profitPercentage
+        profit: opp.profitPercentage.toFixed(2) + '%'
       }));
-      console.log('🔍 Blockchain data sample:', JSON.stringify(blockchainSample, null, 2));
+      console.log('🔍 Top 3 opportunities to store:', JSON.stringify(topThree, null, 2));
       
       await this.db.getArbitrageModel().insert(opportunities);
       console.log(`💾 Stored ${opportunities.length} opportunities in database with blockchain data`);
@@ -163,7 +173,7 @@ export class UnifiedArbitrageService {
         // Log blockchain data
         const blockchainCount = opportunities.filter(o => o.blockchain).length;
         console.log(`📥 [API] ${blockchainCount}/${opportunities.length} opportunities have blockchain data`);
-        console.log(`📥 [API] Sample: ${opportunities[0].symbol} - blockchain: ${opportunities[0].blockchain || 'MISSING'}`);
+        console.log(`📥 [API] First: ${opportunities[0].symbol} (${opportunities[0].buyExchange} → ${opportunities[0].sellExchange}) - ${opportunities[0].profitPercentage.toFixed(2)}% - blockchain: ${opportunities[0].blockchain || 'UNKNOWN'}`);
       } else {
         console.log('⚠️ [API] WARNING: No opportunities found in database!');
       }

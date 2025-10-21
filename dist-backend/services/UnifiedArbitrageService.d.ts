@@ -13,6 +13,7 @@ export declare class UnifiedArbitrageService {
     start(): Promise<void>;
     stop(): void;
     isActive(): boolean;
+    triggerManualScan(): Promise<void>;
     private scanForOpportunities;
     private storeOpportunities;
     getRecentOpportunities(minutes?: number): Promise<ArbitrageOpportunity[]>;

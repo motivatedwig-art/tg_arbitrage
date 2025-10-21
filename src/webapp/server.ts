@@ -316,6 +316,29 @@ export class WebAppServer {
       }
     });
 
+    // API route to manually trigger a scan (for debugging/testing)
+    this.app.post('/api/scan/trigger', async (req, res) => {
+      try {
+        console.log('🔄 [MANUAL TRIGGER] User requested manual scan via API');
+        
+        // Start scan in background (don't wait for it to complete)
+        this.arbitrageService.triggerManualScan().catch(error => {
+          console.error('❌ Manual scan failed:', error);
+        });
+        
+        res.json({ 
+          success: true, 
+          message: 'Scan started! Check Railway logs for detailed progress. This will take 30-60 seconds.' 
+        });
+      } catch (error) {
+        console.error('Manual scan trigger error:', error);
+        res.status(500).json({ 
+          success: false, 
+          error: 'Failed to trigger scan' 
+        });
+      }
+    });
+
     // API route to get statistics
     this.app.get('/api/stats', async (req, res) => {
       // Add cache-busting headers to prevent browser caching of stale data
