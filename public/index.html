@@ -6,6 +6,12 @@
     <meta name="theme-color" content="#FFD60A">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    
+    <!-- Prevent caching - force browser to always fetch fresh version -->
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    
     <title>Crypto Arbitrage Opportunities</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
@@ -477,6 +483,10 @@
     </div>
 
     <script>
+        // Version for cache busting
+        console.log('🎯 App Version: 2.1.0 - Refresh triggers manual scan');
+        console.log('📅 Loaded at:', new Date().toISOString());
+        
         // Initialize Telegram WebApp
         if (window.Telegram?.WebApp) {
             const tg = window.Telegram.WebApp;
@@ -929,26 +939,41 @@
         // Trigger a fresh scan from exchanges
         async function triggerScan() {
             try {
-                console.log('🔄 Triggering fresh scan from exchanges...');
+                console.log('🔄 [TRIGGER] Sending POST to /api/scan/trigger...');
                 const response = await fetch('/api/scan/trigger', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' }
                 });
+                
+                console.log('📡 [TRIGGER] Response status:', response.status);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                
                 const result = await response.json();
-                console.log('✅ Scan triggered:', result.message);
+                console.log('✅ [TRIGGER] Success:', result.message);
                 return result.success;
             } catch (error) {
-                console.error('❌ Failed to trigger scan:', error);
+                console.error('❌ [TRIGGER] Failed to trigger scan:', error);
+                console.error('❌ [TRIGGER] Error details:', error.message);
                 return false;
             }
         }
 
         // Main refresh function - now triggers fresh scan from exchanges
         async function refreshData() {
+            console.log('🔄 [REFRESH] refreshData() called');
+            console.log('🔄 [REFRESH] Getting DOM elements...');
+            
             const refreshBtn = document.getElementById('refreshBtn');
             const refreshIcon = document.getElementById('refreshIcon');
             const refreshText = document.getElementById('refreshText');
             const loadingState = document.getElementById('loadingState');
+            
+            console.log('🔄 [REFRESH] Button found:', !!refreshBtn);
+            console.log('🔄 [REFRESH] Icon found:', !!refreshIcon);
+            console.log('🔄 [REFRESH] Text found:', !!refreshText);
             
             // Show loading state
             if (loadingState) {
@@ -960,11 +985,15 @@
             refreshIcon.textContent = '🔄';
             refreshIcon.classList.add('loading-spinner');
             refreshText.textContent = 'Scanning exchanges...';
+            
+            console.log('🔄 [REFRESH] UI updated, starting scan...');
 
             try {
                 // STEP 1: Trigger fresh scan from exchanges (this clears old data and scans fresh)
-                console.log('📡 Step 1: Triggering fresh exchange scan...');
+                console.log('📡 [REFRESH] Step 1: Triggering fresh exchange scan...');
                 const scanTriggered = await triggerScan();
+                
+                console.log('📡 [REFRESH] Scan triggered result:', scanTriggered);
                 
                 if (!scanTriggered) {
                     throw new Error('Failed to trigger exchange scan');

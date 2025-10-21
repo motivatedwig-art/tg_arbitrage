@@ -320,21 +320,46 @@ export class WebAppServer {
     this.app.post('/api/scan/trigger', async (req, res) => {
       try {
         console.log('🔄 [MANUAL TRIGGER] User requested manual scan via API');
+        console.log('🔄 [MANUAL TRIGGER] Request headers:', req.headers);
+        console.log('🔄 [MANUAL TRIGGER] Request method:', req.method);
         
         // Start scan in background (don't wait for it to complete)
         this.arbitrageService.triggerManualScan().catch(error => {
           console.error('❌ Manual scan failed:', error);
         });
         
+        console.log('✅ [MANUAL TRIGGER] Scan started successfully');
+        
         res.json({ 
           success: true, 
-          message: 'Scan started! Check Railway logs for detailed progress. This will take 30-60 seconds.' 
+          message: 'Scan started! Check Railway logs for detailed progress. This will take 30-60 seconds.',
+          timestamp: new Date().toISOString()
         });
       } catch (error) {
-        console.error('Manual scan trigger error:', error);
+        console.error('❌ [MANUAL TRIGGER] Error:', error);
         res.status(500).json({ 
           success: false, 
-          error: 'Failed to trigger scan' 
+          error: 'Failed to trigger scan',
+          details: error instanceof Error ? error.message : 'Unknown error'
+        });
+      }
+    });
+
+    // API route to clear all opportunities (for debugging)
+    this.app.post('/api/opportunities/clear', async (req, res) => {
+      try {
+        console.log('🗑️ [CLEAR] User requested to clear all opportunities');
+        await this.db.getArbitrageModel().clearAllOpportunities();
+        
+        res.json({ 
+          success: true, 
+          message: 'All opportunities cleared from database' 
+        });
+      } catch (error) {
+        console.error('Clear opportunities error:', error);
+        res.status(500).json({ 
+          success: false, 
+          error: 'Failed to clear opportunities' 
         });
       }
     });
