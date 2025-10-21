@@ -28,8 +28,8 @@ export declare class ExchangeManager {
      * Check if a currency is available for transfer on both exchanges
      */
     checkTransferAvailability(currency: string, buyExchange: string, sellExchange: string): Promise<{
-        buyAvailable: boolean;
-        sellAvailable: boolean;
+        buyAvailable: boolean | undefined;
+        sellAvailable: boolean | undefined;
         commonNetworks: string[];
     }>;
     /**

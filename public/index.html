@@ -799,7 +799,8 @@
             
             const { buyAvailable, sellAvailable, commonNetworks } = transferAvailability;
             
-            if (!buyAvailable || !sellAvailable) {
+            // Only show warning if explicitly false (not undefined/unknown)
+            if (buyAvailable === false || sellAvailable === false) {
                 return `<div class="transfer-warning" style="background: rgba(255, 193, 7, 0.1); border: 1px solid rgba(255, 193, 7, 0.3); border-radius: 6px; padding: 6px 8px; margin-top: 8px; font-size: 11px; color: #ffc107;">
                     ⚠️ Transfer may not be available on both exchanges
                 </div>`;

@@ -45,8 +45,8 @@ export interface ArbitrageOpportunity {
     transferCost?: number;
   };
   transferAvailability?: {
-    buyAvailable: boolean;
-    sellAvailable: boolean;
+    buyAvailable: boolean | undefined;
+    sellAvailable: boolean | undefined;
     commonNetworks: string[];
   };
 }

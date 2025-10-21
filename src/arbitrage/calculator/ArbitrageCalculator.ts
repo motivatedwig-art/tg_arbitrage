@@ -221,13 +221,18 @@ export class ArbitrageCalculator {
     );
 
     // Only skip if we definitively know transfer is NOT available
-    // If API fails or data is unavailable, we allow the opportunity but mark it
-    const hasDefinitiveNoTransfer = (transferInfo.buyAvailable === false && transferInfo.sellAvailable === false) ||
-                                     (transferInfo.commonNetworks.length === 0 && 
-                                      transferInfo.buyAvailable && 
-                                      transferInfo.sellAvailable);
+    // undefined means API not supported - we allow it (fail-open approach)
+    // false means we checked and it's NOT available - we skip it
+    const buyNotAvailable = transferInfo.buyAvailable === false;
+    const sellNotAvailable = transferInfo.sellAvailable === false;
+    const bothDefinitelyNotAvailable = buyNotAvailable && sellNotAvailable;
     
-    if (hasDefinitiveNoTransfer) {
+    // Also skip if both exchanges support the API but have no common networks
+    const bothCheckable = transferInfo.buyAvailable !== undefined && transferInfo.sellAvailable !== undefined;
+    const bothAvailable = transferInfo.buyAvailable === true && transferInfo.sellAvailable === true;
+    const noCommonNetworks = bothCheckable && bothAvailable && transferInfo.commonNetworks.length === 0;
+    
+    if (bothDefinitelyNotAvailable || noCommonNetworks) {
       console.log(`⚠️ Skipping ${symbol}: No common transfer networks (buy: ${transferInfo.buyAvailable}, sell: ${transferInfo.sellAvailable})`);
       return null;
     }

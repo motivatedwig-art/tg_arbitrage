@@ -288,7 +288,7 @@ export class ExchangeManager {
     currency: string, 
     buyExchange: string, 
     sellExchange: string
-  ): Promise<{ buyAvailable: boolean; sellAvailable: boolean; commonNetworks: string[] }> {
+  ): Promise<{ buyAvailable: boolean | undefined; sellAvailable: boolean | undefined; commonNetworks: string[] }> {
     try {
       const [buyNetworks, sellNetworks] = await Promise.all([
         this.getCurrencyNetworks(buyExchange, currency),
@@ -306,21 +306,28 @@ export class ExchangeManager {
         .map(network => this.normalizeNetworkToBlockchain(network.network))
         .filter(Boolean);
 
-      // Find common blockchains
-      const commonNetworks = buyBlockchains.filter(chain => 
-        sellBlockchains.includes(chain)
-      );
+      // Determine availability status
+      // If both networks are empty, the exchange likely doesn't support the API - return undefined (unknown)
+      // This implements fail-open: if we can't verify, we assume it's available
+      const buyAvailable = buyNetworks.length === 0 ? undefined : buyBlockchains.length > 0;
+      const sellAvailable = sellNetworks.length === 0 ? undefined : sellBlockchains.length > 0;
+
+      // Find common blockchains (only if we have data from both exchanges)
+      const commonNetworks = (buyBlockchains.length > 0 && sellBlockchains.length > 0)
+        ? buyBlockchains.filter(chain => sellBlockchains.includes(chain))
+        : [];
 
       return {
-        buyAvailable: buyBlockchains.length > 0,
-        sellAvailable: sellBlockchains.length > 0,
+        buyAvailable,
+        sellAvailable,
         commonNetworks
       };
     } catch (error) {
       console.error(`Error checking transfer availability for ${currency}:`, error);
+      // On error, return undefined (unknown) to allow fail-open behavior
       return {
-        buyAvailable: false,
-        sellAvailable: false,
+        buyAvailable: undefined,
+        sellAvailable: undefined,
         commonNetworks: []
       };
     }
