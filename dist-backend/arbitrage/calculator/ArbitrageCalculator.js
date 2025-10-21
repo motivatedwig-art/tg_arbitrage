@@ -142,22 +142,21 @@ export class ArbitrageCalculator {
         return symbolGroups;
     }
     async findArbitrageForSymbol(symbol, tickers) {
-        const opportunities = [];
+        const promises = [];
         // Compare each exchange pair (tickers are already pre-filtered for compatibility)
         for (let i = 0; i < tickers.length; i++) {
             for (let j = i + 1; j < tickers.length; j++) {
                 const ticker1 = tickers[i];
                 const ticker2 = tickers[j];
-                // Check arbitrage opportunity in both directions
-                const opp1 = await this.calculateOpportunity(symbol, ticker1, ticker2);
-                const opp2 = await this.calculateOpportunity(symbol, ticker2, ticker1);
-                if (opp1)
-                    opportunities.push(opp1);
-                if (opp2)
-                    opportunities.push(opp2);
+                // Check arbitrage opportunity in both directions (batch promises for better performance)
+                promises.push(this.calculateOpportunity(symbol, ticker1, ticker2));
+                promises.push(this.calculateOpportunity(symbol, ticker2, ticker1));
             }
         }
-        return opportunities;
+        // Execute all checks in parallel
+        const results = await Promise.all(promises);
+        // Filter out null results
+        return results.filter((opp) => opp !== null);
     }
     async calculateOpportunity(symbol, buyTicker, sellTicker) {
         const buyPrice = buyTicker.ask; // Price to buy (ask price)
@@ -168,9 +167,14 @@ export class ArbitrageCalculator {
         const currency = symbol.split('/')[0];
         // Check transfer availability between exchanges
         const transferInfo = await this.exchangeManager.checkTransferAvailability(currency, buyTicker.exchange, sellTicker.exchange);
-        // Skip opportunity if transfer is not available on both exchanges
-        if (!transferInfo.buyAvailable || !transferInfo.sellAvailable) {
-            console.log(`⚠️ Skipping ${symbol}: Transfer not available (buy: ${transferInfo.buyAvailable}, sell: ${transferInfo.sellAvailable})`);
+        // Only skip if we definitively know transfer is NOT available
+        // If API fails or data is unavailable, we allow the opportunity but mark it
+        const hasDefinitiveNoTransfer = (transferInfo.buyAvailable === false && transferInfo.sellAvailable === false) ||
+            (transferInfo.commonNetworks.length === 0 &&
+                transferInfo.buyAvailable &&
+                transferInfo.sellAvailable);
+        if (hasDefinitiveNoTransfer) {
+            console.log(`⚠️ Skipping ${symbol}: No common transfer networks (buy: ${transferInfo.buyAvailable}, sell: ${transferInfo.sellAvailable})`);
             return null;
         }
         // Calculate fees

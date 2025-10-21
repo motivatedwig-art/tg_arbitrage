@@ -11,6 +11,8 @@ export class ExchangeManager {
   private adapters: Map<string, ExchangeAdapter> = new Map();
   private tickerCache: Map<string, Ticker[]> = new Map();
   private lastUpdate: number = 0;
+  private networkCache: Map<string, { networks: any[], timestamp: number }> = new Map();
+  private readonly NETWORK_CACHE_DURATION = 3600000; // 1 hour in milliseconds
 
   private constructor() {}
 
@@ -224,9 +226,17 @@ export class ExchangeManager {
   }
 
   /**
-   * Get currency networks for a specific exchange
+   * Get currency networks for a specific exchange (with caching)
    */
   async getCurrencyNetworks(exchangeName: string, currency: string): Promise<any[]> {
+    const cacheKey = `${exchangeName}-${currency}`;
+    const cached = this.networkCache.get(cacheKey);
+    
+    // Return cached data if it's still fresh
+    if (cached && (Date.now() - cached.timestamp) < this.NETWORK_CACHE_DURATION) {
+      return cached.networks;
+    }
+
     try {
       const adapter = this.adapters.get(exchangeName);
       if (!adapter) {
@@ -249,9 +259,24 @@ export class ExchangeManager {
         return [];
       }
 
-      return currencyInfo.networks || [];
+      const networks = currencyInfo.networks || [];
+      
+      // Cache the result
+      this.networkCache.set(cacheKey, {
+        networks,
+        timestamp: Date.now()
+      });
+
+      return networks;
     } catch (error) {
       console.error(`Error fetching networks for ${currency} on ${exchangeName}:`, error);
+      
+      // Return cached data even if expired, as fallback
+      if (cached) {
+        console.log(`Using expired cache for ${cacheKey} due to API error`);
+        return cached.networks;
+      }
+      
       return [];
     }
   }

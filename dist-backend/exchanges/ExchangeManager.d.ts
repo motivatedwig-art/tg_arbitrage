@@ -4,6 +4,8 @@ export declare class ExchangeManager {
     private adapters;
     private tickerCache;
     private lastUpdate;
+    private networkCache;
+    private readonly NETWORK_CACHE_DURATION;
     private constructor();
     static getInstance(): ExchangeManager;
     initializeExchanges(): Promise<void>;
@@ -19,7 +21,7 @@ export declare class ExchangeManager {
     getTickersForSymbol(symbol: string): Ticker[];
     getLastUpdateTime(): number;
     /**
-     * Get currency networks for a specific exchange
+     * Get currency networks for a specific exchange (with caching)
      */
     getCurrencyNetworks(exchangeName: string, currency: string): Promise<any[]>;
     /**

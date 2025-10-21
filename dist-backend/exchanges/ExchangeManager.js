@@ -10,6 +10,8 @@ export class ExchangeManager {
         this.adapters = new Map();
         this.tickerCache = new Map();
         this.lastUpdate = 0;
+        this.networkCache = new Map();
+        this.NETWORK_CACHE_DURATION = 3600000; // 1 hour in milliseconds
     }
     static getInstance() {
         if (!ExchangeManager.instance) {
@@ -199,9 +201,15 @@ export class ExchangeManager {
         return this.lastUpdate;
     }
     /**
-     * Get currency networks for a specific exchange
+     * Get currency networks for a specific exchange (with caching)
      */
     async getCurrencyNetworks(exchangeName, currency) {
+        const cacheKey = `${exchangeName}-${currency}`;
+        const cached = this.networkCache.get(cacheKey);
+        // Return cached data if it's still fresh
+        if (cached && (Date.now() - cached.timestamp) < this.NETWORK_CACHE_DURATION) {
+            return cached.networks;
+        }
         try {
             const adapter = this.adapters.get(exchangeName);
             if (!adapter) {
@@ -220,10 +228,21 @@ export class ExchangeManager {
                 console.warn(`Currency ${currency} not found on ${exchangeName}`);
                 return [];
             }
-            return currencyInfo.networks || [];
+            const networks = currencyInfo.networks || [];
+            // Cache the result
+            this.networkCache.set(cacheKey, {
+                networks,
+                timestamp: Date.now()
+            });
+            return networks;
         }
         catch (error) {
             console.error(`Error fetching networks for ${currency} on ${exchangeName}:`, error);
+            // Return cached data even if expired, as fallback
+            if (cached) {
+                console.log(`Using expired cache for ${cacheKey} due to API error`);
+                return cached.networks;
+            }
             return [];
         }
     }
