@@ -19,17 +19,9 @@ export class WebAppServer {
         this.setupRoutes();
     }
     setupMiddleware() {
-        // Security middleware
+        // Security middleware - CSP disabled to allow inline scripts for Telegram WebApp
         this.app.use(helmet({
-            contentSecurityPolicy: {
-                directives: {
-                    defaultSrc: ["'self'"],
-                    scriptSrc: ["'self'", "'unsafe-inline'", "https://telegram.org"],
-                    styleSrc: ["'self'", "'unsafe-inline'"],
-                    imgSrc: ["'self'", "data:", "https:"],
-                    connectSrc: ["'self'", "https://api.binance.com", "https://www.okx.com", "https://api.bybit.com"],
-                },
-            },
+            contentSecurityPolicy: false, // Disable CSP completely to fix inline script blocking
         }));
         // Configure CORS for Telegram and your domains
         this.app.use(cors({
