@@ -793,6 +793,28 @@
             return unique.map(renderBlockchainMarker).join('');
         }
 
+        // Render transfer availability indicator
+        function renderTransferAvailability(transferAvailability) {
+            if (!transferAvailability) return '';
+            
+            const { buyAvailable, sellAvailable, commonNetworks } = transferAvailability;
+            
+            if (!buyAvailable || !sellAvailable) {
+                return `<div class="transfer-warning" style="background: rgba(255, 193, 7, 0.1); border: 1px solid rgba(255, 193, 7, 0.3); border-radius: 6px; padding: 6px 8px; margin-top: 8px; font-size: 11px; color: #ffc107;">
+                    ⚠️ Transfer may not be available on both exchanges
+                </div>`;
+            }
+            
+            if (commonNetworks && commonNetworks.length > 0) {
+                const networksText = commonNetworks.map(network => getBlockchainName(network)).join(', ');
+                return `<div class="transfer-info" style="background: rgba(40, 167, 69, 0.1); border: 1px solid rgba(40, 167, 69, 0.3); border-radius: 6px; padding: 6px 8px; margin-top: 8px; font-size: 11px; color: #28a745;">
+                    ✅ Transfer available on: ${networksText}
+                </div>`;
+            }
+            
+            return '';
+        }
+
         // Update functions
         function updateOpportunitiesContainer(opportunities) {
             const container = document.getElementById('opportunitiesContainer');
@@ -844,6 +866,8 @@
                                 <div class="exchange-price">$${formatPrice(opp.sellPrice)}</div>
                             </div>
                         </div>
+                        
+                        ${renderTransferAvailability(opp.transferAvailability)}
 
                         <div class="action-row">
                             <div style="display: flex; gap: 8px; margin-left: auto;">
@@ -926,9 +950,10 @@
                     fetchStats()
                 ]);
 
-                console.log('📊 Received opportunities:', opportunities.length);
-                console.log('🔍 First opportunity blockchain data:', opportunities[0]?.blockchain);
-                console.log('📋 Sample opportunity:', JSON.stringify(opportunities[0], null, 2));
+            console.log('📊 Received opportunities:', opportunities.length);
+            console.log('🔍 First opportunity blockchain data:', opportunities[0]?.blockchain);
+            console.log('🔗 First opportunity transfer availability:', opportunities[0]?.transferAvailability);
+            console.log('📋 Sample opportunity:', JSON.stringify(opportunities[0], null, 2));
 
                 updateOpportunitiesContainer(opportunities);
                 updateStatus(status);

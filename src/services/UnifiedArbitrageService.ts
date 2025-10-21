@@ -91,7 +91,7 @@ export class UnifiedArbitrageService {
       const allTickers = this.exchangeManager.getAllTickers();
       console.log(`📈 Retrieved ${Object.keys(allTickers).length} tickers from exchanges`);
       
-      const opportunities = this.arbitrageCalculator.calculateArbitrageOpportunities(allTickers);
+      const opportunities = await this.arbitrageCalculator.calculateArbitrageOpportunities(allTickers);
 
       console.log(`🔍 Found ${opportunities.length} arbitrage opportunities`);
       

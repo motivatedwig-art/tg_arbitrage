@@ -198,5 +198,110 @@ export class ExchangeManager {
     getLastUpdateTime() {
         return this.lastUpdate;
     }
+    /**
+     * Get currency networks for a specific exchange
+     */
+    async getCurrencyNetworks(exchangeName, currency) {
+        try {
+            const adapter = this.adapters.get(exchangeName);
+            if (!adapter) {
+                console.warn(`Exchange ${exchangeName} not found`);
+                return [];
+            }
+            // Use ccxt's fetchCurrencies method to get network information
+            const exchange = adapter.exchange;
+            if (!exchange || !exchange.fetchCurrencies) {
+                console.warn(`Exchange ${exchangeName} does not support fetchCurrencies`);
+                return [];
+            }
+            const currencies = await exchange.fetchCurrencies();
+            const currencyInfo = currencies[currency];
+            if (!currencyInfo) {
+                console.warn(`Currency ${currency} not found on ${exchangeName}`);
+                return [];
+            }
+            return currencyInfo.networks || [];
+        }
+        catch (error) {
+            console.error(`Error fetching networks for ${currency} on ${exchangeName}:`, error);
+            return [];
+        }
+    }
+    /**
+     * Check if a currency is available for transfer on both exchanges
+     */
+    async checkTransferAvailability(currency, buyExchange, sellExchange) {
+        try {
+            const [buyNetworks, sellNetworks] = await Promise.all([
+                this.getCurrencyNetworks(buyExchange, currency),
+                this.getCurrencyNetworks(sellExchange, currency)
+            ]);
+            // Normalize network names to blockchain names
+            const buyBlockchains = buyNetworks
+                .filter(network => network.deposit && network.withdraw)
+                .map(network => this.normalizeNetworkToBlockchain(network.network))
+                .filter(Boolean);
+            const sellBlockchains = sellNetworks
+                .filter(network => network.deposit && network.withdraw)
+                .map(network => this.normalizeNetworkToBlockchain(network.network))
+                .filter(Boolean);
+            // Find common blockchains
+            const commonNetworks = buyBlockchains.filter(chain => sellBlockchains.includes(chain));
+            return {
+                buyAvailable: buyBlockchains.length > 0,
+                sellAvailable: sellBlockchains.length > 0,
+                commonNetworks
+            };
+        }
+        catch (error) {
+            console.error(`Error checking transfer availability for ${currency}:`, error);
+            return {
+                buyAvailable: false,
+                sellAvailable: false,
+                commonNetworks: []
+            };
+        }
+    }
+    /**
+     * Normalize network names to blockchain names
+     */
+    normalizeNetworkToBlockchain(networkName) {
+        if (!networkName)
+            return null;
+        const network = networkName.toLowerCase();
+        // Ethereum networks
+        if (network.includes('ethereum') || network.includes('eth') || network.includes('erc20')) {
+            return 'ethereum';
+        }
+        // BSC networks
+        if (network.includes('bsc') || network.includes('bep20') || network.includes('binance')) {
+            return 'bsc';
+        }
+        // Polygon networks
+        if (network.includes('polygon') || network.includes('matic') || network.includes('poly')) {
+            return 'polygon';
+        }
+        // Arbitrum networks
+        if (network.includes('arbitrum') || network.includes('arb')) {
+            return 'arbitrum';
+        }
+        // Optimism networks
+        if (network.includes('optimism') || network.includes('op')) {
+            return 'optimism';
+        }
+        // Solana networks
+        if (network.includes('solana') || network.includes('sol')) {
+            return 'solana';
+        }
+        // Tron networks
+        if (network.includes('tron') || network.includes('trc20')) {
+            return 'tron';
+        }
+        // Avalanche networks
+        if (network.includes('avalanche') || network.includes('avax')) {
+            return 'avalanche';
+        }
+        return null;
+    }
 }
 //# sourceMappingURL=ExchangeManager.js.map

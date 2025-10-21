@@ -1,4 +1,5 @@
 import { TokenMetadataService } from '../../services/TokenMetadataService.js';
+import { ExchangeManager } from '../../exchanges/ExchangeManager.js';
 export class ArbitrageCalculator {
     constructor(minProfitThreshold = 0.5, maxProfitThreshold = 50, minVolumeThreshold = 1000) {
         this.tradingFees = new Map();
@@ -7,6 +8,7 @@ export class ArbitrageCalculator {
         this.maxProfitThreshold = maxProfitThreshold;
         this.minVolumeThreshold = minVolumeThreshold;
         this.tokenMetadataService = TokenMetadataService.getInstance();
+        this.exchangeManager = ExchangeManager.getInstance();
         this.initializeTradingFees();
         this.initializeChainTransferCosts();
     }
@@ -32,7 +34,7 @@ export class ArbitrageCalculator {
         this.chainTransferCosts.set('polygon-to-bsc', 6); // ~$2-10
         this.chainTransferCosts.set('same-chain', 0); // No transfer cost for same blockchain
     }
-    calculateArbitrageOpportunities(allTickers) {
+    async calculateArbitrageOpportunities(allTickers) {
         console.log(`Calculating arbitrage for ${allTickers.size} exchanges`);
         // Log first ticker sample to verify if data is real
         const firstExchange = Array.from(allTickers.keys())[0];
@@ -53,7 +55,7 @@ export class ArbitrageCalculator {
             if (compatibleTickers.length < 2) {
                 continue; // Skip if not enough compatible tickers
             }
-            const symbolOpportunities = this.findArbitrageForSymbol(symbol, compatibleTickers);
+            const symbolOpportunities = await this.findArbitrageForSymbol(symbol, compatibleTickers);
             opportunities.push(...symbolOpportunities);
         }
         // Filter opportunities by profit thresholds and add logging for unrealistic profits
@@ -139,7 +141,7 @@ export class ArbitrageCalculator {
         }
         return symbolGroups;
     }
-    findArbitrageForSymbol(symbol, tickers) {
+    async findArbitrageForSymbol(symbol, tickers) {
         const opportunities = [];
         // Compare each exchange pair (tickers are already pre-filtered for compatibility)
         for (let i = 0; i < tickers.length; i++) {
@@ -147,8 +149,8 @@ export class ArbitrageCalculator {
                 const ticker1 = tickers[i];
                 const ticker2 = tickers[j];
                 // Check arbitrage opportunity in both directions
-                const opp1 = this.calculateOpportunity(symbol, ticker1, ticker2);
-                const opp2 = this.calculateOpportunity(symbol, ticker2, ticker1);
+                const opp1 = await this.calculateOpportunity(symbol, ticker1, ticker2);
+                const opp2 = await this.calculateOpportunity(symbol, ticker2, ticker1);
                 if (opp1)
                     opportunities.push(opp1);
                 if (opp2)
@@ -157,11 +159,20 @@ export class ArbitrageCalculator {
         }
         return opportunities;
     }
-    calculateOpportunity(symbol, buyTicker, sellTicker) {
+    async calculateOpportunity(symbol, buyTicker, sellTicker) {
         const buyPrice = buyTicker.ask; // Price to buy (ask price)
         const sellPrice = sellTicker.bid; // Price to sell (bid price)
         if (buyPrice >= sellPrice)
             return null; // No arbitrage opportunity
+        // Extract currency from symbol (e.g., "BTC/USDT" -> "BTC")
+        const currency = symbol.split('/')[0];
+        // Check transfer availability between exchanges
+        const transferInfo = await this.exchangeManager.checkTransferAvailability(currency, buyTicker.exchange, sellTicker.exchange);
+        // Skip opportunity if transfer is not available on both exchanges
+        if (!transferInfo.buyAvailable || !transferInfo.sellAvailable) {
+            console.log(`⚠️ Skipping ${symbol}: Transfer not available (buy: ${transferInfo.buyAvailable}, sell: ${transferInfo.sellAvailable})`);
+            return null;
+        }
         // Calculate fees
         const buyFee = this.tradingFees.get(buyTicker.exchange.toLowerCase()) || 0.1;
         const sellFee = this.tradingFees.get(sellTicker.exchange.toLowerCase()) || 0.1;
@@ -199,6 +210,11 @@ export class ArbitrageCalculator {
                 buyFee: buyFee,
                 sellFee: sellFee,
                 transferCost: transferCost
+            },
+            transferAvailability: {
+                buyAvailable: transferInfo.buyAvailable,
+                sellAvailable: transferInfo.sellAvailable,
+                commonNetworks: transferInfo.commonNetworks
             }
         };
     }

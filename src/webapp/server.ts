@@ -192,7 +192,12 @@ export class WebAppServer {
               // Multi-chain support
               blockchains: (this.tokenMetadataService.getTokenMetadata(opp.symbol) || []).map(m => m.blockchain),
               blockchain: opp.blockchain || (this.tokenMetadataService.getTokenMetadata(opp.symbol)?.[0]?.blockchain) || 'ethereum',
-              timestamp: opp.timestamp
+              timestamp: opp.timestamp,
+              transferAvailability: opp.transferAvailability || {
+                buyAvailable: true,
+                sellAvailable: true,
+                commonNetworks: [opp.blockchain || 'ethereum']
+              }
             }))
           });
           return;
@@ -252,7 +257,12 @@ export class WebAppServer {
               // Multi-chain support
               blockchains: (this.tokenMetadataService.getTokenMetadata(opp.symbol) || []).map(m => m.blockchain),
               blockchain: opp.blockchain || (this.tokenMetadataService.getTokenMetadata(opp.symbol)?.[0]?.blockchain) || 'ethereum',
-              timestamp: opp.timestamp
+              timestamp: opp.timestamp,
+              transferAvailability: opp.transferAvailability || {
+                buyAvailable: true,
+                sellAvailable: true,
+                commonNetworks: [opp.blockchain || 'ethereum']
+              }
             }))
           });
           return;

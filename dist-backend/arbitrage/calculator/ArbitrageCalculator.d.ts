@@ -6,10 +6,11 @@ export declare class ArbitrageCalculator {
     private tradingFees;
     private chainTransferCosts;
     private tokenMetadataService;
+    private exchangeManager;
     constructor(minProfitThreshold?: number, maxProfitThreshold?: number, minVolumeThreshold?: number);
     private initializeTradingFees;
     private initializeChainTransferCosts;
-    calculateArbitrageOpportunities(allTickers: Map<string, Ticker[]>): ArbitrageOpportunity[];
+    calculateArbitrageOpportunities(allTickers: Map<string, Ticker[]>): Promise<ArbitrageOpportunity[]>;
     private isMockData;
     /**
      * Pre-filter tickers to only include those on compatible blockchains

@@ -44,6 +44,11 @@ export interface ArbitrageOpportunity {
     sellFee: number;
     transferCost?: number;
   };
+  transferAvailability?: {
+    buyAvailable: boolean;
+    sellAvailable: boolean;
+    commonNetworks: string[];
+  };
 }
 
 export interface ExchangeConfig {
