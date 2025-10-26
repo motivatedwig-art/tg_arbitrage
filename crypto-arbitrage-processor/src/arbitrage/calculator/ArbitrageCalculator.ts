@@ -6,14 +6,14 @@ export class ArbitrageCalculator {
   private maxProfitThreshold: number;
   private tradingFees: Map<string, number> = new Map();
   private tokenMetadataService: TokenMetadataService;
-  private excludedSymbols: Set<string> = new Set(['ETH/USDT', 'ETH/USD', 'ETH/BUSD', 'ETH/USDC', 'WETH/USDT', 'WETH/USD', 'WETH/USDC', 'ETH/BTC', 'WETH/BTC']);
+  private excludedBlockchains: Set<string> = new Set(['ethereum']); // Exclude ALL Ethereum blockchain opportunities
 
   constructor(minProfitThreshold: number = 0.5, maxProfitThreshold: number = 110) {
     this.minProfitThreshold = minProfitThreshold;
     this.maxProfitThreshold = maxProfitThreshold;
     this.tokenMetadataService = TokenMetadataService.getInstance();
     this.initializeTradingFees();
-    console.log(`⛔ Excluded Symbols: ${Array.from(this.excludedSymbols).join(', ')}`);
+    console.log(`⛔ Excluded Blockchains: ${Array.from(this.excludedBlockchains).join(', ').toUpperCase()}`);
   }
 
   private initializeTradingFees(): void {
@@ -47,9 +47,10 @@ export class ArbitrageCalculator {
     const symbolGroups = this.groupTickersBySymbol(allTickers);
     
     for (const [symbol, tickers] of symbolGroups) {
-      // Skip excluded symbols (e.g., ETH pairs)
-      if (this.excludedSymbols.has(symbol)) {
-        console.log(`⏭️  Skipping excluded symbol: ${symbol}`);
+      // Skip opportunities on excluded blockchains (e.g., Ethereum)
+      const blockchain = tickers[0]?.blockchain || this.tokenMetadataService.getTokenBlockchain(symbol, tickers[0]?.exchange);
+      if (blockchain && this.excludedBlockchains.has(blockchain.toLowerCase())) {
+        console.log(`⛔ Skipping ${symbol} - on excluded blockchain: ${blockchain.toUpperCase()}`);
         continue;
       }
       

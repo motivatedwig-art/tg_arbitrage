@@ -4,7 +4,7 @@ export class ArbitrageCalculator {
     constructor(minProfitThreshold = 0.5, maxProfitThreshold = 50, minVolumeThreshold = 100) {
         this.tradingFees = new Map();
         this.chainTransferCosts = new Map();
-        this.excludedSymbols = new Set(['ETH/USDT', 'ETH/USD', 'ETH/BUSD', 'ETH/USDC', 'WETH/USDT', 'WETH/USD', 'WETH/USDC', 'ETH/BTC', 'WETH/BTC']);
+        this.excludedBlockchains = new Set(['ethereum']); // Exclude ALL Ethereum blockchain opportunities
         this.minProfitThreshold = minProfitThreshold;
         this.maxProfitThreshold = maxProfitThreshold;
         this.minVolumeThreshold = minVolumeThreshold;
@@ -16,7 +16,7 @@ export class ArbitrageCalculator {
         console.log(`   Min Profit: ${minProfitThreshold}%`);
         console.log(`   Max Profit: ${maxProfitThreshold}%`);
         console.log(`   Min Volume: $${minVolumeThreshold}`);
-        console.log(`   ⛔ Excluded Symbols: ${Array.from(this.excludedSymbols).join(', ')}`);
+        console.log(`   ⛔ Excluded Blockchains: ${Array.from(this.excludedBlockchains).join(', ').toUpperCase()}`);
     }
     initializeTradingFees() {
         // Default trading fees for each exchange (maker fees)
@@ -67,10 +67,11 @@ export class ArbitrageCalculator {
         let symbolsProcessed = 0;
         let symbolsSkipped = 0;
         for (const [symbol, tickers] of symbolGroups) {
-            // Skip excluded symbols (e.g., ETH pairs)
-            if (this.excludedSymbols.has(symbol)) {
+            // Skip opportunities on excluded blockchains (e.g., Ethereum)
+            const blockchain = tickers[0]?.blockchain || this.tokenMetadataService.getTokenBlockchain(symbol, tickers[0]?.exchange);
+            if (blockchain && this.excludedBlockchains.has(blockchain.toLowerCase())) {
                 symbolsSkipped++;
-                console.log(`   ⏭️  Skipping excluded symbol: ${symbol}`);
+                console.log(`   ⛔ Skipping ${symbol} - on excluded blockchain: ${blockchain.toUpperCase()}`);
                 continue;
             }
             // No pre-filtering - let the transfer availability check handle blockchain compatibility
