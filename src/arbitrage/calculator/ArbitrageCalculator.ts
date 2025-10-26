@@ -86,14 +86,6 @@ export class ArbitrageCalculator {
     let symbolsSkipped = 0;
     
     for (const [symbol, tickers] of symbolGroups) {
-      // Skip opportunities on excluded blockchains (e.g., Ethereum)
-      const blockchain = tickers[0]?.blockchain || this.tokenMetadataService.getTokenBlockchain(symbol, tickers[0]?.exchange);
-      if (blockchain && this.excludedBlockchains.has(blockchain.toLowerCase())) {
-        symbolsSkipped++;
-        console.log(`   ⛔ Skipping ${symbol} - on excluded blockchain: ${blockchain.toUpperCase()}`);
-        continue;
-      }
-      
       // No pre-filtering - let the transfer availability check handle blockchain compatibility
       // This allows us to find more opportunities and only filter when we definitively know transfer won't work
       
@@ -105,11 +97,20 @@ export class ArbitrageCalculator {
       symbolsProcessed++;
       const symbolOpportunities = await this.findArbitrageForSymbol(symbol, tickers);
       
-      if (symbolOpportunities.length > 0) {
-        console.log(`   ✅ ${symbol}: Found ${symbolOpportunities.length} opportunities across ${tickers.length} exchanges`);
+      // Filter out opportunities on excluded blockchains AFTER they're calculated
+      const filteredOpportunities = symbolOpportunities.filter(opp => {
+        if (opp.blockchain && this.excludedBlockchains.has(opp.blockchain.toLowerCase())) {
+          console.log(`   ⛔ Filtered out ${opp.symbol} - on excluded blockchain: ${opp.blockchain.toUpperCase()}`);
+          return false;
+        }
+        return true;
+      });
+      
+      if (filteredOpportunities.length > 0) {
+        console.log(`   ✅ ${symbol}: Found ${filteredOpportunities.length} opportunities across ${tickers.length} exchanges`);
       }
       
-      opportunities.push(...symbolOpportunities);
+      opportunities.push(...filteredOpportunities);
     }
     
     console.log(`📋 Processed ${symbolsProcessed} symbols (${symbolsSkipped} skipped due to single exchange)`);

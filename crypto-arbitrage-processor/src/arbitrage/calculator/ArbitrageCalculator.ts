@@ -47,13 +47,6 @@ export class ArbitrageCalculator {
     const symbolGroups = this.groupTickersBySymbol(allTickers);
     
     for (const [symbol, tickers] of symbolGroups) {
-      // Skip opportunities on excluded blockchains (e.g., Ethereum)
-      const blockchain = tickers[0]?.blockchain || this.tokenMetadataService.getTokenBlockchain(symbol, tickers[0]?.exchange);
-      if (blockchain && this.excludedBlockchains.has(blockchain.toLowerCase())) {
-        console.log(`⛔ Skipping ${symbol} - on excluded blockchain: ${blockchain.toUpperCase()}`);
-        continue;
-      }
-      
       // Pre-filter tickers to only include compatible chain pairs
       const compatibleTickers = this.filterCompatibleTickers(tickers);
       
@@ -62,7 +55,17 @@ export class ArbitrageCalculator {
       }
       
       const symbolOpportunities = this.findArbitrageForSymbol(symbol, compatibleTickers);
-      opportunities.push(...symbolOpportunities);
+      
+      // Filter out opportunities on excluded blockchains AFTER they're calculated
+      const filteredOpportunities = symbolOpportunities.filter(opp => {
+        if (opp.blockchain && this.excludedBlockchains.has(opp.blockchain.toLowerCase())) {
+          console.log(`⛔ Filtered out ${opp.symbol} - on excluded blockchain: ${opp.blockchain.toUpperCase()}`);
+          return false;
+        }
+        return true;
+      });
+      
+      opportunities.push(...filteredOpportunities);
     }
 
     // Filter opportunities by profit thresholds and add logging for unrealistic profits
