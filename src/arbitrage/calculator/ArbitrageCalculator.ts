@@ -10,6 +10,7 @@ export class ArbitrageCalculator {
   private chainTransferCosts: Map<string, number> = new Map();
   private tokenMetadataService: TokenMetadataService;
   private exchangeManager: ExchangeManager;
+  private excludedSymbols: Set<string> = new Set(['ETH/USDT', 'ETH/USD', 'ETH/BUSD', 'ETH/USDC', 'WETH/USDT', 'WETH/USD', 'WETH/USDC', 'ETH/BTC', 'WETH/BTC']);
 
   constructor(minProfitThreshold: number = 0.5, maxProfitThreshold: number = 50, minVolumeThreshold: number = 100) {
     this.minProfitThreshold = minProfitThreshold;
@@ -24,6 +25,7 @@ export class ArbitrageCalculator {
     console.log(`   Min Profit: ${minProfitThreshold}%`);
     console.log(`   Max Profit: ${maxProfitThreshold}%`);
     console.log(`   Min Volume: $${minVolumeThreshold}`);
+    console.log(`   ⛔ Excluded Symbols: ${Array.from(this.excludedSymbols).join(', ')}`);
   }
 
   private initializeTradingFees(): void {
@@ -84,6 +86,13 @@ export class ArbitrageCalculator {
     let symbolsSkipped = 0;
     
     for (const [symbol, tickers] of symbolGroups) {
+      // Skip excluded symbols (e.g., ETH pairs)
+      if (this.excludedSymbols.has(symbol)) {
+        symbolsSkipped++;
+        console.log(`   ⏭️  Skipping excluded symbol: ${symbol}`);
+        continue;
+      }
+      
       // No pre-filtering - let the transfer availability check handle blockchain compatibility
       // This allows us to find more opportunities and only filter when we definitively know transfer won't work
       

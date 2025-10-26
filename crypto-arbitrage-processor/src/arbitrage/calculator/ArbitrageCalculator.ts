@@ -6,12 +6,14 @@ export class ArbitrageCalculator {
   private maxProfitThreshold: number;
   private tradingFees: Map<string, number> = new Map();
   private tokenMetadataService: TokenMetadataService;
+  private excludedSymbols: Set<string> = new Set(['ETH/USDT', 'ETH/USD', 'ETH/BUSD', 'ETH/USDC', 'WETH/USDT', 'WETH/USD', 'WETH/USDC', 'ETH/BTC', 'WETH/BTC']);
 
   constructor(minProfitThreshold: number = 0.5, maxProfitThreshold: number = 110) {
     this.minProfitThreshold = minProfitThreshold;
     this.maxProfitThreshold = maxProfitThreshold;
     this.tokenMetadataService = TokenMetadataService.getInstance();
     this.initializeTradingFees();
+    console.log(`⛔ Excluded Symbols: ${Array.from(this.excludedSymbols).join(', ')}`);
   }
 
   private initializeTradingFees(): void {
@@ -45,6 +47,12 @@ export class ArbitrageCalculator {
     const symbolGroups = this.groupTickersBySymbol(allTickers);
     
     for (const [symbol, tickers] of symbolGroups) {
+      // Skip excluded symbols (e.g., ETH pairs)
+      if (this.excludedSymbols.has(symbol)) {
+        console.log(`⏭️  Skipping excluded symbol: ${symbol}`);
+        continue;
+      }
+      
       // Pre-filter tickers to only include compatible chain pairs
       const compatibleTickers = this.filterCompatibleTickers(tickers);
       
