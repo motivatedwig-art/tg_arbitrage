@@ -80,7 +80,6 @@ class DatabaseManager {
     const sql = `
       SELECT * FROM arbitrage_opportunities 
       WHERE timestamp > NOW() - INTERVAL '${minutes} minutes'
-        AND (blockchain IS NULL OR blockchain != 'ethereum')
       ORDER BY profit_percentage DESC
       LIMIT 100
     `;

@@ -10,7 +10,7 @@ export class ArbitrageCalculator {
   private chainTransferCosts: Map<string, number> = new Map();
   private tokenMetadataService: TokenMetadataService;
   private exchangeManager: ExchangeManager;
-  private excludedBlockchains: Set<string> = new Set(['ethereum']); // Exclude ALL Ethereum blockchain opportunities
+  private excludedBlockchains: Set<string> = new Set([]); // DISABLED: Blockchain filtering disabled due to inaccurate blockchain detection
 
   constructor(minProfitThreshold: number = 0.5, maxProfitThreshold: number = 50, minVolumeThreshold: number = 100) {
     this.minProfitThreshold = minProfitThreshold;
@@ -25,7 +25,7 @@ export class ArbitrageCalculator {
     console.log(`   Min Profit: ${minProfitThreshold}%`);
     console.log(`   Max Profit: ${maxProfitThreshold}%`);
     console.log(`   Min Volume: $${minVolumeThreshold}`);
-    console.log(`   ⛔ Excluded Blockchains: ${Array.from(this.excludedBlockchains).join(', ').toUpperCase()}`);
+    console.log(`   ⚠️  Blockchain filtering: DISABLED (showing all opportunities)`);
   }
 
   private initializeTradingFees(): void {
@@ -98,8 +98,11 @@ export class ArbitrageCalculator {
       const symbolOpportunities = await this.findArbitrageForSymbol(symbol, tickers);
       
       // Filter out opportunities on excluded blockchains AFTER they're calculated
+      // Only filter if blockchain is EXPLICITLY set (not defaulted)
       const filteredOpportunities = symbolOpportunities.filter(opp => {
-        if (opp.blockchain && this.excludedBlockchains.has(opp.blockchain.toLowerCase())) {
+        // Only exclude if we have CONFIRMED blockchain info from ticker data
+        const hasExplicitBlockchain = tickers.some(t => t.blockchain);
+        if (hasExplicitBlockchain && opp.blockchain && this.excludedBlockchains.has(opp.blockchain.toLowerCase())) {
           console.log(`   ⛔ Filtered out ${opp.symbol} - on excluded blockchain: ${opp.blockchain.toUpperCase()}`);
           return false;
         }

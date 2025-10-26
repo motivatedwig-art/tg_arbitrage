@@ -92,15 +92,10 @@ const handler = async (req, res) => {
       if (dbOpportunities && dbOpportunities.length > 0) {
         console.log(`📊 Found ${dbOpportunities.length} opportunities from database`);
         
-        // Filter out Ethereum blockchain opportunities
-        let filteredOpportunities = dbOpportunities.filter(opp => 
-          !opp.blockchain || opp.blockchain.toLowerCase() !== 'ethereum'
-        );
-        console.log(`⛔ Filtered out Ethereum opportunities: ${dbOpportunities.length - filteredOpportunities.length}`);
-        
         // Filter by selected exchanges if specified
+        let filteredOpportunities = dbOpportunities;
         if (selectedExchanges.length > 0) {
-          filteredOpportunities = filteredOpportunities.filter(opp => 
+          filteredOpportunities = dbOpportunities.filter(opp => 
             selectedExchanges.includes(opp.buyExchange.toLowerCase()) || 
             selectedExchanges.includes(opp.sellExchange.toLowerCase())
           );

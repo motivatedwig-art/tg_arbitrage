@@ -4,7 +4,7 @@ export class ArbitrageCalculator {
     constructor(minProfitThreshold = 0.5, maxProfitThreshold = 50, minVolumeThreshold = 100) {
         this.tradingFees = new Map();
         this.chainTransferCosts = new Map();
-        this.excludedBlockchains = new Set(['ethereum']); // Exclude ALL Ethereum blockchain opportunities
+        this.excludedBlockchains = new Set([]); // DISABLED: Blockchain filtering disabled due to inaccurate blockchain detection
         this.minProfitThreshold = minProfitThreshold;
         this.maxProfitThreshold = maxProfitThreshold;
         this.minVolumeThreshold = minVolumeThreshold;
@@ -16,7 +16,7 @@ export class ArbitrageCalculator {
         console.log(`   Min Profit: ${minProfitThreshold}%`);
         console.log(`   Max Profit: ${maxProfitThreshold}%`);
         console.log(`   Min Volume: $${minVolumeThreshold}`);
-        console.log(`   ⛔ Excluded Blockchains: ${Array.from(this.excludedBlockchains).join(', ').toUpperCase()}`);
+        console.log(`   ⚠️  Blockchain filtering: DISABLED (showing all opportunities)`);
     }
     initializeTradingFees() {
         // Default trading fees for each exchange (maker fees)
@@ -76,8 +76,11 @@ export class ArbitrageCalculator {
             symbolsProcessed++;
             const symbolOpportunities = await this.findArbitrageForSymbol(symbol, tickers);
             // Filter out opportunities on excluded blockchains AFTER they're calculated
+            // Only filter if blockchain is EXPLICITLY set (not defaulted)
             const filteredOpportunities = symbolOpportunities.filter(opp => {
-                if (opp.blockchain && this.excludedBlockchains.has(opp.blockchain.toLowerCase())) {
+                // Only exclude if we have CONFIRMED blockchain info from ticker data
+                const hasExplicitBlockchain = tickers.some(t => t.blockchain);
+                if (hasExplicitBlockchain && opp.blockchain && this.excludedBlockchains.has(opp.blockchain.toLowerCase())) {
                     console.log(`   ⛔ Filtered out ${opp.symbol} - on excluded blockchain: ${opp.blockchain.toUpperCase()}`);
                     return false;
                 }
