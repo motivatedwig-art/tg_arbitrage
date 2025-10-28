@@ -212,22 +212,19 @@ export class ArbitrageCalculator {
             return null; // No arbitrage opportunity
         // Extract currency from symbol (e.g., "BTC/USDT" -> "BTC")
         const currency = symbol.split('/')[0];
-        // Check transfer availability between exchanges
-        const transferInfo = await this.exchangeManager.checkTransferAvailability(currency, buyTicker.exchange, sellTicker.exchange);
-        // Only skip if we definitively know transfer is NOT available
-        // undefined means API not supported - we allow it (fail-open approach)
-        // false means we checked and it's NOT available - we skip it
-        const buyNotAvailable = transferInfo.buyAvailable === false;
-        const sellNotAvailable = transferInfo.sellAvailable === false;
-        const bothDefinitelyNotAvailable = buyNotAvailable && sellNotAvailable;
-        // Also skip if both exchanges support the API but have no common networks
-        const bothCheckable = transferInfo.buyAvailable !== undefined && transferInfo.sellAvailable !== undefined;
-        const bothAvailable = transferInfo.buyAvailable === true && transferInfo.sellAvailable === true;
-        const noCommonNetworks = bothCheckable && bothAvailable && transferInfo.commonNetworks.length === 0;
-        if (bothDefinitelyNotAvailable || noCommonNetworks) {
-            console.log(`⚠️ Skipping ${symbol}: No common transfer networks (buy: ${transferInfo.buyAvailable}, sell: ${transferInfo.sellAvailable})`);
-            return null;
-        }
+        // TRANSFER CHECK DISABLED - Finding all opportunities regardless of network compatibility
+        // This allows us to identify ALL price discrepancies
+        // User should manually verify transfer paths before trading
+        // Previous transfer check logic commented out for reference:
+        // const transferInfo = await this.exchangeManager.checkTransferAvailability(
+        //   currency,
+        //   buyTicker.exchange,
+        //   sellTicker.exchange
+        // );
+        // if (bothDefinitelyNotAvailable || noCommonNetworks) {
+        //   console.log(`⚠️ Skipping ${symbol}: No common transfer networks`);
+        //   return null;
+        // }
         // Calculate fees
         const buyFee = this.tradingFees.get(buyTicker.exchange.toLowerCase()) || 0.1;
         const sellFee = this.tradingFees.get(sellTicker.exchange.toLowerCase()) || 0.1;
@@ -267,9 +264,9 @@ export class ArbitrageCalculator {
                 transferCost: transferCost
             },
             transferAvailability: {
-                buyAvailable: transferInfo.buyAvailable,
-                sellAvailable: transferInfo.sellAvailable,
-                commonNetworks: transferInfo.commonNetworks
+                buyAvailable: undefined, // Transfer check disabled
+                sellAvailable: undefined, // Transfer check disabled
+                commonNetworks: [] // Transfer check disabled
             }
         };
     }
