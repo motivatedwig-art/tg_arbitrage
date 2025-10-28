@@ -78,6 +78,13 @@ export class TokenMetadataService {
   private addTokenMetadata(symbol: string, metadata: TokenMetadata[]): void {
     this.tokenMetadataCache.set(symbol.toUpperCase(), metadata);
   }
+  
+  /**
+   * Helper to add single-chain tokens
+   */
+  private addSingleChainToken(symbol: string, blockchain: string): void {
+    this.addTokenMetadata(symbol, [{ symbol, blockchain }]);
+  }
 
   /**
    * Get blockchain information for a token on a specific exchange

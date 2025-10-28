@@ -24,6 +24,10 @@ export declare class TokenMetadataService {
     private initializeCommonTokenMetadata;
     private addTokenMetadata;
     /**
+     * Helper to add single-chain tokens
+     */
+    private addSingleChainToken;
+    /**
      * Get blockchain information for a token on a specific exchange
      */
     getTokenBlockchain(symbol: string, exchange: string): string | null;

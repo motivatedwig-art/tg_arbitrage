@@ -1,6 +1,7 @@
 import { Ticker, ArbitrageOpportunity } from '../../exchanges/types/index.js';
 import { TokenMetadataService } from '../../services/TokenMetadataService.js';
 import { ExchangeManager } from '../../exchanges/ExchangeManager.js';
+import { getTokenBlockchain } from '../../services/TokenMetadataDatabase.js';
 
 export class ArbitrageCalculator {
   private minProfitThreshold: number;
@@ -413,7 +414,7 @@ export class ArbitrageCalculator {
 
   /**
    * Determine the primary blockchain for an arbitrage opportunity
-   * If both tickers have the same blockchain, use that; otherwise use the most common one
+   * Uses comprehensive token database for accurate blockchain detection
    */
   private determineBlockchain(buyTicker: Ticker, sellTicker: Ticker): string {
     // If both tickers have blockchain info and they match, use that
@@ -425,19 +426,28 @@ export class ArbitrageCalculator {
     if (buyTicker.blockchain) return buyTicker.blockchain;
     if (sellTicker.blockchain) return sellTicker.blockchain;
 
-    // Fallback: determine based on symbol patterns
+    // Use comprehensive token database
     const symbol = buyTicker.symbol || sellTicker.symbol || '';
+    const blockchainFromDb = getTokenBlockchain(symbol);
     
-    // Common token patterns that indicate blockchain
-    if (symbol.includes('ETH') || symbol.includes('WETH')) return 'ethereum';
-    if (symbol.includes('BNB') || symbol.includes('WBNB')) return 'bsc';
-    if (symbol.includes('MATIC') || symbol.includes('WMATIC')) return 'polygon';
-    if (symbol.includes('SOL') || symbol.includes('WSOL')) return 'solana';
-    if (symbol.includes('TRX') || symbol.includes('TRON')) return 'tron';
-    if (symbol.includes('ARB')) return 'arbitrum';
-    if (symbol.includes('OP')) return 'optimism';
+    if (blockchainFromDb) {
+      return blockchainFromDb;
+    }
 
-    // Default to ethereum for most ERC-20 tokens
+    // Fallback: pattern-based detection for unknown tokens
+    const upperSymbol = symbol.toUpperCase();
+    
+    // Check for blockchain indicators in symbol
+    if (upperSymbol.includes('SOL') || upperSymbol.includes('WSOL')) return 'solana';
+    if (upperSymbol.includes('TRX') || upperSymbol.includes('TRON')) return 'tron';
+    if (upperSymbol.includes('BNB') || upperSymbol.includes('WBNB')) return 'bsc';
+    if (upperSymbol.includes('MATIC') || upperSymbol.includes('WMATIC')) return 'polygon';
+    if (upperSymbol.includes('ARB') && !upperSymbol.includes('BARB')) return 'arbitrum';
+    if (upperSymbol.includes('OP') && upperSymbol.length <= 8) return 'optimism';
+    if (upperSymbol.includes('AVAX') || upperSymbol.includes('WAVAX')) return 'avalanche';
+    if (upperSymbol.includes('TON')) return 'ton';
+
+    // Default to ethereum for ERC-20 tokens
     return 'ethereum';
   }
 }

@@ -36,7 +36,7 @@ export declare class ArbitrageCalculator {
     getOpportunitiesByVolume(minVolume: number): ArbitrageOpportunity[];
     /**
      * Determine the primary blockchain for an arbitrage opportunity
-     * If both tickers have the same blockchain, use that; otherwise use the most common one
+     * Uses comprehensive token database for accurate blockchain detection
      */
     private determineBlockchain;
 }
