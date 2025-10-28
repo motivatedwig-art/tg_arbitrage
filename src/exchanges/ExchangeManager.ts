@@ -97,17 +97,17 @@ export class ExchangeManager {
   private createAdapter(config: ExchangeConfig): ExchangeAdapter {
     switch (config.name) {
       case ExchangeName.BINANCE:
-        return new BinanceAdapter();
+        return new BinanceAdapter(config.apiKey, config.apiSecret);
       case ExchangeName.OKX:
-        return new OKXAdapter();
+        return new OKXAdapter(config.apiKey, config.apiSecret, config.passphrase);
       case ExchangeName.BYBIT:
-        return new BybitAdapter();
+        return new BybitAdapter(config.apiKey, config.apiSecret);
       case ExchangeName.MEXC:
-        return new MexcAdapter();
+        return new MexcAdapter(config.apiKey, config.apiSecret);
       case ExchangeName.GATE_IO:
         return new GateioAdapter();
       case ExchangeName.KUCOIN:
-        return new KucoinAdapter();
+        return new KucoinAdapter(config.apiKey, config.apiSecret, config.passphrase);
       default:
         throw new Error(`Unsupported exchange: ${config.name}`);
     }

@@ -1,20 +1,27 @@
+import ccxt from 'ccxt';
 export class KucoinAdapter {
-    constructor() {
+    constructor(apiKey, apiSecret, passphrase) {
         this.name = 'kucoin';
         this.connected = false;
-        // Public data doesn't require API keys
+        // Initialize CCXT with authenticated credentials
+        this.exchange = new ccxt.kucoin({
+            apiKey: apiKey || process.env.KUCOIN_API_KEY || '',
+            secret: apiSecret || process.env.KUCOIN_API_SECRET || '',
+            password: passphrase || process.env.KUCOIN_PASSPHRASE || '',
+            enableRateLimit: true,
+            timeout: 10000,
+            options: {
+                defaultType: 'spot'
+            }
+        });
     }
     async connect() {
         try {
-            // Test connection with a simple API call
-            const response = await fetch('https://api.kucoin.com/api/v1/timestamp');
-            if (response.ok) {
-                this.connected = true;
-                console.log('✅ Connected to KuCoin (public data only)');
-            }
-            else {
-                throw new Error(`KuCoin API ping failed: ${response.status}`);
-            }
+            // Test connection - load markets
+            await this.exchange.loadMarkets();
+            this.connected = true;
+            const authStatus = this.exchange.apiKey ? 'authenticated' : 'public';
+            console.log(`✅ Connected to KuCoin (${authStatus})`);
         }
         catch (error) {
             this.connected = false;
@@ -23,47 +30,37 @@ export class KucoinAdapter {
         }
     }
     async getTickers() {
-        // Check if we should use mock data
-        if (process.env.USE_MOCK_DATA === 'true') {
-            console.warn('Using mock data for KuCoin - USE_MOCK_DATA is true');
-            return this.generateMockTickers();
-        }
         if (!this.connected) {
-            throw new Error('KuCoin is not connected');
+            await this.connect();
         }
         try {
-            console.log('Fetching real KuCoin tickers...');
-            const response = await fetch('https://api.kucoin.com/api/v1/market/allTickers');
-            if (!response.ok) {
-                throw new Error(`KuCoin API error: ${response.status}`);
-            }
-            const data = await response.json();
-            console.log(`Received ${data?.data?.ticker?.length || 0} tickers from KuCoin`);
-            const tickers = (data.data?.ticker || [])
-                .filter((ticker) => ticker.buy && ticker.sell)
+            console.log('Fetching KuCoin tickers via CCXT (authenticated)...');
+            // Use CCXT to fetch all tickers
+            const tickers = await this.exchange.fetchTickers();
+            // Convert CCXT format to our format
+            const result = Object.values(tickers)
+                .filter((ticker) => {
+                return ticker.symbol.includes('/USDT') &&
+                    ticker.bid > 0 &&
+                    ticker.ask > 0 &&
+                    ticker.baseVolume > 0;
+            })
                 .map((ticker) => ({
                 symbol: ticker.symbol,
-                bid: parseFloat(ticker.buy),
-                ask: parseFloat(ticker.sell),
-                timestamp: parseInt(ticker.time) || Date.now(),
+                bid: ticker.bid,
+                ask: ticker.ask,
+                timestamp: ticker.timestamp || Date.now(),
                 exchange: 'kucoin',
-                volume: parseFloat(ticker.vol) || 0,
+                volume: ticker.baseVolume || 0,
                 blockchain: undefined,
                 contractAddress: undefined
             }));
-            if (!tickers || tickers.length === 0) {
-                console.error('No real data received from KuCoin, falling back to mock');
-                return this.generateMockTickers();
-            }
-            return tickers;
+            console.log(`KuCoin: Fetched ${result.length} authenticated tickers`);
+            return result;
         }
         catch (error) {
-            console.error('KuCoin API error:', error);
-            // In production, throw the error instead of silently returning mock data
-            if (process.env.NODE_ENV === 'production') {
-                throw new Error(`Failed to fetch real data from KuCoin: ${error instanceof Error ? error.message : 'Unknown error'}`);
-            }
-            return this.generateMockTickers();
+            console.error('KuCoin CCXT error:', error);
+            throw new Error(`Failed to fetch KuCoin data: ${error instanceof Error ? error.message : 'Unknown error'}`);
         }
     }
     async getOrderBook(symbol) {
@@ -71,13 +68,12 @@ export class KucoinAdapter {
             throw new Error('KuCoin is not connected');
         }
         try {
-            const response = await fetch(`https://api.kucoin.com/api/v1/market/orderbook/level2_100?symbol=${symbol}`);
-            const data = await response.json();
+            const orderBook = await this.exchange.fetchOrderBook(symbol, 100);
             return {
                 symbol,
-                bids: data.data.bids.map((bid) => [parseFloat(bid[0]), parseFloat(bid[1])]),
-                asks: data.data.asks.map((ask) => [parseFloat(ask[0]), parseFloat(ask[1])]),
-                timestamp: Date.now(),
+                bids: orderBook.bids,
+                asks: orderBook.asks,
+                timestamp: orderBook.timestamp || Date.now(),
                 exchange: 'kucoin'
             };
         }
@@ -91,19 +87,6 @@ export class KucoinAdapter {
     }
     isConnected() {
         return this.connected;
-    }
-    generateMockTickers() {
-        const mockSymbols = ['BTC-USDT', 'ETH-USDT', 'BNB-USDT', 'ADA-USDT', 'SOL-USDT'];
-        return mockSymbols.map(symbol => ({
-            symbol,
-            bid: 100 + Math.random() * 10,
-            ask: 100 + Math.random() * 10,
-            timestamp: Date.now(),
-            exchange: 'kucoin',
-            volume: Math.random() * 1000000,
-            blockchain: undefined,
-            contractAddress: undefined
-        }));
     }
 }
 //# sourceMappingURL=KucoinAdapter.js.map

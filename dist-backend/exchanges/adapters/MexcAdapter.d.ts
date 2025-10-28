@@ -2,12 +2,12 @@ import { ExchangeAdapter, Ticker, OrderBook } from '../types/index.js';
 export declare class MexcAdapter implements ExchangeAdapter {
     name: string;
     private connected;
-    constructor();
+    private exchange;
+    constructor(apiKey?: string, apiSecret?: string);
     connect(): Promise<void>;
     getTickers(): Promise<Ticker[]>;
     getOrderBook(symbol: string): Promise<OrderBook>;
     disconnect(): void;
     isConnected(): boolean;
-    private generateMockTickers;
 }
 //# sourceMappingURL=MexcAdapter.d.ts.map

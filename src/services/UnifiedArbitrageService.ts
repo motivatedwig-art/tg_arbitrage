@@ -21,6 +21,36 @@ export class UnifiedArbitrageService {
     );
   }
 
+  // Helper function to get 3-letter blockchain identifier
+  private getBlockchainTag(blockchain?: string): string {
+    if (!blockchain) return '[???]';
+    
+    const blockchainMap: { [key: string]: string } = {
+      'ethereum': 'ETH',
+      'bsc': 'BSC',
+      'binance-smart-chain': 'BSC',
+      'polygon': 'POL',
+      'matic': 'POL',
+      'arbitrum': 'ARB',
+      'optimism': 'OPT',
+      'solana': 'SOL',
+      'tron': 'TRX',
+      'avalanche': 'AVA',
+      'avax': 'AVA',
+      'fantom': 'FTM',
+      'base': 'BAS',
+      'sui': 'SUI',
+      'aptos': 'APT',
+      'ton': 'TON',
+      'near': 'NEA',
+      'cosmos': 'ATM',
+      'polkadot': 'DOT',
+      'cardano': 'ADA'
+    };
+    
+    return `[${blockchainMap[blockchain.toLowerCase()] || blockchain.slice(0, 3).toUpperCase()}]`;
+  }
+
   public static getInstance(): UnifiedArbitrageService {
     if (!UnifiedArbitrageService.instance) {
       UnifiedArbitrageService.instance = new UnifiedArbitrageService();
@@ -109,7 +139,8 @@ export class UnifiedArbitrageService {
       if (opportunities.length > 0) {
         console.log('📋 Top opportunities found:');
         opportunities.slice(0, 5).forEach((opp, idx) => {
-          console.log(`  ${idx + 1}. ${opp.symbol} | ${opp.buyExchange} -> ${opp.sellExchange} | ${opp.profitPercentage.toFixed(2)}% | Blockchain: ${opp.blockchain || 'UNKNOWN'}`);
+          const blockchainTag = this.getBlockchainTag(opp.blockchain);
+          console.log(`  ${idx + 1}. ${blockchainTag} ${opp.symbol} | ${opp.buyExchange} -> ${opp.sellExchange} | ${opp.profitPercentage.toFixed(2)}% | Blockchain: ${opp.blockchain || 'UNKNOWN'}`);
         });
       }
 
@@ -126,17 +157,19 @@ export class UnifiedArbitrageService {
       // Store opportunities in database (will replace old ones with same timestamp threshold)
       await this.storeOpportunities(opportunities);
 
-      // Log top opportunities
+      // Log top opportunities with blockchain tags
       for (const opp of opportunities.slice(0, 5)) {
+        const blockchainTag = this.getBlockchainTag(opp.blockchain);
         console.log(
-          `[${opp.symbol}] Buy on ${opp.buyExchange} @ ${opp.buyPrice}, Sell on ${opp.sellExchange} @ ${opp.sellPrice} | Net ${opp.profitPercentage.toFixed(3)}%`
+          `${blockchainTag} [${opp.symbol}] Buy on ${opp.buyExchange} @ ${opp.buyPrice}, Sell on ${opp.sellExchange} @ ${opp.sellPrice} | Net ${opp.profitPercentage.toFixed(3)}%`
         );
       }
 
-      // Log highest profit opportunity
+      // Log highest profit opportunity with blockchain tag
       if (opportunities.length > 0) {
         const topOpportunity = opportunities[0];
-        console.log(`🏆 Top opportunity: ${topOpportunity.symbol} - ${topOpportunity.profitPercentage.toFixed(2)}% profit (${topOpportunity.buyExchange} → ${topOpportunity.sellExchange})`);
+        const blockchainTag = this.getBlockchainTag(topOpportunity.blockchain);
+        console.log(`🏆 ${blockchainTag} Top opportunity: ${topOpportunity.symbol} - ${topOpportunity.profitPercentage.toFixed(2)}% profit (${topOpportunity.buyExchange} → ${topOpportunity.sellExchange})`);
       }
 
     } catch (error) {

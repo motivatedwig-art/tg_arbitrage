@@ -9,6 +9,7 @@ export declare class UnifiedArbitrageService {
     private isRunning;
     private scanInterval;
     private constructor();
+    private getBlockchainTag;
     static getInstance(): UnifiedArbitrageService;
     start(): Promise<void>;
     stop(): void;

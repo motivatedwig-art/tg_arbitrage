@@ -1,20 +1,27 @@
+import ccxt from 'ccxt';
 export class OKXAdapter {
-    constructor() {
+    constructor(apiKey, apiSecret, passphrase) {
         this.name = 'okx';
         this.connected = false;
-        // Public data doesn't require API keys
+        // Initialize CCXT with authenticated credentials
+        this.exchange = new ccxt.okx({
+            apiKey: apiKey || process.env.OKX_API_KEY || '',
+            secret: apiSecret || process.env.OKX_API_SECRET || '',
+            password: passphrase || process.env.OKX_PASSPHRASE || '',
+            enableRateLimit: true,
+            timeout: 10000,
+            options: {
+                defaultType: 'spot'
+            }
+        });
     }
     async connect() {
         try {
-            // Test connection with a simple API call
-            const response = await fetch('https://www.okx.com/api/v5/public/time');
-            if (response.ok) {
-                this.connected = true;
-                console.log('✅ Connected to OKX (public data only)');
-            }
-            else {
-                throw new Error(`OKX API ping failed: ${response.status}`);
-            }
+            // Test connection - load markets
+            await this.exchange.loadMarkets();
+            this.connected = true;
+            const authStatus = this.exchange.apiKey ? 'authenticated' : 'public';
+            console.log(`✅ Connected to OKX (${authStatus})`);
         }
         catch (error) {
             this.connected = false;
@@ -23,47 +30,37 @@ export class OKXAdapter {
         }
     }
     async getTickers() {
-        // Check if we should use mock data
-        if (process.env.USE_MOCK_DATA === 'true') {
-            console.warn('Using mock data for OKX - USE_MOCK_DATA is true');
-            return this.generateMockTickers();
-        }
         if (!this.connected) {
-            throw new Error('OKX is not connected');
+            await this.connect();
         }
         try {
-            console.log('Fetching real OKX tickers...');
-            const response = await fetch('https://www.okx.com/api/v5/market/tickers?instType=SPOT');
-            if (!response.ok) {
-                throw new Error(`OKX API error: ${response.status}`);
-            }
-            const data = await response.json();
-            console.log(`Received ${data?.data?.length || 0} tickers from OKX`);
-            const tickers = (data.data || [])
-                .filter((ticker) => ticker.bidPx && ticker.askPx)
+            console.log('Fetching OKX tickers via CCXT (authenticated)...');
+            // Use CCXT to fetch all tickers
+            const tickers = await this.exchange.fetchTickers();
+            // Convert CCXT format to our format
+            const result = Object.values(tickers)
+                .filter((ticker) => {
+                return ticker.symbol.includes('/USDT') &&
+                    ticker.bid > 0 &&
+                    ticker.ask > 0 &&
+                    ticker.baseVolume > 0;
+            })
                 .map((ticker) => ({
-                symbol: ticker.instId,
-                bid: parseFloat(ticker.bidPx),
-                ask: parseFloat(ticker.askPx),
-                timestamp: parseInt(ticker.ts) || Date.now(),
+                symbol: ticker.symbol,
+                bid: ticker.bid,
+                ask: ticker.ask,
+                timestamp: ticker.timestamp || Date.now(),
                 exchange: 'okx',
-                volume: parseFloat(ticker.vol24h) || 0,
+                volume: ticker.baseVolume || 0,
                 blockchain: undefined,
                 contractAddress: undefined
             }));
-            if (!tickers || tickers.length === 0) {
-                console.error('No real data received from OKX, falling back to mock');
-                return this.generateMockTickers();
-            }
-            return tickers;
+            console.log(`OKX: Fetched ${result.length} authenticated tickers`);
+            return result;
         }
         catch (error) {
-            console.error('OKX API error:', error);
-            // In production, throw the error instead of silently returning mock data
-            if (process.env.NODE_ENV === 'production') {
-                throw new Error(`Failed to fetch real data from OKX: ${error instanceof Error ? error.message : 'Unknown error'}`);
-            }
-            return this.generateMockTickers();
+            console.error('OKX CCXT error:', error);
+            throw new Error(`Failed to fetch OKX data: ${error instanceof Error ? error.message : 'Unknown error'}`);
         }
     }
     async getOrderBook(symbol) {
@@ -71,13 +68,12 @@ export class OKXAdapter {
             throw new Error('OKX is not connected');
         }
         try {
-            const response = await fetch(`https://www.okx.com/api/v5/market/books?instId=${symbol}&sz=100`);
-            const data = await response.json();
+            const orderBook = await this.exchange.fetchOrderBook(symbol, 100);
             return {
                 symbol,
-                bids: data.data[0].bids.map((bid) => [parseFloat(bid[0]), parseFloat(bid[1])]),
-                asks: data.data[0].asks.map((ask) => [parseFloat(ask[0]), parseFloat(ask[1])]),
-                timestamp: Date.now(),
+                bids: orderBook.bids,
+                asks: orderBook.asks,
+                timestamp: orderBook.timestamp || Date.now(),
                 exchange: 'okx'
             };
         }
@@ -91,19 +87,6 @@ export class OKXAdapter {
     }
     isConnected() {
         return this.connected;
-    }
-    generateMockTickers() {
-        const mockSymbols = ['BTC-USDT', 'ETH-USDT', 'BNB-USDT', 'ADA-USDT', 'SOL-USDT'];
-        return mockSymbols.map(symbol => ({
-            symbol,
-            bid: 100 + Math.random() * 10,
-            ask: 100 + Math.random() * 10,
-            timestamp: Date.now(),
-            exchange: 'okx',
-            volume: Math.random() * 1000000,
-            blockchain: undefined,
-            contractAddress: undefined
-        }));
     }
 }
 //# sourceMappingURL=OKXAdapter.js.map
