@@ -206,7 +206,8 @@ export class ExchangeManager {
         const cached = this.networkCache.get(cacheKey);
         // Return cached data if it's still fresh
         if (cached && (Date.now() - cached.timestamp) < this.NETWORK_CACHE_DURATION) {
-            return cached.networks;
+            // Ensure cached data is always an array
+            return Array.isArray(cached.networks) ? cached.networks : [];
         }
         try {
             const adapter = this.adapters.get(exchangeName);
@@ -226,7 +227,16 @@ export class ExchangeManager {
                 console.warn(`Currency ${currency} not found on ${exchangeName}`);
                 return [];
             }
-            const networks = currencyInfo.networks || [];
+            let networks = currencyInfo.networks || [];
+            // CCXT sometimes returns networks as an object, not an array
+            // Convert to array if it's an object
+            if (!Array.isArray(networks) && typeof networks === 'object') {
+                networks = Object.values(networks);
+            }
+            // Ensure it's always an array
+            if (!Array.isArray(networks)) {
+                networks = [];
+            }
             // Cache the result
             this.networkCache.set(cacheKey, {
                 networks,
@@ -239,7 +249,8 @@ export class ExchangeManager {
             // Return cached data even if expired, as fallback
             if (cached) {
                 console.log(`Using expired cache for ${cacheKey} due to API error`);
-                return cached.networks;
+                // Ensure cached data is always an array
+                return Array.isArray(cached.networks) ? cached.networks : [];
             }
             return [];
         }
