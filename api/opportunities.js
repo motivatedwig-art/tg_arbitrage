@@ -95,18 +95,8 @@ const handler = async (req, res) => {
     const selectedExchanges = parseSelectedExchanges(req);
     const symbols = parseSymbols(req);
 
-    // Enable mock data for testing (will be disabled in production)
-    const useMockData = process.env.USE_MOCK_DATA === 'true' || process.env.NODE_ENV !== 'production';
-    if (useMockData) {
-      console.log('Using mock data for development/testing');
-      const mockOpportunities = generateMockOpportunities(symbols);
-      res.status(200).json({
-        success: true,
-        data: mockOpportunities,
-        meta: buildMeta(selectedExchanges, symbols, mockOpportunities)
-      });
-      return;
-    }
+    // MOCK DATA REMOVED - Never use mock or sample data
+    // All opportunities must come from real exchange data or database
 
     // Try to get opportunities from database first (from ArbitrageScanner)
     try {
@@ -161,12 +151,12 @@ const handler = async (req, res) => {
     try {
       const tickerMap = await fetchTickers(clients, symbols);
       if (!tickerMap || Object.keys(tickerMap).length === 0) {
-        console.error('No real data received from exchanges, falling back to mock');
-        const mockOpportunities = generateMockOpportunities(symbols);
+        console.error('No real data received from exchanges - returning empty array');
         res.status(200).json({
           success: true,
-          data: mockOpportunities,
-          meta: buildMeta(selectedExchanges, symbols, mockOpportunities)
+          data: [],
+          meta: buildMeta(selectedExchanges, symbols, []),
+          message: 'No opportunities found - scanner is running but no profitable arbitrage detected'
         });
         return;
       }
@@ -181,16 +171,12 @@ const handler = async (req, res) => {
       });
     } catch (error) {
       console.error('Exchange API error:', error);
-      // In production, throw the error instead of silently returning mock data
-      if (process.env.NODE_ENV === 'production') {
-        throw new Error(`Failed to fetch real data: ${error.message}`);
-      }
-      
-      const mockOpportunities = generateMockOpportunities(symbols);
+      // NEVER return mock data - return empty array instead
       res.status(200).json({
         success: true,
-        data: mockOpportunities,
-        meta: buildMeta(selectedExchanges, symbols, mockOpportunities)
+        data: [],
+        meta: buildMeta(selectedExchanges, symbols, []),
+        message: `Failed to fetch opportunities: ${error.message}`
       });
     }
   } catch (error) {
