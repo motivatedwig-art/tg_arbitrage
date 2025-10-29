@@ -841,8 +841,72 @@
                 loadingState.style.display = 'none';
             }
 
-            // Generate opportunity cards
-            const cardsHtml = opportunities.map((opp, index) => {
+            // Group opportunities by blockchain
+            const grouped = {};
+            opportunities.forEach(opp => {
+                const blockchain = opp.blockchain || 'ethereum';
+                if (!grouped[blockchain]) {
+                    grouped[blockchain] = [];
+                }
+                grouped[blockchain].push(opp);
+            });
+
+            // Sort blockchains by average profitability
+            const sortedBlockchains = Object.entries(grouped)
+                .map(([blockchain, opps]) => ({
+                    blockchain,
+                    opportunities: opps.sort((a, b) => b.profitPercentage - a.profitPercentage),
+                    avgProfit: opps.reduce((sum, o) => sum + o.profitPercentage, 0) / opps.length,
+                    maxProfit: Math.max(...opps.map(o => o.profitPercentage))
+                }))
+                .sort((a, b) => b.avgProfit - a.avgProfit);
+
+            // Generate blockchain sections
+            let html = '';
+            sortedBlockchains.forEach(({ blockchain, opportunities: opps, avgProfit, maxProfit }) => {
+                const blockchainName = getBlockchainName(blockchain);
+                const blockchainIcon = getBlockchainIcon(blockchain);
+                const blockchainColor = getBlockchainColor(blockchain);
+                
+                html += `
+                    <div style="margin-bottom: 24px;">
+                        <div style="
+                            background: linear-gradient(135deg, ${blockchainColor}22, ${blockchainColor}11);
+                            border: 2px solid ${blockchainColor}44;
+                            border-radius: 12px;
+                            padding: 16px;
+                            margin-bottom: 12px;
+                            cursor: pointer;
+                            transition: all 0.2s ease;
+                        " onmouseover="this.style.opacity='0.9'" onmouseout="this.style.opacity='1'">
+                            <div style="display: flex; justify-content: space-between; align-items: center;">
+                                <div style="display: flex; align-items: center; gap: 12px;">
+                                    <span style="font-size: 32px; color: ${blockchainColor};">${blockchainIcon}</span>
+                                    <div>
+                                        <h3 style="color: ${blockchainColor}; font-size: 1.2rem; font-weight: bold; margin: 0;">
+                                            ${blockchainName}
+                                        </h3>
+                                        <p style="font-size: 0.85rem; color: var(--text-secondary); margin: 4px 0 0 0;">
+                                            ${opps.length} ${opps.length === 1 ? 'opportunity' : 'opportunities'} • Avg: ${avgProfit.toFixed(2)}% • Max: ${maxProfit.toFixed(2)}%
+                                        </p>
+                                    </div>
+                                </div>
+                                <div style="
+                                    background: ${blockchainColor};
+                                    color: white;
+                                    padding: 8px 16px;
+                                    border-radius: 20px;
+                                    font-weight: bold;
+                                    font-size: 0.9rem;
+                                ">
+                                    ${avgProfit.toFixed(1)}%
+                                </div>
+                            </div>
+                        </div>
+                `;
+
+                // Add opportunity cards for this blockchain
+                opps.forEach((opp, index) => {
                 const profitClass = getProfitBadgeClass(opp.profitPercentage);
                 const buyUrl = getExchangeUrl(opp.buyExchange, opp.symbol);
                 const sellUrl = getExchangeUrl(opp.sellExchange, opp.symbol);
@@ -892,9 +956,12 @@
                         </div>
                     </div>
                 `;
-            }).join('');
+                });
 
-            container.innerHTML = cardsHtml;
+                html += `</div>`; // Close blockchain section
+            });
+
+            container.innerHTML = html;
         }
 
         function updateStatus(status) {
