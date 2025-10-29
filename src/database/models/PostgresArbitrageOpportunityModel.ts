@@ -302,14 +302,31 @@ export class PostgresArbitrageOpportunityModel {
   }
 
   private sanitizeOpportunity(opp: ArbitrageOpportunity): ArbitrageOpportunity {
+    // DECIMAL(20,8) max value: 999,999,999,999.99999999 (must be < 10^12)
+    const MAX_DECIMAL_VALUE = 999999999999.99999999;
+    
+    // Clamp values to prevent database overflow
+    const clampDecimal = (value: number): number => {
+      if (!Number.isFinite(value) || isNaN(value)) return 0;
+      if (value > MAX_DECIMAL_VALUE) {
+        console.warn(`⚠️ Clamping value ${value} to max ${MAX_DECIMAL_VALUE} (DECIMAL overflow)`);
+        return MAX_DECIMAL_VALUE;
+      }
+      if (value < 0 && Math.abs(value) > MAX_DECIMAL_VALUE) {
+        console.warn(`⚠️ Clamping value ${value} to min -${MAX_DECIMAL_VALUE} (DECIMAL overflow)`);
+        return -MAX_DECIMAL_VALUE;
+      }
+      return value;
+    };
+
     return {
       ...opp,
-      buyPrice: Math.max(opp.buyPrice, 0.00000001), // Prevent zero prices
-      sellPrice: Math.max(opp.sellPrice, 0.00000001), // Prevent zero prices
+      buyPrice: Math.max(clampDecimal(opp.buyPrice), 0.00000001), // Prevent zero prices
+      sellPrice: Math.max(clampDecimal(opp.sellPrice), 0.00000001), // Prevent zero prices
       profitPercentage: this.sanitizePercentage(opp.profitPercentage),
-      profitAmount: Math.max(opp.profitAmount, 0),
-      volume: Math.max(opp.volume, 0),
-      volume_24h: opp.volume_24h ? Math.max(opp.volume_24h, 0) : undefined,
+      profitAmount: Math.max(clampDecimal(opp.profitAmount), 0),
+      volume: clampDecimal(Math.max(opp.volume || 0, 0)),
+      volume_24h: opp.volume_24h ? clampDecimal(Math.max(opp.volume_24h, 0)) : undefined,
       blockchain: opp.blockchain, // Preserve blockchain field
       timestamp: Date.now()
     };
