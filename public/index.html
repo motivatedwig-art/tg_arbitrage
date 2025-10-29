@@ -861,16 +861,17 @@
                 }))
                 .sort((a, b) => b.avgProfit - a.avgProfit);
 
-            // Generate blockchain sections
+            // Generate blockchain sections with expand/collapse
             let html = '';
-            sortedBlockchains.forEach(({ blockchain, opportunities: opps, avgProfit, maxProfit }) => {
+            sortedBlockchains.forEach(({ blockchain, opportunities: opps, avgProfit, maxProfit }, groupIndex) => {
                 const blockchainName = getBlockchainName(blockchain);
                 const blockchainIcon = getBlockchainIcon(blockchain);
                 const blockchainColor = getBlockchainColor(blockchain);
+                const groupId = `blockchain-${groupIndex}-${blockchain.replace(/[^a-z0-9]/gi, '')}`;
                 
                 html += `
                     <div style="margin-bottom: 24px;">
-                        <div style="
+                        <div id="${groupId}-header" onclick="toggleBlockchainGroup('${groupId}')" style="
                             background: linear-gradient(135deg, ${blockchainColor}22, ${blockchainColor}11);
                             border: 2px solid ${blockchainColor}44;
                             border-radius: 12px;
@@ -878,7 +879,8 @@
                             margin-bottom: 12px;
                             cursor: pointer;
                             transition: all 0.2s ease;
-                        " onmouseover="this.style.opacity='0.9'" onmouseout="this.style.opacity='1'">
+                            user-select: none;
+                        " onmouseover="this.style.opacity='0.9'; this.style.transform='scale(1.01)'" onmouseout="this.style.opacity='1'; this.style.transform='scale(1)'">
                             <div style="display: flex; justify-content: space-between; align-items: center;">
                                 <div style="display: flex; align-items: center; gap: 12px;">
                                     <span style="font-size: 32px; color: ${blockchainColor};">${blockchainIcon}</span>
@@ -891,77 +893,101 @@
                                         </p>
                                     </div>
                                 </div>
-                                <div style="
-                                    background: ${blockchainColor};
-                                    color: white;
-                                    padding: 8px 16px;
-                                    border-radius: 20px;
-                                    font-weight: bold;
-                                    font-size: 0.9rem;
-                                ">
-                                    ${avgProfit.toFixed(1)}%
+                                <div style="display: flex; align-items: center; gap: 12px;">
+                                    <div style="
+                                        background: ${blockchainColor};
+                                        color: white;
+                                        padding: 8px 16px;
+                                        border-radius: 20px;
+                                        font-weight: bold;
+                                        font-size: 0.9rem;
+                                    ">
+                                        ${avgProfit.toFixed(1)}%
+                                    </div>
+                                    <span id="${groupId}-arrow" style="font-size: 1.2rem; color: ${blockchainColor}; transition: transform 0.3s;">▼</span>
                                 </div>
                             </div>
                         </div>
+                        <div id="${groupId}-content" style="display: block;">
                 `;
 
                 // Add opportunity cards for this blockchain
                 opps.forEach((opp, index) => {
-                const profitClass = getProfitBadgeClass(opp.profitPercentage);
-                const buyUrl = getExchangeUrl(opp.buyExchange, opp.symbol);
-                const sellUrl = getExchangeUrl(opp.sellExchange, opp.symbol);
-                
-                // Format prices with full precision from exchange data
-                const formatPrice = (price) => {
-                    // Show the exact price as received from the exchange
-                    return price.toString();
-                };
-                
-                return `
-                    <div class="opportunity-card" style="animation-delay: ${index * 0.1}s">
-                        <div class="opportunity-header">
-                            <div class="pair-info">
-                                <div class="pair-symbol">${opp.symbol}${renderBlockchainMarker(opp.blockchain)}${renderBlockchainMarkers(opp.blockchains)}</div>
-                                <div class="pair-details">${opp.symbol.replace('USDT', '/USDT')}</div>
+                    const profitClass = getProfitBadgeClass(opp.profitPercentage);
+                    const buyUrl = getExchangeUrl(opp.buyExchange, opp.symbol);
+                    const sellUrl = getExchangeUrl(opp.sellExchange, opp.symbol);
+                    
+                    // Format prices with full precision from exchange data
+                    const formatPrice = (price) => {
+                        return price.toString();
+                    };
+                    
+                    html += `
+                        <div class="opportunity-card" style="animation-delay: ${index * 0.1}s">
+                            <div class="opportunity-header">
+                                <div class="pair-info">
+                                    <div class="pair-symbol">${opp.symbol}${renderBlockchainMarker(opp.blockchain)}${renderBlockchainMarkers(opp.blockchains)}</div>
+                                    <div class="pair-details">${opp.symbol.replace('USDT', '/USDT')}</div>
+                                </div>
+                                <div class="profit-badge ${profitClass}">
+                                    📈 ${opp.profitPercentage.toFixed(2)}%
+                                </div>
                             </div>
-                            <div class="profit-badge ${profitClass}">
-                                📈 ${opp.profitPercentage.toFixed(2)}%
+
+                            <div class="exchange-row">
+                                <div class="exchange-card">
+                                    <div class="exchange-label">${t('buyOn')}</div>
+                                    <div class="exchange-name">${opp.buyExchange}</div>
+                                    <div class="exchange-price">$${formatPrice(opp.buyPrice)}</div>
+                                </div>
+                                <div class="exchange-card">
+                                    <div class="exchange-label">${t('sellOn')}</div>
+                                    <div class="exchange-name">${opp.sellExchange}</div>
+                                    <div class="exchange-price">$${formatPrice(opp.sellPrice)}</div>
+                                </div>
+                            </div>
+                            
+                            ${renderTransferAvailability(opp.transferAvailability)}
+
+                            <div class="action-row">
+                                <div style="display: flex; gap: 8px; margin-left: auto;">
+                                    <a href="${buyUrl}" target="_blank" class="view-button">
+                                        ${t('buy')} ↗️
+                                    </a>
+                                    <a href="${sellUrl}" target="_blank" class="view-button">
+                                        ${t('sell')} ↗️
+                                    </a>
+                                </div>
                             </div>
                         </div>
+                    `;
+                });
 
-                        <div class="exchange-row">
-                            <div class="exchange-card">
-                                <div class="exchange-label">${t('buyOn')}</div>
-                                <div class="exchange-name">${opp.buyExchange}</div>
-                                <div class="exchange-price">$${formatPrice(opp.buyPrice)}</div>
-                            </div>
-                            <div class="exchange-card">
-                                <div class="exchange-label">${t('sellOn')}</div>
-                                <div class="exchange-name">${opp.sellExchange}</div>
-                                <div class="exchange-price">$${formatPrice(opp.sellPrice)}</div>
-                            </div>
-                        </div>
-                        
-                        ${renderTransferAvailability(opp.transferAvailability)}
-
-                        <div class="action-row">
-                            <div style="display: flex; gap: 8px; margin-left: auto;">
-                                <a href="${buyUrl}" target="_blank" class="view-button">
-                                    ${t('buy')} ↗️
-                                </a>
-                                <a href="${sellUrl}" target="_blank" class="view-button">
-                                    ${t('sell')} ↗️
-                                </a>
-                            </div>
+                html += `
                         </div>
                     </div>
                 `;
-                });
-
-                html += `</div>`; // Close blockchain section
             });
 
             container.innerHTML = html;
+        }
+
+        // Toggle blockchain group expand/collapse
+        function toggleBlockchainGroup(groupId) {
+            const content = document.getElementById(groupId + '-content');
+            const arrow = document.getElementById(groupId + '-arrow');
+            
+            if (content && arrow) {
+                if (content.style.display === 'none') {
+                    content.style.display = 'block';
+                    arrow.textContent = '▼';
+                    arrow.style.transform = 'rotate(0deg)';
+                } else {
+                    content.style.display = 'none';
+                    arrow.textContent = '▶';
+                    arrow.style.transform = 'rotate(-90deg)';
+                }
+            }
         }
 
         function updateStatus(status) {

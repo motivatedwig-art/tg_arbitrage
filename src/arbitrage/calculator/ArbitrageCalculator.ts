@@ -425,20 +425,48 @@ export class ArbitrageCalculator {
       return blockchainFromDb;
     }
 
-    // Fallback: pattern-based detection for unknown tokens
-    const upperSymbol = symbol.toUpperCase();
+    // Fallback: Enhanced pattern-based detection
+    const cleanSymbol = symbol
+      .replace(/[\/\-_]/g, '')
+      .replace(/USDT$|USDC$|BTC$|ETH$|BNB$|USD$|EUR$/i, '')
+      .toUpperCase();
     
-    // Check for blockchain indicators in symbol
-    if (upperSymbol.includes('SOL') || upperSymbol.includes('WSOL')) return 'solana';
-    if (upperSymbol.includes('TRX') || upperSymbol.includes('TRON')) return 'tron';
-    if (upperSymbol.includes('BNB') || upperSymbol.includes('WBNB')) return 'bsc';
-    if (upperSymbol.includes('MATIC') || upperSymbol.includes('WMATIC')) return 'polygon';
-    if (upperSymbol.includes('ARB') && !upperSymbol.includes('BARB')) return 'arbitrum';
-    if (upperSymbol.includes('OP') && upperSymbol.length <= 8) return 'optimism';
-    if (upperSymbol.includes('AVAX') || upperSymbol.includes('WAVAX')) return 'avalanche';
-    if (upperSymbol.includes('TON')) return 'ton';
+    // Native chain tokens (exact match first)
+    if (cleanSymbol === 'SOL' || cleanSymbol.includes('WSOL')) return 'solana';
+    if (cleanSymbol === ' ich' || cleanSymbol === 'TRX' || cleanSymbol.includes('TRON')) return 'tron';
+    if (cleanSymbol === 'BNB' || cleanSymbol.includes('WBNB')) return 'bsc';
+    if (cleanSymbol === 'MATIC' || cleanSymbol.includes('WMATIC')) return 'polygon';
+    if (cleanSymbol === 'ARB' || (cleanSymbol.includes('ARB') && !cleanSymbol.includes('BARB'))) return 'arbitrum';
+    if (cleanSymbol === 'OP' || (cleanSymbol.includes('OP') && cleanSymbol.length <= 8)) return 'optimism';
+    if (cleanSymbol === 'AVAX' || cleanSymbol.includes('WAVAX')) return 'avalanche';
+    if (cleanSymbol === 'TON') return 'ton';
+    if (cleanSymbol === 'APT') return 'aptos';
+    if (cleanSymbol === 'SUI') return 'sui';
+    if (cleanSymbol === 'NEAR') return 'near';
+    if (cleanSymbol === 'ATOM') return 'cosmos';
+    if (cleanSymbol === 'DOT') return 'polkadot';
+    if (cleanSymbol === 'ADA') return 'cardano';
+    if (cleanSymbol === 'BTC') return 'bitcoin';
+    if (cleanSymbol === 'XRP') return 'ripple';
+    if (cleanSymbol === 'XLM') return 'stellar';
+    if (cleanSymbol === 'DOGE') return 'dogecoin';
+    if (cleanSymbol === 'LTC') return 'litecoin';
+    
+    // Wrapped tokens
+    if (cleanSymbol.startsWith('W') && cleanSymbol.length > 4) {
+      const unwrapped = cleanSymbol.substring(1);
+      if (unwrapped === 'BTC' || unwrapped === 'ETH') return 'ethereum';
+      if (unwrapped === 'SOL') return 'solana';
+      if (unwrapped === 'BNB') return 'bsc';
+      if (unwrapped === 'MATIC') return 'polygon';
+    }
 
-    // Default to ethereum for ERC-20 tokens
+    // Log unknown tokens for future analysis instead of silently defaulting
+    if (process.env.NODE_ENV === 'development') {
+      console.log(`⚠️ Unknown blockchain for ${symbol}, defaulting to Ethereum`);
+    }
+    
+    // Default to ethereum for unknown ERC-20 tokens
     return 'ethereum';
   }
 }
