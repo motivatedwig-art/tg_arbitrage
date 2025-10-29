@@ -3,7 +3,7 @@
  * Fetches network/blockchain information from Bybit API
  */
 
-import ccxt from 'ccxt';
+import ccxt, { Exchange } from 'ccxt';
 
 export interface BybitNetworkInfo {
   symbol: string;
@@ -21,7 +21,7 @@ export interface BybitNetworkInfo {
 }
 
 export class BybitBlockchainAdapter {
-  private exchange: ccxt.Exchange;
+  private exchange: Exchange;
   private apiKey: string;
   private apiSecret: string;
 

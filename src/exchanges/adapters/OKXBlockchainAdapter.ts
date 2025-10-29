@@ -3,7 +3,7 @@
  * Fetches network/blockchain information from OKX API
  */
 
-import ccxt from 'ccxt';
+import ccxt, { Exchange } from 'ccxt';
 
 export interface OKXNetworkInfo {
   symbol: string;
@@ -20,7 +20,7 @@ export interface OKXNetworkInfo {
 }
 
 export class OKXBlockchainAdapter {
-  private exchange: ccxt.Exchange;
+  private exchange: Exchange;
   private apiKey: string;
   private apiSecret: string;
   private passphrase: string;

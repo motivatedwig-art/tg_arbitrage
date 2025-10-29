@@ -3,7 +3,7 @@
  * Fetches network/blockchain information from Binance API
  */
 
-import ccxt from 'ccxt';
+import ccxt, { Exchange } from 'ccxt';
 
 export interface BinanceNetworkInfo {
   symbol: string;
@@ -22,7 +22,7 @@ export interface BinanceNetworkInfo {
 }
 
 export class BinanceBlockchainAdapter {
-  private exchange: ccxt.Exchange;
+  private exchange: Exchange;
   private apiKey: string;
   private apiSecret: string;
 
