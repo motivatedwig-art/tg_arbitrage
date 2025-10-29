@@ -37,6 +37,7 @@ export interface ArbitrageOpportunity {
 
 export interface ApiResponse {
   opportunities: ArbitrageOpportunity[];
+  grouped?: { [blockchain: string]: ArbitrageOpportunity[] }; // Optional grouped data by blockchain
   lastUpdate: string;
   nextUpdate: string;
   meta?: OpportunitiesMeta;

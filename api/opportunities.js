@@ -49,6 +49,30 @@ const parseSymbols = (req) => {
     .filter(Boolean);
 };
 
+// Group opportunities by blockchain, returning top 5 from each
+const groupOpportunitiesByBlockchain = (opportunities) => {
+  const blockchainGroups = {};
+  
+  // Group by blockchain
+  opportunities.forEach(opp => {
+    const blockchain = opp.blockchain || 'ethereum';
+    if (!blockchainGroups[blockchain]) {
+      blockchainGroups[blockchain] = [];
+    }
+    blockchainGroups[blockchain].push(opp);
+  });
+  
+  // Sort each blockchain group by profit percentage and take top 5
+  const result = {};
+  Object.keys(blockchainGroups).forEach(blockchain => {
+    result[blockchain] = blockchainGroups[blockchain]
+      .sort((a, b) => b.profitPercentage - a.profitPercentage)
+      .slice(0, 5); // Top 5 from each blockchain
+  });
+  
+  return result;
+};
+
 const buildMeta = (selectedExchanges, symbols, opportunities) => {
   const uniqueSymbols = [...new Set(opportunities.map(opp => opp.symbol))];
 
@@ -108,9 +132,13 @@ const handler = async (req, res) => {
           );
         }
 
+        // Group opportunities by blockchain (top 5 per blockchain)
+        const groupedByBlockchain = groupOpportunitiesByBlockchain(filteredOpportunities);
+
         res.status(200).json({
           success: true,
-          data: filteredOpportunities,
+          data: filteredOpportunities, // Keep original flat list
+          grouped: groupedByBlockchain, // Add grouped data
           meta: buildMeta(selectedExchanges, symbols, filteredOpportunities)
         });
         return;

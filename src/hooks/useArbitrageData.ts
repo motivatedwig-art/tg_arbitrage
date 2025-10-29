@@ -4,6 +4,7 @@ import { apiService } from '../services/api';
 
 export const useArbitrageData = (selectedExchanges: string[]) => {
   const [data, setData] = useState<ArbitrageOpportunity[]>([]);
+  const [groupedData, setGroupedData] = useState<{ [blockchain: string]: ArbitrageOpportunity[] }>({});
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [lastUpdate, setLastUpdate] = useState<string | null>(null);
@@ -18,6 +19,7 @@ export const useArbitrageData = (selectedExchanges: string[]) => {
     try {
       const response = await apiService.getArbitrageData(selectedExchanges);
       setData(response.opportunities);
+      setGroupedData(response.grouped || {});
       setLastUpdate(response.lastUpdate);
       setNextUpdate(response.nextUpdate);
     } catch (err) {
@@ -41,6 +43,7 @@ export const useArbitrageData = (selectedExchanges: string[]) => {
 
   return {
     data,
+    groupedData,
     loading,
     error,
     lastUpdate,

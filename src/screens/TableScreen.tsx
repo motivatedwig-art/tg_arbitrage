@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ArrowLeft, RefreshCw, TrendingUp, Clock } from 'lucide-react';
 import styled from 'styled-components';
@@ -6,6 +6,8 @@ import { useTranslation } from 'react-i18next';
 import { useArbitrageData } from '../hooks/useArbitrageData';
 import LanguageSwitcher from '../components/LanguageSwitcher';
 import ChainMarker from '../components/ChainMarker';
+import { BlockchainFilter } from '../components/BlockchainFilter';
+import { BlockchainGroupedTable } from '../components/BlockchainGroupedTable';
 // import { ArbitrageOpportunity } from '../types';
 
 interface TableScreenProps {
@@ -357,10 +359,39 @@ const getExchangeUrl = (exchange: string, symbol: string): string => {
 };
 
 const TableScreen: React.FC<TableScreenProps> = ({ selectedExchanges, onBack }) => {
-  const { data, loading, error, refetch } = useArbitrageData(selectedExchanges);
+  const { data, groupedData, loading, error, refetch } = useArbitrageData(selectedExchanges);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [countdown, setCountdown] = useState(600); // 10 minutes
+  const [viewMode, setViewMode] = useState<'grouped' | 'list'>('grouped'); // Default to grouped view
+  const [selectedBlockchains, setSelectedBlockchains] = useState<Set<string>>(new Set()); // Empty = show all
   const { t } = useTranslation();
+
+  // Calculate opportunity counts per blockchain
+  const opportunityCounts = useMemo(() => {
+    const counts: Record<string, number> = {};
+    Object.keys(groupedData).forEach(blockchain => {
+      counts[blockchain] = groupedData[blockchain].length;
+    });
+    return counts;
+  }, [groupedData]);
+
+  // Filter data based on selected blockchains
+  const filteredData = useMemo(() => {
+    if (selectedBlockchains.size === 0) return data; // Show all if none selected
+    return data.filter(opp => opp.blockchain && selectedBlockchains.has(opp.blockchain));
+  }, [data, selectedBlockchains]);
+
+  // Filter grouped data based on selected blockchains
+  const filteredGroupedData = useMemo(() => {
+    if (selectedBlockchains.size === 0) return groupedData; // Show all if none selected
+    const filtered: { [blockchain: string]: typeof data } = {};
+    selectedBlockchains.forEach(blockchain => {
+      if (groupedData[blockchain]) {
+        filtered[blockchain] = groupedData[blockchain];
+      }
+    });
+    return filtered;
+  }, [groupedData, selectedBlockchains]);
 
   // Countdown timer effect
   React.useEffect(() => {
@@ -396,13 +427,13 @@ const TableScreen: React.FC<TableScreenProps> = ({ selectedExchanges, onBack }) 
   };
 
   const getStats = () => {
-    if (!data.length) return { total: 0, avgProfit: 0, maxProfit: 0 };
+    if (!filteredData.length) return { total: 0, avgProfit: 0, maxProfit: 0 };
     
-    const avgProfit = data.reduce((sum, opp) => sum + opp.spreadPercentage, 0) / data.length;
-    const maxProfit = Math.max(...data.map(opp => opp.spreadPercentage));
+    const avgProfit = filteredData.reduce((sum, opp) => sum + opp.spreadPercentage, 0) / filteredData.length;
+    const maxProfit = Math.max(...filteredData.map(opp => opp.spreadPercentage));
     
     return {
-      total: data.length,
+      total: filteredData.length,
       avgProfit: avgProfit.toFixed(2),
       maxProfit: maxProfit.toFixed(2)
     };
@@ -468,6 +499,16 @@ const TableScreen: React.FC<TableScreenProps> = ({ selectedExchanges, onBack }) 
           </StatCard>
         </StatsBar>
 
+        {/* Blockchain Filter */}
+        {!loading && !error && Object.keys(groupedData).length > 0 && (
+          <BlockchainFilter
+            availableChains={Object.keys(groupedData)}
+            selectedChains={selectedBlockchains}
+            onSelectionChange={setSelectedBlockchains}
+            opportunityCounts={opportunityCounts}
+          />
+        )}
+
         <AnimatePresence mode="wait">
           {loading && (
             <motion.div
@@ -513,68 +554,99 @@ const TableScreen: React.FC<TableScreenProps> = ({ selectedExchanges, onBack }) 
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
             >
-              {data.map((opportunity, index) => (
-                <OpportunityCard
-                  key={`${opportunity.pair.symbol}-${index}`}
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: index * 0.05 }}
-                  whileHover={{ y: -2 }}
+              {/* Toggle between grouped and list view */}
+              <div style={{ marginBottom: '16px', display: 'flex', gap: '8px', justifyContent: 'center' }}>
+                <ViewButton
+                  onClick={() => setViewMode('grouped')}
+                  style={{
+                    background: viewMode === 'grouped' ? '#FFD60A' : '#3A3A3C',
+                    color: viewMode === 'grouped' ? '#000' : '#FFF',
+                  }}
                 >
-                  <OpportunityHeader>
-                    <PairInfo>
-                      <PairSymbol>{opportunity.pair.displaySymbol}</PairSymbol>
-                      <PairDetails>
-                        {opportunity.pair.baseAsset}/{opportunity.pair.quoteAsset}
-                      </PairDetails>
-                      {opportunity.blockchain && (
-                        <ChainMarker blockchain={opportunity.blockchain} showWarning={true} />
-                      )}
-                    </PairInfo>
-                    <ProfitBadge profitability={opportunity.profitability}>
-                      <TrendingUp size={12} />
-                      {opportunity.spreadPercentage.toFixed(2)}%
-                    </ProfitBadge>
-                  </OpportunityHeader>
+                  🌐 By Blockchain
+                </ViewButton>
+                <ViewButton
+                  onClick={() => setViewMode('list')}
+                  style={{
+                    background: viewMode === 'list' ? '#FFD60A' : '#3A3A3C',
+                    color: viewMode === 'list' ? '#000' : '#FFF',
+                  }}
+                >
+                  📋 All Opps
+                </ViewButton>
+              </div>
 
-                  <ExchangeRow>
-                    <ExchangeCard>
-                      <ExchangeLabel>{t('table.headers.buy_exchange')}</ExchangeLabel>
-                      <ExchangeName>{opportunity.bestBuy.exchangeName}</ExchangeName>
-                      <ExchangePrice>${opportunity.bestBuy.price.toFixed(4)}</ExchangePrice>
-                    </ExchangeCard>
-                    <ExchangeCard>
-                      <ExchangeLabel>{t('table.headers.sell_exchange')}</ExchangeLabel>
-                      <ExchangeName>{opportunity.bestSell.exchangeName}</ExchangeName>
-                      <ExchangePrice>${opportunity.bestSell.price.toFixed(4)}</ExchangePrice>
-                    </ExchangeCard>
-                  </ExchangeRow>
+              {viewMode === 'grouped' ? (
+                /* Grouped View by Blockchain */
+                <BlockchainGroupedTable 
+                  data={filteredGroupedData}
+                  loading={false}
+                />
+              ) : (
+                /* List View - All Opportunities */
+                filteredData.map((opportunity, index) => (
+                  <OpportunityCard
+                    key={`${opportunity.pair.symbol}-${index}`}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: index * 0.05 }}
+                    whileHover={{ y: -2 }}
+                  >
+                    <OpportunityHeader>
+                      <PairInfo>
+                        <PairSymbol>{opportunity.pair.displaySymbol}</PairSymbol>
+                        <PairDetails>
+                          {opportunity.pair.baseAsset}/{opportunity.pair.quoteAsset}
+                        </PairDetails>
+                        {opportunity.blockchain && (
+                          <ChainMarker blockchain={opportunity.blockchain} showWarning={true} />
+                        )}
+                      </PairInfo>
+                      <ProfitBadge profitability={opportunity.profitability}>
+                        <TrendingUp size={12} />
+                        {opportunity.spreadPercentage.toFixed(2)}%
+                      </ProfitBadge>
+                    </OpportunityHeader>
 
-                  <ActionRow>
-                    <SpreadInfo>
-                      Spread: ${opportunity.spreadAmount.toFixed(4)}
-                    </SpreadInfo>
-                    <div style={{ display: 'flex', gap: '8px' }}>
-                      <ViewButton
-                        href={getExchangeUrl(opportunity.bestBuy.exchangeName, opportunity.pair.symbol)}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        whileTap={{ scale: 0.95 }}
-                      >
-                        Buy ↗️
-                      </ViewButton>
-                      <ViewButton
-                        href={getExchangeUrl(opportunity.bestSell.exchangeName, opportunity.pair.symbol)}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        whileTap={{ scale: 0.95 }}
-                      >
-                        Sell ↗️
-                      </ViewButton>
-                    </div>
-                  </ActionRow>
-                </OpportunityCard>
-              ))}
+                    <ExchangeRow>
+                      <ExchangeCard>
+                        <ExchangeLabel>{t('table.headers.buy_exchange')}</ExchangeLabel>
+                        <ExchangeName>{opportunity.bestBuy.exchangeName}</ExchangeName>
+                        <ExchangePrice>${opportunity.bestBuy.price.toFixed(4)}</ExchangePrice>
+                      </ExchangeCard>
+                      <ExchangeCard>
+                        <ExchangeLabel>{t('table.headers.sell_exchange')}</ExchangeLabel>
+                        <ExchangeName>{opportunity.bestSell.exchangeName}</ExchangeName>
+                        <ExchangePrice>${opportunity.bestSell.price.toFixed(4)}</ExchangePrice>
+                      </ExchangeCard>
+                    </ExchangeRow>
+
+                    <ActionRow>
+                      <SpreadInfo>
+                        Spread: ${opportunity.spreadAmount.toFixed(4)}
+                      </SpreadInfo>
+                      <div style={{ display: 'flex', gap: '8px' }}>
+                        <ViewButton
+                          href={getExchangeUrl(opportunity.bestBuy.exchangeName, opportunity.pair.symbol)}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          whileTap={{ scale: 0.95 }}
+                        >
+                          Buy ↗️
+                        </ViewButton>
+                        <ViewButton
+                          href={getExchangeUrl(opportunity.bestSell.exchangeName, opportunity.pair.symbol)}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          whileTap={{ scale: 0.95 }}
+                        >
+                          Sell ↗️
+                        </ViewButton>
+                      </div>
+                    </ActionRow>
+                  </OpportunityCard>
+                ))
+              )}
             </motion.div>
           )}
         </AnimatePresence>

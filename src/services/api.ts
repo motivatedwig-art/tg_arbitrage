@@ -112,8 +112,20 @@ export const apiService = {
         opportunities = [];
       }
 
+      // Handle grouped data if present
+      let grouped: { [blockchain: string]: ArbitrageOpportunity[] } = {};
+      if (responseData.grouped && typeof responseData.grouped === 'object') {
+        // Transform grouped opportunities
+        Object.keys(responseData.grouped).forEach(blockchain => {
+          grouped[blockchain] = responseData.grouped[blockchain]
+            .map((opp: any) => this.transformOpportunity(opp))
+            .filter((opp: ArbitrageOpportunity | null) => opp !== null);
+        });
+      }
+
       return {
         opportunities: opportunities.filter(opp => opp !== null), // Filter out invalid opportunities
+        grouped, // Include grouped data
         lastUpdate: responseData.meta?.generatedAt || responseData.lastUpdate || new Date().toISOString(),
         nextUpdate: new Date(Date.now() + 600000).toISOString() // 10 minutes from now
       };
