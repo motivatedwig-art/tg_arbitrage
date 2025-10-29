@@ -2,6 +2,7 @@ import { Ticker, ArbitrageOpportunity } from '../../exchanges/types/index.js';
 import { TokenMetadataService } from '../../services/TokenMetadataService.js';
 import { ExchangeManager } from '../../exchanges/ExchangeManager.js';
 import { getTokenBlockchain } from '../../services/TokenMetadataDatabase.js';
+import { BlockchainAggregator } from '../../services/BlockchainAggregator.js';
 
 export class ArbitrageCalculator {
   private minProfitThreshold: number;

@@ -20,7 +20,7 @@ export interface OKXNetworkInfo {
 }
 
 export class OKXBlockchainAdapter {
-  private exchange: ccxt.okx;
+  private exchange: ccxt.Exchange;
   private apiKey: string;
   private apiSecret: string;
   private passphrase: string;

@@ -22,7 +22,7 @@ export interface BinanceNetworkInfo {
 }
 
 export class BinanceBlockchainAdapter {
-  private exchange: ccxt.binance;
+  private exchange: ccxt.Exchange;
   private apiKey: string;
   private apiSecret: string;
 

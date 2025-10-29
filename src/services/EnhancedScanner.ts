@@ -83,12 +83,15 @@ export class EnhancedScanner {
           continue;
         }
         
-        // Fetch all markets/symbols from exchange
-        const markets = await adapter.getMarkets();
-        const symbols = markets
-          .filter(m => m.active && m.type === 'spot') // Only active spot markets
-          .filter(m => m.quote === 'USDT' || m.quote === 'USDC' || m.quote === 'BTC' || m.quote === 'ETH') // Common quote currencies
-          .map(m => m.symbol);
+        // Fetch all tickers to get available symbols
+        const tickers = await adapter.getTickers();
+        const symbols = tickers
+          .map(t => t.symbol)
+          .filter(symbol => {
+            // Filter common quote currencies
+            const quote = symbol.split('/')[1] || '';
+            return ['USDT', 'USDC', 'BTC', 'ETH'].includes(quote);
+          });
         
         console.log(`   ✅ ${exchangeName}: ${symbols.length} active pairs`);
         

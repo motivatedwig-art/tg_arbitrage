@@ -113,9 +113,10 @@ export class BlockchainScanner {
         // Extract network information from markets if available
         // This is exchange-specific and will be enhanced later
         for (const [symbol, market] of Object.entries(ccxtExchange.markets)) {
-          if (market.active && market.type === 'spot') {
+          const marketData = market as any;
+          if (marketData.active && marketData.type === 'spot') {
             // Some exchanges include network info in market data
-            const networkInfo = this.extractNetworkFromMarket(market, exchange);
+            const networkInfo = this.extractNetworkFromMarket(marketData, exchange);
             if (networkInfo) {
               networks.push(networkInfo);
             }

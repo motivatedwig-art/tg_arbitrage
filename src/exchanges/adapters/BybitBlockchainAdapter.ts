@@ -21,7 +21,7 @@ export interface BybitNetworkInfo {
 }
 
 export class BybitBlockchainAdapter {
-  private exchange: ccxt.bybit;
+  private exchange: ccxt.Exchange;
   private apiKey: string;
   private apiSecret: string;
 
