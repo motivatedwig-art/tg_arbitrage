@@ -93,6 +93,22 @@ class CryptoArbitrageApp {
       // Schedule cleanup tasks
       this.scheduleCleanup();
 
+      // Start blockchain scanner job if enabled
+      if (process.env.BLOCKCHAIN_SCANNING_ENABLED !== 'false') {
+        try {
+          const { BlockchainScannerJob } = await import('./jobs/BlockchainScannerJob.js');
+          BlockchainScannerJob.schedule();
+          
+          // Run initial scan (non-blocking)
+          BlockchainScannerJob.runNow().catch(err => {
+            console.warn('⚠️ Initial blockchain scan failed:', err.message);
+          });
+        } catch (error) {
+          console.warn('⚠️ Failed to start blockchain scanner job:', error);
+          // Don't fail the entire app if scanner fails
+        }
+      }
+
       console.log('✅ Crypto Arbitrage Bot is running!');
       console.log(`📊 Update interval: ${this.updateInterval / 1000} seconds`);
       console.log(`💰 Min profit threshold: ${this.arbitrageService.getArbitrageCalculator().getMinProfitThreshold()}%`);

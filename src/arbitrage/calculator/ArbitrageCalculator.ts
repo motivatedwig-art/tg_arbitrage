@@ -11,6 +11,7 @@ export class ArbitrageCalculator {
   private chainTransferCosts: Map<string, number> = new Map();
   private tokenMetadataService: TokenMetadataService;
   private exchangeManager: ExchangeManager;
+  private blockchainAggregator: BlockchainAggregator | null = null;
   private excludedBlockchains: Set<string> = new Set([]); // DISABLED: Blockchain filtering disabled due to inaccurate blockchain detection
 
   constructor(minProfitThreshold: number = 0.5, maxProfitThreshold: number = 50, minVolumeThreshold: number = 100) {
@@ -19,6 +20,14 @@ export class ArbitrageCalculator {
     this.minVolumeThreshold = minVolumeThreshold;
     this.tokenMetadataService = TokenMetadataService.getInstance();
     this.exchangeManager = ExchangeManager.getInstance();
+    
+    // Initialize blockchain aggregator (lazy load to avoid circular deps)
+    try {
+      this.blockchainAggregator = new BlockchainAggregator();
+    } catch (error) {
+      console.warn('⚠️ Could not initialize BlockchainAggregator, using fallback detection');
+    }
+    
     this.initializeTradingFees();
     this.initializeChainTransferCosts();
     
@@ -323,7 +332,7 @@ export class ArbitrageCalculator {
       volume: volume,
       volume_24h: buyTicker.volume_24h || sellTicker.volume_24h || volume,
       timestamp: Math.max(buyTicker.timestamp, sellTicker.timestamp),
-      blockchain: this.determineBlockchain(buyTicker, sellTicker),
+      blockchain: await this.determineBlockchain(buyTicker, sellTicker),
       fees: {
         buyFee: buyFee,
         sellFee: sellFee,
@@ -407,7 +416,7 @@ export class ArbitrageCalculator {
    * Determine the primary blockchain for an arbitrage opportunity
    * Uses comprehensive token database for accurate blockchain detection
    */
-  private determineBlockchain(buyTicker: Ticker, sellTicker: Ticker): string {
+  private async determineBlockchain(buyTicker: Ticker, sellTicker: Ticker): Promise<string> {
     // If both tickers have blockchain info and they match, use that
     if (buyTicker.blockchain && sellTicker.blockchain && buyTicker.blockchain === sellTicker.blockchain) {
       return buyTicker.blockchain;
@@ -417,8 +426,20 @@ export class ArbitrageCalculator {
     if (buyTicker.blockchain) return buyTicker.blockchain;
     if (sellTicker.blockchain) return sellTicker.blockchain;
 
-    // Use comprehensive token database
+    // Try blockchain aggregator first (most accurate)
     const symbol = buyTicker.symbol || sellTicker.symbol || '';
+    if (this.blockchainAggregator) {
+      try {
+        const blockchain = await this.blockchainAggregator.getBlockchainForToken(symbol);
+        if (blockchain) {
+          return blockchain;
+        }
+      } catch (error) {
+        // Fall through to static database
+      }
+    }
+
+    // Use comprehensive token database (Jacob)
     const blockchainFromDb = getTokenBlockchain(symbol);
     
     if (blockchainFromDb) {
@@ -433,7 +454,7 @@ export class ArbitrageCalculator {
     
     // Native chain tokens (exact match first)
     if (cleanSymbol === 'SOL' || cleanSymbol.includes('WSOL')) return 'solana';
-    if (cleanSymbol === ' ich' || cleanSymbol === 'TRX' || cleanSymbol.includes('TRON')) return 'tron';
+    if (cleanSymbol === 'TRX' || cleanSymbol.includes('TRON')) return 'tron';
     if (cleanSymbol === 'BNB' || cleanSymbol.includes('WBNB')) return 'bsc';
     if (cleanSymbol === 'MATIC' || cleanSymbol.includes('WMATIC')) return 'polygon';
     if (cleanSymbol === 'ARB' || (cleanSymbol.includes('ARB') && !cleanSymbol.includes('BARB'))) return 'arbitrum';
