@@ -242,7 +242,7 @@ function generateMockOpportunities(symbols) {
   });
   
   return mockOpportunities.sort((a, b) => b.profitPercentage - a.profitPercentage);
-}
+} */
 
 export default withCors(handler);
 
