@@ -48,7 +48,7 @@ export class BybitBlockchainAdapter {
       console.log('📡 Fetching Bybit coin info...');
       
       // Bybit API endpoint
-      const response = await this.exchange.v5GetAssetCoinQueryInfo({});
+      const response = await (this.exchange as any).v5GetAssetCoinQueryInfo({});
       
       const coinMap = new Map<string, BybitNetworkInfo>();
 

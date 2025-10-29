@@ -50,7 +50,7 @@ export class OKXBlockchainAdapter {
       console.log('📡 Fetching OKX currency chains...');
       
       // OKX public endpoint - doesn't require authentication
-      const response = await this.exchange.publicGetAssetCurrencies();
+      const response = await (this.exchange as any).publicGetAssetCurrencies();
       
       const currencyMap = new Map<string, OKXNetworkInfo>();
 

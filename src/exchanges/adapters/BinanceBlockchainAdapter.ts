@@ -50,7 +50,7 @@ export class BinanceBlockchainAdapter {
       
       // Binance API endpoint for getting all coin network configurations
       // This requires authenticated access
-      const response = await this.exchange.sapiGetCapitalConfigGetall();
+      const response = await (this.exchange as any).sapiGetCapitalConfigGetall();
       
       const networkMap = new Map<string, BinanceNetworkInfo>();
 
