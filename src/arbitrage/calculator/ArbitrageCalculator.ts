@@ -160,16 +160,16 @@ export class ArbitrageCalculator {
     for (const opp of filteredOpportunities) {
       // Use only base coin (not the trading pair)
       const baseAsset = opp.symbol.split('/')[0];
-      // Get CoinAPI meta for both buy and sell exchanges base asset
       const coinApiBuy = await this.coinApiService.getAssetMetadata(baseAsset);
-      const coinApiSell = await this.coinApiService.getAssetMetadata(baseAsset);
-      // Require CoinAPI asset match for both exchanges (very strict)
-      if (!coinApiBuy || !coinApiSell) continue;
-      if (coinApiBuy.asset_id !== coinApiSell.asset_id) continue;
-      // Only display logoUrl for matching canonical CoinAPI asset (if exists)
+      // Temporary: Log CoinAPI result for debug
+      console.log(`[CoinAPI] Symbol: ${baseAsset}`, JSON.stringify(coinApiBuy));
+      const logoUrl = coinApiBuy ? this.coinApiService.getAssetIconUrl(coinApiBuy) : undefined;
+      console.log(`[LOGO_URL] Symbol: ${baseAsset}`, logoUrl);
+      // Require CoinAPI asset match for canonical filtering
+      if (!coinApiBuy) continue;
       enrichedResults.push({
         ...opp,
-        logoUrl: coinApiBuy ? this.coinApiService.getAssetIconUrl(coinApiBuy) : undefined
+        logoUrl
       });
     }
     return enrichedResults.sort((a, b) => b.profitPercentage - a.profitPercentage);
