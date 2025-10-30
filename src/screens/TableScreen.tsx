@@ -351,11 +351,26 @@ const exchangeUrls: Record<string, string> = {
 };
 
 const getExchangeUrl = (exchange: string, symbol: string): string => {
-  const urlPattern = exchangeUrls[exchange.toLowerCase()];
-  if (!urlPattern) {
-    return `https://${exchange.toLowerCase()}.com`;
+  // symbol assumed as "BASE/QUOTE"
+  if (!symbol) return '';
+  const [base, quote] = symbol.split(/[\/_-]/).map(s => s.trim().toUpperCase());
+  switch (exchange.toLowerCase()) {
+    case 'binance':
+      return `https://www.binance.com/en/trade/${base}_${quote}`;
+    case 'okx':
+      return `https://www.okx.com/trade-spot/${base}-${quote}`;
+    case 'bybit':
+      return `https://www.bybit.com/trade/spot/${base}${quote}`;
+    case 'mexc':
+      return `https://www.mexc.com/exchange/${base}_${quote}`;
+    case 'kucoin':
+      return `https://www.kucoin.com/trade/${base}-${quote}`;
+    case 'gateio':
+    case 'gate.io':
+      return `https://www.gate.io/trade/${base}_${quote}`;
+    default:
+      return '';
   }
-  return urlPattern.replace('{symbol}', symbol);
 };
 
 const TableScreen: React.FC<TableScreenProps> = ({ selectedExchanges, onBack }) => {

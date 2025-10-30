@@ -662,80 +662,31 @@
 
         // Generate exchange URL for a specific symbol
         function getExchangeUrl(exchange, symbol) {
-            const urlPattern = exchangeUrls[exchange.toLowerCase()];
-            if (!urlPattern) {
-                return `https://${exchange.toLowerCase()}.com`;
-            }
-            
-            // Convert symbol format for different exchanges
-            let formattedSymbol = symbol;
-            
+            if (!symbol) return '';
+            // Try to split like 'BASE/QUOTE', 'BASE_QUOTE', 'BASE-QUOTE'
+            var [base, quote] = symbol.includes('/') ? symbol.split('/') :
+                       symbol.includes('_') ? symbol.split('_') :
+                       symbol.includes('-') ? symbol.split('-') :
+                       [symbol.slice(0, symbol.length/2), symbol.slice(symbol.length/2)];
+            base = base.trim().toUpperCase();
+            quote = quote.trim().toUpperCase();
             switch (exchange.toLowerCase()) {
                 case 'binance':
-                    // Binance uses BTCUSDT format
-                    formattedSymbol = symbol;
-                    break;
+                    return `https://www.binance.com/en/trade/${base}_${quote}`;
                 case 'okx':
-                    // OKX uses BTC-USDT format
-                    if (symbol.includes('-')) {
-                        // Already in correct format (e.g., ELF-USDT)
-                        formattedSymbol = symbol;
-                    } else {
-                        // Convert BTCUSDT to BTC-USDT
-                        formattedSymbol = symbol.replace('USDT', '-USDT');
-                    }
-                    break;
+                    return `https://www.okx.com/trade-spot/${base}-${quote}`;
                 case 'bybit':
-                    // Bybit uses BTC/USDT format
-                    if (symbol.includes('/')) {
-                        // Already in correct format
-                        formattedSymbol = symbol;
-                    } else {
-                        // Convert BTCUSDT to BTC/USDT
-                        formattedSymbol = symbol.replace('USDT', '/USDT');
-                    }
-                    break;
+                    return `https://www.bybit.com/trade/spot/${base}${quote}`;
                 case 'mexc':
-                    // MEXC uses BTC_USDT format
-                    if (symbol.includes('_')) {
-                        // Already in correct format
-                        formattedSymbol = symbol;
-                    } else {
-                        // Convert BTCUSDT to BTC_USDT
-                        formattedSymbol = symbol.replace('USDT', '_USDT');
-                    }
-                    break;
-                case 'gateio':
-                    // Gate.io uses BTC_USDT format
-                    if (symbol.includes('_')) {
-                        // Already in correct format
-                        formattedSymbol = symbol;
-                    } else {
-                        // Convert BTCUSDT to BTC_USDT
-                        formattedSymbol = symbol.replace('USDT', '_USDT');
-                    }
-                    break;
+                    return `https://www.mexc.com/exchange/${base}_${quote}`;
                 case 'kucoin':
-                    // KuCoin uses BTC-USDT format
-                    if (symbol.includes('-')) {
-                        // Already in correct format (e.g., ELF-USDT)
-                        formattedSymbol = symbol;
-                    } else {
-                        // Convert BTCUSDT to BTC-USDT
-                        formattedSymbol = symbol.replace('USDT', '-USDT');
-                    }
-                    break;
-                case 'coinbase':
-                    // Coinbase uses BTC-USD format
-                    formattedSymbol = symbol.replace('USDT', '-USD');
-                    break;
-                case 'kraken':
-                    // Kraken uses BTCUSD format
-                    formattedSymbol = symbol.replace('USDT', 'USD');
-                    break;
+                    return `https://www.kucoin.com/trade/${base}-${quote}`;
+                case 'gateio':
+                case 'gate.io':
+                    return `https://www.gate.io/trade/${base}_${quote}`;
+                default:
+                    return '';
             }
-            
-            return urlPattern.replace('{symbol}', formattedSymbol);
         }
 
         // Get profit badge class based on profit percentage
