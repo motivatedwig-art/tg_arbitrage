@@ -163,7 +163,11 @@ export class ArbitrageCalculator {
       const coinApiBuy = await this.coinApiService.getAssetMetadata(baseAsset);
       // Temporary: Log CoinAPI result for debug
       console.log(`[CoinAPI] Symbol: ${baseAsset}`, JSON.stringify(coinApiBuy));
-      const logoUrl = coinApiBuy ? this.coinApiService.getAssetIconUrl(coinApiBuy) : undefined;
+      let logoUrl = coinApiBuy ? this.coinApiService.getAssetIconUrl(coinApiBuy) : null;
+      if (!logoUrl) {
+        // Fallback to a generic icon CDN so UI always shows an icon
+        logoUrl = this.coinApiService.getFallbackIconUrl(baseAsset);
+      }
       console.log(`[LOGO_URL] Symbol: ${baseAsset}`, logoUrl);
       // Require CoinAPI asset match for canonical filtering
       if (!coinApiBuy) continue;

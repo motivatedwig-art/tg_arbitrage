@@ -25,7 +25,10 @@ interface CoinApiAssetMetadata {
   }
 }
 
-const COINAPI_KEY = process.env.COINAPI_KEY || (typeof window === 'undefined' ? undefined : (window as any).COINAPI_KEY);
+const COINAPI_KEY = process.env.COINAPI_KEY 
+  || process.env.VITE_COINAPI_KEY 
+  || (typeof window === 'undefined' ? undefined : (window as any).COINAPI_KEY);
+// Prefer CoinAPI icons, but provide a CDN fallback for most symbols
 const COINAPI_BASE = 'https://rest.coinapi.io/v1/';
 
 export class CoinApiService {
@@ -48,6 +51,10 @@ export class CoinApiService {
     if (this.assetCache.has(s)) return this.assetCache.get(s)!;
 
     try {
+      if (!COINAPI_KEY) {
+        console.warn('[CoinAPI] Missing API key. Skipping CoinAPI lookup for', s);
+        return null;
+      }
       const res = await axios.get(`${COINAPI_BASE}assets/${encodeURIComponent(s)}`, {
         headers: { 'X-CoinAPI-Key': COINAPI_KEY },
       });
@@ -58,15 +65,20 @@ export class CoinApiService {
       }
       return null;
     } catch (err) {
-      // Cache negative result?
+      // Quietly fail and allow fallback icon
       return null;
     }
   }
 
   getAssetIconUrl(asset: CoinApiAssetMetadata): string | null {
-    if (!asset.id_icon) return null;
-    // Compose icon URL
+    if (!asset?.id_icon) return null;
     return `${this.iconBase}${asset.id_icon.replace(/-/g, '')}.png`;
+  }
+
+  getFallbackIconUrl(symbol: string): string {
+    const s = (symbol || '').toLowerCase();
+    // CryptoIcons provides a generic icon for many tickers
+    return `https://cryptoicons.org/api/icon/${s}/64`;
   }
 
   async getPlatformTokenAddress(symbol: string): Promise<string | null> {
@@ -76,8 +88,6 @@ export class CoinApiService {
 
   async getExplorerUrl(symbol: string): Promise<string | null> {
     const meta = await this.getAssetMetadata(symbol);
-    // CoinAPI provides `platform`, so can build explorer link if chain known
-    // Example for EVM: https://etherscan.io/token/{token_address}
     if (!meta?.platform?.token_address || !meta.platform?.symbol) return null;
     const chain = meta.platform.symbol.toLowerCase();
     switch (chain) {
@@ -87,7 +97,6 @@ export class CoinApiService {
         return `https://bscscan.com/token/${meta.platform.token_address}`;
       case 'matic':
         return `https://polygonscan.com/token/${meta.platform.token_address}`;
-      // Add more chains as needed
       default:
         return null;
     }
