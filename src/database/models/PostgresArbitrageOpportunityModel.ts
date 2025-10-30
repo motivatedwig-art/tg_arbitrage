@@ -41,22 +41,42 @@ export class PostgresArbitrageOpportunityModel {
     const client = await this.db.getPool().connect();
     try {
       await client.query('BEGIN');
-      
       const sql = `
         INSERT INTO arbitrage_opportunities 
         (symbol, buy_exchange, sell_exchange, buy_price, sell_price, profit_percentage, profit_amount, volume, volume_24h, blockchain, timestamp)
         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
       `;
-      
+
+      let inserted = 0;
+      let skipped = 0;
       for (const opp of opportunities) {
         // Validate and sanitize data before inserting
         const sanitizedOpportunity = this.sanitizeOpportunity(opp);
-        
-        // Skip invalid opportunities
-        if (!this.isValidOpportunity(sanitizedOpportunity)) {
+
+        // Skip invalid/clamped opportunities
+        const max = 999999999999.99999999;
+        const vals = [
+          sanitizedOpportunity.buyPrice,
+          sanitizedOpportunity.sellPrice,
+          sanitizedOpportunity.profitAmount,
+          sanitizedOpportunity.volume,
+          sanitizedOpportunity.volume_24h
+        ];
+        const anyOver = vals.some(v => Math.abs(v ?? 0) > max);
+        if (anyOver) {
+          console.error(`[DB SKIP] Would overflow:`, JSON.stringify(sanitizedOpportunity));
+          skipped++;
           continue;
         }
-        
+        // Log all values about to be inserted
+        console.log(`[DB INSERT] Inserting:`, JSON.stringify({
+          buyPrice: sanitizedOpportunity.buyPrice,
+          sellPrice: sanitizedOpportunity.sellPrice,
+          profitAmount: sanitizedOpportunity.profitAmount,
+          volume: sanitizedOpportunity.volume,
+          volume_24h: sanitizedOpportunity.volume_24h,
+          symbol: sanitizedOpportunity.symbol
+        }));
         await client.query(sql, [
           sanitizedOpportunity.symbol,
           sanitizedOpportunity.buyExchange,
@@ -70,11 +90,11 @@ export class PostgresArbitrageOpportunityModel {
           sanitizedOpportunity.blockchain || 'ethereum',
           sanitizedOpportunity.timestamp
         ]);
+        inserted++;
       }
-      
+
       await client.query('COMMIT');
-      console.log(`💾 Stored ${opportunities.length} opportunities in PostgreSQL`);
-      
+      console.log(`💾 Stored ${inserted} opportunities in PostgreSQL (skipped ${skipped} invalid)`);
     } catch (error) {
       await client.query('ROLLBACK');
       console.error('❌ Failed to store opportunities in PostgreSQL:', error);
@@ -303,32 +323,29 @@ export class PostgresArbitrageOpportunityModel {
 
   private sanitizeOpportunity(opp: ArbitrageOpportunity): ArbitrageOpportunity {
     // DECIMAL(20,8) max value: 999,999,999,999.99999999 (must be < 10^12)
-    const MAX_DECIMAL_VALUE = 999999999999.99999999;
+    const MAX_DECIMAL = 999999999999.99999999;
+    const clamp = (v: number) => Math.min(MAX_DECIMAL, Math.max(-MAX_DECIMAL, isFinite(v) ? v : 0));
     
-    // Clamp values to prevent database overflow
-    const clampDecimal = (value: number): number => {
-      if (!Number.isFinite(value) || isNaN(value)) return 0;
-      if (value > MAX_DECIMAL_VALUE) {
-        console.warn(`⚠️ Clamping value ${value} to max ${MAX_DECIMAL_VALUE} (DECIMAL overflow)`);
-        return MAX_DECIMAL_VALUE;
+    const fields: Array<keyof ArbitrageOpportunity> = ['buyPrice', 'sellPrice', 'profitAmount', 'volume', 'volume_24h'];
+    for (const f of fields) {
+      const v = (opp as any)[f] ?? 0;
+      if (!isFinite(v)) {
+        console.warn(`[sanitize] ${f} not finite:`, v, opp);
       }
-      if (value < 0 && Math.abs(value) > MAX_DECIMAL_VALUE) {
-        console.warn(`⚠️ Clamping value ${value} to min -${MAX_DECIMAL_VALUE} (DECIMAL overflow)`);
-        return -MAX_DECIMAL_VALUE;
+      if (Math.abs(v) > MAX_DECIMAL) {
+        console.warn(`[sanitize] ${f} overflows DB:`, v, 'clamping to', clamp(v));
       }
-      return value;
-    };
-
+    }
     return {
       ...opp,
-      buyPrice: Math.max(clampDecimal(opp.buyPrice), 0.00000001), // Prevent zero prices
-      sellPrice: Math.max(clampDecimal(opp.sellPrice), 0.00000001), // Prevent zero prices
+      buyPrice: Math.max(clamp(opp.buyPrice), 0.00000001),
+      sellPrice: Math.max(clamp(opp.sellPrice), 0.00000001),
       profitPercentage: this.sanitizePercentage(opp.profitPercentage),
-      profitAmount: Math.max(clampDecimal(opp.profitAmount), 0),
-      volume: clampDecimal(Math.max(opp.volume || 0, 0)),
-      volume_24h: opp.volume_24h ? clampDecimal(Math.max(opp.volume_24h, 0)) : undefined,
-      blockchain: opp.blockchain, // Preserve blockchain field
-      timestamp: Date.now()
+      profitAmount: Math.max(clamp(opp.profitAmount), 0),
+      volume: clamp(Math.max(opp.volume || 0, 0)),
+      volume_24h: opp.volume_24h ? clamp(Math.max(opp.volume_24h, 0)) : undefined,
+      blockchain: opp.blockchain,
+      timestamp: opp.timestamp || Date.now(),
     };
   }
 
