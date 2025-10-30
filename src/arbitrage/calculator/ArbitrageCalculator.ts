@@ -154,18 +154,25 @@ export class ArbitrageCalculator {
     console.log(`   Too low profit (<${this.minProfitThreshold}%): ${lowProfitCount}`);
     console.log(`   ✅ Final opportunities: ${filteredOpportunities.length}`);
 
-// Now enrich only filtered opportunities with CoinAPI logo only
-const enrichedResults: ArbitrageOpportunity[] = [];
-for (const opp of filteredOpportunities) {
-  const coinApiRaw = await this.coinApiService.getAssetMetadata(opp.symbol);
-  enrichedResults.push({
-    ...opp,
-    logoUrl: (coinApiRaw && this.coinApiService.getAssetIconUrl(coinApiRaw)) || undefined
-  });
-}
-
-    // Sort by profit percentage (highest first)
-return enrichedResults.sort((a, b) => b.profitPercentage - a.profitPercentage);
+    // Patch: Use CoinAPI only with base asset symbol (left of slash)
+    // Group the filtered opportunities by base asset CoinAPI asset_id
+    const enrichedResults: ArbitrageOpportunity[] = [];
+    for (const opp of filteredOpportunities) {
+      // Use only base coin (not the trading pair)
+      const baseAsset = opp.symbol.split('/')[0];
+      // Get CoinAPI meta for both buy and sell exchanges base asset
+      const coinApiBuy = await this.coinApiService.getAssetMetadata(baseAsset);
+      const coinApiSell = await this.coinApiService.getAssetMetadata(baseAsset);
+      // Require CoinAPI asset match for both exchanges (very strict)
+      if (!coinApiBuy || !coinApiSell) continue;
+      if (coinApiBuy.asset_id !== coinApiSell.asset_id) continue;
+      // Only display logoUrl for matching canonical CoinAPI asset (if exists)
+      enrichedResults.push({
+        ...opp,
+        logoUrl: coinApiBuy ? this.coinApiService.getAssetIconUrl(coinApiBuy) : undefined
+      });
+    }
+    return enrichedResults.sort((a, b) => b.profitPercentage - a.profitPercentage);
   }
 
   private isMockData(allTickers: Map<string, Ticker[]>): boolean {
