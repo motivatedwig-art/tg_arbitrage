@@ -34,5 +34,7 @@ export interface ArbitrageOpportunity {
   profitability: 'high' | 'medium' | 'low';
   blockchain?: string;
   logoUrl?: string;
+  chainId?: string;
+  tokenAddress?: string;
 }
  

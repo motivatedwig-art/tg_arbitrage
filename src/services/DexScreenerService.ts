@@ -46,6 +46,35 @@ export class DexScreenerService {
     }
     return null;
   }
+
+  /**
+   * Fetch all candidate tokens for a symbol across chains (deduplicated by chainId+address)
+   */
+  public async resolveAllBySymbol(symbol: string): Promise<DexScreenerTokenInfo[]> {
+    const key = (symbol || '').toUpperCase();
+    const out: DexScreenerTokenInfo[] = [];
+    const seen = new Set<string>();
+    const queries = [`${key}/USDT`, `${key}/USDC`, `${key}/USD`];
+    for (const q of queries) {
+      try {
+        const res = await axios.get('https://api.dexscreener.com/latest/dex/search', { params: { q } });
+        const pairs: any[] = res.data?.pairs || [];
+        for (const p of pairs) {
+          const cid = p?.chainId;
+          const addr = p?.baseToken?.address;
+          const k = `${cid}:${addr}`;
+          if (!cid || !addr || seen.has(k)) continue;
+          seen.add(k);
+          out.push({
+            chainId: cid,
+            tokenAddress: addr,
+            imageUrl: p?.info?.imageUrl,
+          });
+        }
+      } catch {}
+    }
+    return out;
+  }
 }
 
 

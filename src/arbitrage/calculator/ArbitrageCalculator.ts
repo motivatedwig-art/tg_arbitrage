@@ -163,17 +163,72 @@ export class ArbitrageCalculator {
       const baseAsset = opp.symbol.split('/')[0];
       const coinApiBuy = await this.coinApiService.getAssetMetadata(baseAsset);
       console.log(`[CoinAPI] Symbol: ${baseAsset}`, JSON.stringify(coinApiBuy));
-      const logoUrl = await this.iconResolver.resolveIcon(baseAsset);
-      const dexInfo = await this.iconResolver.resolveTokenInfo(baseAsset);
-      console.log(`[LOGO_URL] Symbol: ${baseAsset}`, logoUrl);
-      enrichedResults.push({
-        ...opp,
-        logoUrl,
-        chainId: dexInfo?.chainId,
-        tokenAddress: dexInfo?.tokenAddress,
-      } as any);
+      const logoUrlDefault = await this.iconResolver.resolveIcon(baseAsset);
+
+      // Fetch all chain candidates for authenticity (contract-level) grouping
+      const candidates = await this.iconResolver.resolveTokenInfo(baseAsset)
+        .then(async (single) => {
+          if (single) return [single];
+          // Fallback to multi if single not returned (back-compat)
+          try {
+            const { DexScreenerService } = await import('../../services/DexScreenerService.js');
+            return await DexScreenerService.getInstance().resolveAllBySymbol(baseAsset);
+          } catch {
+            return [] as any[];
+          }
+        });
+
+      // If no candidates, emit a single opportunity with default icon
+      if (!candidates || candidates.length === 0) {
+        enrichedResults.push({ ...(opp as any), logoUrl: logoUrlDefault } as any);
+        continue;
+      }
+
+      // Expand one opportunity per chain/contract candidate
+      for (const c of candidates) {
+        const logoUrl = c?.imageUrl || logoUrlDefault;
+        // Map DS chainId to readable blockchain label (fallback to chainId)
+        const chainLabel = this.mapDexChainIdToBlockchain(c?.chainId);
+        enrichedResults.push({
+          ...(opp as any),
+          logoUrl,
+          chainId: c?.chainId,
+          tokenAddress: c?.tokenAddress,
+          blockchain: chainLabel,
+        } as any);
+      }
     }
     return enrichedResults.sort((a, b) => b.profitPercentage - a.profitPercentage);
+  }
+
+  private mapDexChainIdToBlockchain(chainId?: string): string | undefined {
+    if (!chainId) return undefined;
+    const id = chainId.toLowerCase();
+    switch (id) {
+      case 'ethereum':
+      case 'eth':
+        return 'ethereum';
+      case 'bsc':
+      case 'bnb':
+        return 'bsc';
+      case 'polygon':
+      case 'matic':
+        return 'polygon';
+      case 'arbitrum':
+        return 'arbitrum';
+      case 'optimism':
+        return 'optimism';
+      case 'base':
+        return 'base';
+      case 'solana':
+      case 'sol':
+        return 'solana';
+      case 'avalanche':
+      case 'avax':
+        return 'avalanche';
+      default:
+        return id;
+    }
   }
 
   private isMockData(allTickers: Map<string, Ticker[]>): boolean {
