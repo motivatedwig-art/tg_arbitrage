@@ -160,7 +160,7 @@ for (const opp of filteredOpportunities) {
   const coinApiRaw = await this.coinApiService.getAssetMetadata(opp.symbol);
   enrichedResults.push({
     ...opp,
-    logoUrl: coinApiRaw ? this.coinApiService.getAssetIconUrl(coinApiRaw) : undefined
+    logoUrl: (coinApiRaw && this.coinApiService.getAssetIconUrl(coinApiRaw)) || undefined
   });
 }
 

@@ -39,6 +39,7 @@ export interface ArbitrageOpportunity {
   volume_24h?: number;
   timestamp: number;
   blockchain?: string; // e.g., 'ethereum', 'bsc', 'polygon', 'arbitrum', 'optimism', 'solana', 'tron'
+  logoUrl?: string;
   fees?: {
     buyFee: number;
     sellFee: number;
