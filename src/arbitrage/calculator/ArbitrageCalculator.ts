@@ -3,7 +3,8 @@ import { TokenMetadataService } from '../../services/TokenMetadataService.js';
 import { ExchangeManager } from '../../exchanges/ExchangeManager.js';
 import { getTokenBlockchain } from '../../services/TokenMetadataDatabase.js';
 import { BlockchainAggregator } from '../../services/BlockchainAggregator.js';
-import { CoinApiService } from '../../services/CoinApiService';
+import { CoinApiService } from '../../services/CoinApiService.js';
+import { IconResolver } from '../../services/IconResolver.js';
 
 export class ArbitrageCalculator {
   private minProfitThreshold: number;
@@ -16,6 +17,7 @@ export class ArbitrageCalculator {
   private blockchainAggregator: BlockchainAggregator | null = null;
   private excludedBlockchains: Set<string> = new Set([]); // DISABLED: Blockchain filtering disabled due to inaccurate blockchain detection
   private coinApiService = CoinApiService.getInstance();
+  private iconResolver = IconResolver.getInstance();
 
   constructor(minProfitThreshold: number = 0.5, maxProfitThreshold: number = 50, minVolumeThreshold: number = 100) {
     this.minProfitThreshold = minProfitThreshold;
@@ -158,19 +160,11 @@ export class ArbitrageCalculator {
     // Group the filtered opportunities by base asset CoinAPI asset_id
     const enrichedResults: ArbitrageOpportunity[] = [];
     for (const opp of filteredOpportunities) {
-      // Use only base coin (not the trading pair)
       const baseAsset = opp.symbol.split('/')[0];
       const coinApiBuy = await this.coinApiService.getAssetMetadata(baseAsset);
-      // Temporary: Log CoinAPI result for debug
       console.log(`[CoinAPI] Symbol: ${baseAsset}`, JSON.stringify(coinApiBuy));
-      let logoUrl = coinApiBuy ? this.coinApiService.getAssetIconUrl(coinApiBuy) : null;
-      if (!logoUrl) {
-        // Fallback to a generic icon CDN so UI always shows an icon
-        logoUrl = this.coinApiService.getFallbackIconUrl(baseAsset);
-      }
+      const logoUrl = await this.iconResolver.resolveIcon(baseAsset);
       console.log(`[LOGO_URL] Symbol: ${baseAsset}`, logoUrl);
-      // Require CoinAPI asset match for canonical filtering
-      if (!coinApiBuy) continue;
       enrichedResults.push({
         ...opp,
         logoUrl
