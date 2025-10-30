@@ -178,6 +178,12 @@ export class ArbitrageCalculator {
           }
         });
 
+      // Debug: log resolved contracts per symbol
+      try {
+        const debugList = (candidates || []).map(c => `${c?.chainId || 'unknown'}:${c?.tokenAddress || 'n/a'}`).join(', ');
+        console.log(`[CHAIN_RESOLVE] ${baseAsset} -> [${debugList || 'none'}]`);
+      } catch {}
+
       // If no candidates, emit a single opportunity with default icon
       if (!candidates || candidates.length === 0) {
         enrichedResults.push({ ...(opp as any), logoUrl: logoUrlDefault } as any);
@@ -189,6 +195,7 @@ export class ArbitrageCalculator {
         const logoUrl = c?.imageUrl || logoUrlDefault;
         // Map DS chainId to readable blockchain label (fallback to chainId)
         const chainLabel = this.mapDexChainIdToBlockchain(c?.chainId);
+        console.log(`[OPP_ENRICH] ${baseAsset} | chain=${c?.chainId} | address=${c?.tokenAddress} | buy=${opp.buyExchange} | sell=${opp.sellExchange}`);
         enrichedResults.push({
           ...(opp as any),
           logoUrl,
