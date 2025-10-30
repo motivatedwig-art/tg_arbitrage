@@ -82,3 +82,4 @@ export function getProfitBadgeColors(profitPercentage: number): {
   return { bg: '#6b7280', text: '#ffffff' };
 }
 
+

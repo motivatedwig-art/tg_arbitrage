@@ -3,6 +3,7 @@ import { TokenMetadataService } from '../../services/TokenMetadataService.js';
 import { ExchangeManager } from '../../exchanges/ExchangeManager.js';
 import { getTokenBlockchain } from '../../services/TokenMetadataDatabase.js';
 import { BlockchainAggregator } from '../../services/BlockchainAggregator.js';
+import { CoinApiService } from '../../services/CoinApiService';
 
 export class ArbitrageCalculator {
   private minProfitThreshold: number;
@@ -14,6 +15,7 @@ export class ArbitrageCalculator {
   private exchangeManager: ExchangeManager;
   private blockchainAggregator: BlockchainAggregator | null = null;
   private excludedBlockchains: Set<string> = new Set([]); // DISABLED: Blockchain filtering disabled due to inaccurate blockchain detection
+  private coinApiService = CoinApiService.getInstance();
 
   constructor(minProfitThreshold: number = 0.5, maxProfitThreshold: number = 50, minVolumeThreshold: number = 100) {
     this.minProfitThreshold = minProfitThreshold;
@@ -152,8 +154,32 @@ export class ArbitrageCalculator {
     console.log(`   Too low profit (<${this.minProfitThreshold}%): ${lowProfitCount}`);
     console.log(`   ✅ Final opportunities: ${filteredOpportunities.length}`);
 
+    // Now enrich only filtered opportunities with CoinAPI metadata, minimizing API load
+    const enrichedResults: ArbitrageOpportunity[] = [];
+    for (const opp of filteredOpportunities) {
+      // Fetch metadata for buy and sell sides
+      const [buyMetaArr, sellMetaArr] = await Promise.all([
+        this.tokenMetadataService.getTokenMetadataWithCoinApi(opp.symbol),
+        this.tokenMetadataService.getTokenMetadataWithCoinApi(opp.symbol)
+      ]);
+      let contractAddress = null;
+      let explorerUrl = null;
+      let logoUrl = null;
+      if (buyMetaArr && buyMetaArr.length > 0) {
+        contractAddress = buyMetaArr[0].contractAddress || null;
+        explorerUrl = await this.coinApiService.getExplorerUrl(opp.symbol);
+        logoUrl = await this.coinApiService.getAssetIconUrl(buyMetaArr[0]);
+      }
+      enrichedResults.push({
+        ...opp,
+        contractAddress,
+        explorerUrl,
+        logoUrl
+      });
+    }
+
     // Sort by profit percentage (highest first)
-    return filteredOpportunities.sort((a, b) => b.profitPercentage - a.profitPercentage);
+    return enrichedResults.sort((a, b) => b.profitPercentage - a.profitPercentage);
   }
 
   private isMockData(allTickers: Map<string, Ticker[]>): boolean {

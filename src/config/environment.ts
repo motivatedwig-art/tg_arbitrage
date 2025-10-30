@@ -37,6 +37,9 @@ export interface EnvironmentConfig {
     kucoin: { key: string; secret: string; passphrase: string };
   };
   
+  // CoinAPI Key for Metadata Lookup
+  coinapiKey: string;
+  
   // Public API Endpoints
   publicApiEndpoints: {
     binance: {
@@ -157,6 +160,9 @@ export const config: EnvironmentConfig = {
       passphrase: getEnvVar('KUCOIN_PASSPHRASE', ''),
     },
   },
+
+  // CoinAPI Key for Metadata Lookup
+  coinapiKey: getEnvVar('COINAPI_KEY', getEnvVar('VITE_COINAPI_KEY', '')),
   
   // Public API Endpoints
   publicApiEndpoints: {

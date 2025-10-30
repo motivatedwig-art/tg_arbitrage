@@ -97,3 +97,4 @@ The UI is showing nothing (empty opportunities list) despite the backend API pot
 5. Ensure API response format matches frontend expectations
 6. Add user-visible error messages
 
+
