@@ -164,11 +164,14 @@ export class ArbitrageCalculator {
       const coinApiBuy = await this.coinApiService.getAssetMetadata(baseAsset);
       console.log(`[CoinAPI] Symbol: ${baseAsset}`, JSON.stringify(coinApiBuy));
       const logoUrl = await this.iconResolver.resolveIcon(baseAsset);
+      const dexInfo = await this.iconResolver.resolveTokenInfo(baseAsset);
       console.log(`[LOGO_URL] Symbol: ${baseAsset}`, logoUrl);
       enrichedResults.push({
         ...opp,
-        logoUrl
-      });
+        logoUrl,
+        chainId: dexInfo?.chainId,
+        tokenAddress: dexInfo?.tokenAddress,
+      } as any);
     }
     return enrichedResults.sort((a, b) => b.profitPercentage - a.profitPercentage);
   }

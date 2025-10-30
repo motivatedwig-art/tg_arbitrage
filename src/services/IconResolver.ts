@@ -1,9 +1,11 @@
 import axios from 'axios';
 import { CoinApiService } from './CoinApiService.js';
+import { DexScreenerService, DexScreenerTokenInfo } from './DexScreenerService.js';
 
 export class IconResolver {
   private static instance: IconResolver;
   private coinApi = CoinApiService.getInstance();
+  private dex = DexScreenerService.getInstance();
   private cache: Map<string, string> = new Map();
 
   public static getInstance(): IconResolver {
@@ -21,7 +23,16 @@ export class IconResolver {
     const key = (symbol || '').toUpperCase();
     if (this.cache.has(key)) return this.cache.get(key)!;
 
-    // 1) Try CoinAPI
+    // 0) DexScreener first
+    try {
+      const ds = await this.dex.resolveBySymbol(key);
+      if (ds?.imageUrl) {
+        this.cache.set(key, ds.imageUrl);
+        return ds.imageUrl;
+      }
+    } catch {}
+
+    // 1) CoinAPI
     try {
       const meta = await this.coinApi.getAssetMetadata(key);
       const coinApiIcon = meta ? this.coinApi.getAssetIconUrl(meta) : null;
@@ -31,13 +42,10 @@ export class IconResolver {
       }
     } catch {}
 
-    // 2) Try CoinGecko search by symbol
+    // 2) CoinGecko
     try {
-      const search = await axios.get('https://api.coingecko.com/api/v3/search', {
-        params: { query: key }
-      });
+      const search = await axios.get('https://api.coingecko.com/api/v3/search', { params: { query: key } });
       const coins: any[] = search.data?.coins || [];
-      // Prefer exact symbol match, then first result
       const match = coins.find(c => (c.symbol || '').toUpperCase() === key) || coins[0];
       if (match?.id) {
         const coin = await axios.get(`https://api.coingecko.com/api/v3/coins/${match.id}`, {
@@ -52,11 +60,16 @@ export class IconResolver {
       }
     } catch {}
 
-    // 3) Fallback generic icon
+    // 3) Fallback
     const fallback = this.coinApi.getFallbackIconUrl(key);
     this.cache.set(key, fallback);
     return fallback;
   }
+
+  public async resolveTokenInfo(symbol: string): Promise<DexScreenerTokenInfo | null> {
+    return await this.dex.resolveBySymbol(symbol);
+  }
 }
+
 
 
