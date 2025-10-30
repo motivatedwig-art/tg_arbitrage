@@ -154,32 +154,18 @@ export class ArbitrageCalculator {
     console.log(`   Too low profit (<${this.minProfitThreshold}%): ${lowProfitCount}`);
     console.log(`   ✅ Final opportunities: ${filteredOpportunities.length}`);
 
-    // Now enrich only filtered opportunities with CoinAPI metadata, minimizing API load
-    const enrichedResults: ArbitrageOpportunity[] = [];
-    for (const opp of filteredOpportunities) {
-      // Fetch metadata for buy and sell sides
-      const [buyMetaArr, sellMetaArr] = await Promise.all([
-        this.tokenMetadataService.getTokenMetadataWithCoinApi(opp.symbol),
-        this.tokenMetadataService.getTokenMetadataWithCoinApi(opp.symbol)
-      ]);
-      let contractAddress = null;
-      let explorerUrl = null;
-      let logoUrl = null;
-      if (buyMetaArr && buyMetaArr.length > 0) {
-        contractAddress = buyMetaArr[0].contractAddress || null;
-        explorerUrl = await this.coinApiService.getExplorerUrl(opp.symbol);
-        logoUrl = await this.coinApiService.getAssetIconUrl(buyMetaArr[0]);
-      }
-      enrichedResults.push({
-        ...opp,
-        contractAddress,
-        explorerUrl,
-        logoUrl
-      });
-    }
+// Now enrich only filtered opportunities with CoinAPI logo only
+const enrichedResults: ArbitrageOpportunity[] = [];
+for (const opp of filteredOpportunities) {
+  const coinApiRaw = await this.coinApiService.getAssetMetadata(opp.symbol);
+  enrichedResults.push({
+    ...opp,
+    logoUrl: coinApiRaw ? this.coinApiService.getAssetIconUrl(coinApiRaw) : undefined
+  });
+}
 
     // Sort by profit percentage (highest first)
-    return enrichedResults.sort((a, b) => b.profitPercentage - a.profitPercentage);
+return enrichedResults.sort((a, b) => b.profitPercentage - a.profitPercentage);
   }
 
   private isMockData(allTickers: Map<string, Ticker[]>): boolean {
