@@ -15,13 +15,16 @@ export class PostgresArbitrageOpportunityModel {
         symbol VARCHAR(20) NOT NULL,
         buy_exchange VARCHAR(50) NOT NULL,
         sell_exchange VARCHAR(50) NOT NULL,
-        buy_price DECIMAL(20,8) NOT NULL,
-        sell_price DECIMAL(20,8) NOT NULL,
-        profit_percentage DECIMAL(15,4) NOT NULL,
-        profit_amount DECIMAL(20,8) NOT NULL,
-        volume DECIMAL(20,8) NOT NULL DEFAULT 0,
-        volume_24h DECIMAL(20,8),
+        buy_price NUMERIC(38,18) NOT NULL,
+        sell_price NUMERIC(38,18) NOT NULL,
+        profit_percentage NUMERIC(18,8) NOT NULL,
+        profit_amount NUMERIC(38,18) NOT NULL,
+        volume NUMERIC(38,18) NOT NULL DEFAULT 0,
+        volume_24h NUMERIC(38,18),
         blockchain VARCHAR(50),
+        chain_id VARCHAR(50),
+        token_address VARCHAR(120),
+        logo_url TEXT,
         timestamp BIGINT NOT NULL,
         created_at TIMESTAMP DEFAULT NOW()
       );
@@ -44,8 +47,8 @@ export class PostgresArbitrageOpportunityModel {
       
       const sql = `
         INSERT INTO arbitrage_opportunities 
-        (symbol, buy_exchange, sell_exchange, buy_price, sell_price, profit_percentage, profit_amount, volume, volume_24h, blockchain, timestamp)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+        (symbol, buy_exchange, sell_exchange, buy_price, sell_price, profit_percentage, profit_amount, volume, volume_24h, blockchain, chain_id, token_address, logo_url, timestamp)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
       `;
       
       for (const opp of opportunities) {
@@ -68,6 +71,9 @@ export class PostgresArbitrageOpportunityModel {
           sanitizedOpportunity.volume,
           sanitizedOpportunity.volume_24h || sanitizedOpportunity.volume,
           sanitizedOpportunity.blockchain || 'ethereum',
+          (sanitizedOpportunity as any).chainId || null,
+          (sanitizedOpportunity as any).tokenAddress || null,
+          sanitizedOpportunity.logoUrl || null,
           sanitizedOpportunity.timestamp
         ]);
       }
