@@ -35,6 +35,28 @@ export class PostgresArbitrageOpportunityModel {
     `;
     
     await this.db.query(sql);
+    
+    // Attempt to migrate existing columns to wider precision and add new columns if missing
+    try {
+      await this.db.query(`
+        DO $$ BEGIN
+          -- Widen numeric precisions if columns exist with narrower types
+          BEGIN ALTER TABLE arbitrage_opportunities ALTER COLUMN buy_price TYPE NUMERIC(38,18) USING buy_price::NUMERIC; EXCEPTION WHEN others THEN END;
+          BEGIN ALTER TABLE arbitrage_opportunities ALTER COLUMN sell_price TYPE NUMERIC(38,18) USING sell_price::NUMERIC; EXCEPTION WHEN others THEN END;
+          BEGIN ALTER TABLE arbitrage_opportunities ALTER COLUMN profit_amount TYPE NUMERIC(38,18) USING profit_amount::NUMERIC; EXCEPTION WHEN others THEN END;
+          BEGIN ALTER TABLE arbitrage_opportunities ALTER COLUMN volume TYPE NUMERIC(38,18) USING volume::NUMERIC; EXCEPTION WHEN others THEN END;
+          BEGIN ALTER TABLE arbitrage_opportunities ALTER COLUMN volume_24h TYPE NUMERIC(38,18) USING volume_24h::NUMERIC; EXCEPTION WHEN others THEN END;
+          BEGIN ALTER TABLE arbitrage_opportunities ALTER COLUMN profit_percentage TYPE NUMERIC(18,8) USING profit_percentage::NUMERIC; EXCEPTION WHEN others THEN END;
+          -- Add new metadata columns if they don't exist
+          BEGIN ALTER TABLE arbitrage_opportunities ADD COLUMN IF NOT EXISTS chain_id VARCHAR(50); EXCEPTION WHEN others THEN END;
+          BEGIN ALTER TABLE arbitrage_opportunities ADD COLUMN IF NOT EXISTS token_address VARCHAR(120); EXCEPTION WHEN others THEN END;
+          BEGIN ALTER TABLE arbitrage_opportunities ADD COLUMN IF NOT EXISTS logo_url TEXT; EXCEPTION WHEN others THEN END;
+        END $$;
+      `);
+      console.log('🔧 PostgreSQL arbitrage_opportunities schema migrated (numeric widths + metadata cols)');
+    } catch (e) {
+      console.warn('⚠️ Schema migration step skipped/failed:', e);
+    }
     console.log('PostgreSQL arbitrage_opportunities table created/verified');
   }
 
