@@ -100,7 +100,10 @@ export class ArbitrageCalculator {
     let symbolsProcessed = 0;
     let symbolsSkipped = 0;
     
-    for (const [symbol, tickers] of symbolGroups) {
+    for (const [uniqueKey, tickers] of symbolGroups) {
+      // Extract base symbol from unique key (format: SYMBOL|blockchain|contractAddress)
+      const baseSymbol = uniqueKey.split('|')[0];
+      
       // No pre-filtering - let the transfer availability check handle blockchain compatibility
       // This allows us to find more opportunities and only filter when we definitively know transfer won't work
       
@@ -110,7 +113,9 @@ export class ArbitrageCalculator {
       }
       
       symbolsProcessed++;
-      const symbolOpportunities = await this.findArbitrageForSymbol(symbol, tickers);
+      // Use the original symbol from first ticker for display purposes
+      const displaySymbol = tickers[0].symbol;
+      const symbolOpportunities = await this.findArbitrageForSymbol(displaySymbol, tickers);
       
       // Filter out opportunities on excluded blockchains AFTER they're calculated
       // Only filter if blockchain is EXPLICITLY set (not defaulted)
@@ -125,7 +130,12 @@ export class ArbitrageCalculator {
       });
       
       if (filteredOpportunities.length > 0) {
-        console.log(`   ✅ ${symbol}: Found ${filteredOpportunities.length} opportunities across ${tickers.length} exchanges`);
+        // Extract contract/blockchain info for logging
+        const contracts = [...new Set(tickers.map(t => t.contractAddress).filter(Boolean))];
+        const chains = [...new Set(tickers.map(t => t.blockchain).filter(Boolean))];
+        const contractInfo = contracts.length > 0 ? ` | contracts=${contracts.length}` : '';
+        const chainInfo = chains.length > 0 ? ` | chains=${chains.join(',')}` : '';
+        console.log(`   ✅ ${baseSymbol}: Found ${filteredOpportunities.length} opportunities across ${tickers.length} exchanges${chainInfo}${contractInfo}`);
       }
       
       opportunities.push(...filteredOpportunities);
@@ -195,7 +205,8 @@ export class ArbitrageCalculator {
         const logoUrl = c?.imageUrl || logoUrlDefault;
         // Map DS chainId to readable blockchain label (fallback to chainId)
         const chainLabel = this.mapDexChainIdToBlockchain(c?.chainId);
-        console.log(`[OPP_ENRICH] ${baseAsset} | chain=${c?.chainId} | address=${c?.tokenAddress} | buy=${opp.buyExchange} | sell=${opp.sellExchange}`);
+        const contractDisplay = c?.tokenAddress ? c.tokenAddress.substring(0, 10) + '...' : 'none';
+        console.log(`[OPP_ENRICH] ${baseAsset} | chain=${c?.chainId || 'unknown'} | contract=${contractDisplay} | buy=${opp.buyExchange} | sell=${opp.sellExchange} | profit=${opp.profitPercentage.toFixed(2)}%`);
         enrichedResults.push({
           ...(opp as any),
           logoUrl,
@@ -311,15 +322,52 @@ export class ArbitrageCalculator {
     return compatibleTickers;
   }
 
+  /**
+   * Create a unique key for a ticker based on symbol, blockchain, and contract address
+   * This ensures we only compare tickers that represent the same asset
+   */
+  private createTickerKey(ticker: Ticker): string {
+    const baseSymbol = ticker.symbol.split('/')[0].toUpperCase();
+    const blockchain = ticker.blockchain?.toLowerCase() || 'unknown';
+    const contractAddress = ticker.contractAddress?.toLowerCase() || '';
+    
+    // Create unique key: symbol|blockchain|contractAddress
+    // If contract address exists, use it; otherwise use blockchain
+    if (contractAddress) {
+      return `${baseSymbol}|${blockchain}|${contractAddress}`;
+    }
+    // For native tokens or tokens without contract address, use symbol + blockchain
+    return `${baseSymbol}|${blockchain}|native`;
+  }
+
   private groupTickersBySymbol(allTickers: Map<string, Ticker[]>): Map<string, Ticker[]> {
     const symbolGroups = new Map<string, Ticker[]>();
 
     for (const tickers of allTickers.values()) {
       for (const ticker of tickers) {
-        if (!symbolGroups.has(ticker.symbol)) {
-          symbolGroups.set(ticker.symbol, []);
+        // Use unique key that includes blockchain and contract address
+        const uniqueKey = this.createTickerKey(ticker);
+        
+        if (!symbolGroups.has(uniqueKey)) {
+          symbolGroups.set(uniqueKey, []);
         }
-        symbolGroups.get(ticker.symbol)!.push(ticker);
+        symbolGroups.get(uniqueKey)!.push(ticker);
+      }
+    }
+
+    // Log contract ID information for debugging
+    console.log(`📋 Grouped tickers by unique asset keys:`);
+    for (const [key, tickers] of symbolGroups.entries()) {
+      if (tickers.length > 1) {
+        const [blockchain, contract] = key.split('|').slice(1);
+        const contractDisplay = contract && contract !== 'native' ? contract.substring(0, 10) + '...' : 'native';
+        console.log(`   ${key.split('|')[0]}: ${tickers.length} tickers | blockchain=${blockchain} | contract=${contractDisplay}`);
+        // Log contract addresses for each ticker in this group
+        tickers.forEach(t => {
+          const contractInfo = t.contractAddress ? `contract=${t.contractAddress.substring(0, 10)}...` : 'no contract';
+          const chainInfo = t.blockchain ? `chain=${t.blockchain}` : 'no chain';
+          console.log(`      - ${t.exchange}: ${chainInfo} | ${contractInfo}`);
+        });
       }
     }
 
@@ -348,11 +396,69 @@ export class ArbitrageCalculator {
     return results.filter((opp): opp is ArbitrageOpportunity => opp !== null);
   }
 
+  /**
+   * Verify that two tickers represent the same asset (same contract or same native token on same chain)
+   */
+  private areSameAsset(ticker1: Ticker, ticker2: Ticker): boolean {
+    const baseSymbol1 = ticker1.symbol.split('/')[0].toUpperCase();
+    const baseSymbol2 = ticker2.symbol.split('/')[0].toUpperCase();
+    
+    // Symbols must match
+    if (baseSymbol1 !== baseSymbol2) {
+      return false;
+    }
+
+    const blockchain1 = ticker1.blockchain?.toLowerCase();
+    const blockchain2 = ticker2.blockchain?.toLowerCase();
+    const contract1 = ticker1.contractAddress?.toLowerCase();
+    const contract2 = ticker2.contractAddress?.toLowerCase();
+
+    // If both have contract addresses, they must match exactly
+    if (contract1 && contract2) {
+      if (contract1 !== contract2) {
+        console.log(`   ⚠️ [CONTRACT_MISMATCH] ${baseSymbol1}: ${ticker1.exchange} (${contract1.substring(0, 10)}...) vs ${ticker2.exchange} (${contract2.substring(0, 10)}...) - Different contracts, skipping`);
+        return false;
+      }
+      // Same contract address = same asset
+      return true;
+    }
+
+    // If both have blockchain info, they must match
+    if (blockchain1 && blockchain2) {
+      if (blockchain1 !== blockchain2) {
+        console.log(`   ⚠️ [BLOCKCHAIN_MISMATCH] ${baseSymbol1}: ${ticker1.exchange} (${blockchain1}) vs ${ticker2.exchange} (${blockchain2}) - Different blockchains, skipping`);
+        return false;
+      }
+      // Same blockchain + symbol = likely same asset (if both native tokens or both have no contract)
+      return true;
+    }
+
+    // If one has contract/blockchain and other doesn't, be conservative - assume different
+    if ((blockchain1 || contract1) && !(blockchain2 || contract2)) {
+      console.log(`   ⚠️ [INFO_MISMATCH] ${baseSymbol1}: ${ticker1.exchange} has blockchain info but ${ticker2.exchange} doesn't - skipping for safety`);
+      return false;
+    }
+    if ((blockchain2 || contract2) && !(blockchain1 || contract1)) {
+      console.log(`   ⚠️ [INFO_MISMATCH] ${baseSymbol2}: ${ticker2.exchange} has blockchain info but ${ticker1.exchange} doesn't - skipping for safety`);
+      return false;
+    }
+
+    // Both lack blockchain/contract info - assume same if symbol matches (legacy behavior)
+    // This is less safe but maintains backward compatibility
+    console.log(`   ⚠️ [LEGACY_MATCH] ${baseSymbol1}: Both tickers lack contract/blockchain info - assuming same asset (less safe)`);
+    return true;
+  }
+
   private async calculateOpportunity(
     symbol: string, 
     buyTicker: Ticker, 
     sellTicker: Ticker
   ): Promise<ArbitrageOpportunity | null> {
+    // CRITICAL: Verify buy and sell are the same asset before calculating opportunity
+    if (!this.areSameAsset(buyTicker, sellTicker)) {
+      return null;
+    }
+
     const buyPrice = buyTicker.ask; // Price to buy (ask price)
     const sellPrice = sellTicker.bid; // Price to sell (bid price)
 
@@ -360,6 +466,13 @@ export class ArbitrageCalculator {
 
     // Extract currency from symbol (e.g., "BTC/USDT" -> "BTC")
     const currency = symbol.split('/')[0];
+
+    // Log contract IDs for this opportunity
+    const buyContract = buyTicker.contractAddress ? buyTicker.contractAddress.substring(0, 10) + '...' : 'native/no-contract';
+    const sellContract = sellTicker.contractAddress ? sellTicker.contractAddress.substring(0, 10) + '...' : 'native/no-contract';
+    const buyChain = buyTicker.blockchain || 'unknown';
+    const sellChain = sellTicker.blockchain || 'unknown';
+    console.log(`   ✅ [OPP] ${symbol}: ${buyTicker.exchange} (${buyChain}, ${buyContract}) → ${sellTicker.exchange} (${sellChain}, ${sellContract})`);
 
     // TRANSFER CHECK DISABLED - Finding all opportunities regardless of network compatibility
     // This allows us to identify ALL price discrepancies
