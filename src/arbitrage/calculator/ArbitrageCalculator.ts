@@ -94,14 +94,19 @@ export class ArbitrageCalculator {
     // CRITICAL: Enrich tickers with blockchain/contract info BEFORE grouping
     // This ensures contract ID matching works properly
     console.log('🔍 Enriching tickers with blockchain/contract information...');
+    console.log(`   📥 Input: ${allTickers.size} exchanges, ${totalTickers} total tickers`);
     let enrichedTickers: Map<string, Ticker[]>;
     try {
+      console.log('   🚀 Calling enrichTickersWithBlockchainInfo...');
       enrichedTickers = await this.enrichTickersWithBlockchainInfo(allTickers);
       console.log(`   ✅ Enrichment completed: ${enrichedTickers.size} exchanges processed`);
+      console.log(`   📤 Output: ${Array.from(enrichedTickers.values()).reduce((sum, tickers) => sum + tickers.length, 0)} total tickers after enrichment`);
     } catch (error) {
       console.error('❌ Error during ticker enrichment:', error);
+      console.error('   Stack:', error instanceof Error ? error.stack : 'No stack trace');
       // Fall back to original tickers if enrichment fails
       enrichedTickers = allTickers;
+      console.log('   ⚠️ Using original tickers as fallback');
     }
     
     const opportunities: ArbitrageOpportunity[] = [];
@@ -268,6 +273,8 @@ export class ArbitrageCalculator {
    * Uses DexScreener to get contract addresses for accurate matching
    */
   private async enrichTickersWithBlockchainInfo(allTickers: Map<string, Ticker[]>): Promise<Map<string, Ticker[]>> {
+    console.log(`   [ENRICH] Method called with ${allTickers.size} exchanges`);
+    
     const enriched = new Map<string, Ticker[]>();
     let enrichedCount = 0;
     let contractEnrichedCount = 0;
