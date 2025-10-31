@@ -330,31 +330,33 @@ export class PostgresArbitrageOpportunityModel {
   }
 
   private sanitizeOpportunity(opp: ArbitrageOpportunity): ArbitrageOpportunity {
-    // DECIMAL(20,8) max value: 999,999,999,999.99999999 (must be < 10^12)
-    const MAX_DECIMAL_VALUE = 999999999999.99999999;
+    // NUMERIC(20,8) max absolute value: must be < 10^12 (1,000,000,000,000)
+    // Using a safe limit well below the threshold to prevent overflow
+    const MAX_NUMERIC_20_8 = 999999999999.99999999; // Max safe value for NUMERIC(20,8)
+    
+    // NUMERIC(18,8) max absolute value: must be < 10^10 (10,000,000,000)
+    const MAX_NUMERIC_18_8 = 9999999999.99999999; // Max safe value for NUMERIC(18,8)
     
     // Clamp values to prevent database overflow
-    const clampDecimal = (value: number): number => {
+    const clampDecimal = (value: number, maxValue: number = MAX_NUMERIC_20_8): number => {
       if (!Number.isFinite(value) || isNaN(value)) return 0;
-      if (value > MAX_DECIMAL_VALUE) {
-        console.warn(`⚠️ Clamping value ${value} to max ${MAX_DECIMAL_VALUE} (DECIMAL overflow)`);
-        return MAX_DECIMAL_VALUE;
-      }
-      if (value < 0 && Math.abs(value) > MAX_DECIMAL_VALUE) {
-        console.warn(`⚠️ Clamping value ${value} to min -${MAX_DECIMAL_VALUE} (DECIMAL overflow)`);
-        return -MAX_DECIMAL_VALUE;
+      const absValue = Math.abs(value);
+      if (absValue >= maxValue) {
+        const clamped = value > 0 ? maxValue - 0.00000001 : -(maxValue - 0.00000001);
+        console.warn(`⚠️ Clamping value ${value} to ${clamped} (NUMERIC overflow prevention)`);
+        return clamped;
       }
       return value;
     };
 
     return {
       ...opp,
-      buyPrice: Math.max(clampDecimal(opp.buyPrice), 0.00000001), // Prevent zero prices
-      sellPrice: Math.max(clampDecimal(opp.sellPrice), 0.00000001), // Prevent zero prices
+      buyPrice: Math.max(clampDecimal(opp.buyPrice, MAX_NUMERIC_20_8), 0.00000001), // Prevent zero prices
+      sellPrice: Math.max(clampDecimal(opp.sellPrice, MAX_NUMERIC_20_8), 0.00000001), // Prevent zero prices
       profitPercentage: this.sanitizePercentage(opp.profitPercentage),
-      profitAmount: Math.max(clampDecimal(opp.profitAmount), 0),
-      volume: clampDecimal(Math.max(opp.volume || 0, 0)),
-      volume_24h: opp.volume_24h ? clampDecimal(Math.max(opp.volume_24h, 0)) : undefined,
+      profitAmount: Math.max(clampDecimal(opp.profitAmount, MAX_NUMERIC_20_8), 0),
+      volume: clampDecimal(Math.max(opp.volume || 0, 0), MAX_NUMERIC_20_8),
+      volume_24h: opp.volume_24h ? clampDecimal(Math.max(opp.volume_24h, 0), MAX_NUMERIC_20_8) : undefined,
       blockchain: opp.blockchain, // Preserve blockchain field
       timestamp: Date.now()
     };
@@ -367,32 +369,47 @@ export class PostgresArbitrageOpportunityModel {
       return 0;
     }
     
+    // NUMERIC(18,8) max absolute value: must be < 10^10 (10,000,000,000)
+    // Using a safe limit well below the threshold
+    const MAX_PERCENTAGE = 9999999999.99999999; // Max safe value for NUMERIC(18,8)
+    
     // Cap extreme percentages to prevent database overflow
-    // DECIMAL(15,4) can hold up to 999,999,999,999.9999
-    if (percentage > 999999999999) { // Max safe value for DECIMAL(15,4)
-      console.warn(`⚠️ Profit percentage too high: ${percentage}%, capping to 999999999999%`);
-      return 999999999999;
+    if (percentage >= MAX_PERCENTAGE) {
+      const clamped = MAX_PERCENTAGE - 0.00000001;
+      console.warn(`⚠️ Profit percentage too high: ${percentage}%, capping to ${clamped}%`);
+      return clamped;
     }
     
-    if (percentage < -999999999999) { // Min safe value for DECIMAL(15,4)
-      console.warn(`⚠️ Profit percentage too low: ${percentage}%, capping to -999999999999%`);
-      return -999999999999;
+    if (percentage <= -MAX_PERCENTAGE) {
+      const clamped = -(MAX_PERCENTAGE - 0.00000001);
+      console.warn(`⚠️ Profit percentage too low: ${percentage}%, capping to ${clamped}%`);
+      return clamped;
     }
     
-    return Math.round(percentage * 10000) / 10000; // Round to 4 decimal places
+    return Math.round(percentage * 100000000) / 100000000; // Round to 8 decimal places to match NUMERIC(18,8)
   }
 
   private isValidOpportunity(opp: ArbitrageOpportunity): boolean {
+    const MAX_PERCENTAGE = 9999999999.99999999; // NUMERIC(18,8) safe limit
+    const MAX_NUMERIC = 999999999999.99999999; // NUMERIC(20,8) safe limit
+    
     return (
       opp.symbol && 
       opp.buyExchange && 
       opp.sellExchange &&
       opp.buyPrice > 0 && 
+      opp.buyPrice < MAX_NUMERIC &&
       opp.sellPrice > 0 &&
+      opp.sellPrice < MAX_NUMERIC &&
       isFinite(opp.profitPercentage) &&
       !isNaN(opp.profitPercentage) &&
-      opp.profitPercentage >= -999999999999 && // Reasonable lower bound
-      opp.profitPercentage <= 999999999999 && // Cap at safe DECIMAL(15,4) limit
+      opp.profitPercentage >= -MAX_PERCENTAGE &&
+      opp.profitPercentage <= MAX_PERCENTAGE &&
+      isFinite(opp.profitAmount) &&
+      opp.profitAmount >= 0 &&
+      opp.profitAmount < MAX_NUMERIC &&
+      (!opp.volume || (opp.volume >= 0 && opp.volume < MAX_NUMERIC)) &&
+      (!opp.volume_24h || (opp.volume_24h >= 0 && opp.volume_24h < MAX_NUMERIC)) &&
       opp.timestamp > 0
     );
   }
