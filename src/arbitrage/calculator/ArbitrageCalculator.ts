@@ -93,6 +93,7 @@ export class ArbitrageCalculator {
     
     // CRITICAL: Enrich tickers with blockchain/contract info BEFORE grouping
     // This ensures contract ID matching works properly
+    console.log('🔍 [BEFORE ENRICHMENT] About to enrich tickers...');
     console.log('🔍 Enriching tickers with blockchain/contract information...');
     console.log(`   📥 Input: ${allTickers.size} exchanges, ${totalTickers} total tickers`);
     let enrichedTickers: Map<string, Ticker[]>;
