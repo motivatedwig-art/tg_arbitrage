@@ -94,7 +94,15 @@ export class ArbitrageCalculator {
     // CRITICAL: Enrich tickers with blockchain/contract info BEFORE grouping
     // This ensures contract ID matching works properly
     console.log('🔍 Enriching tickers with blockchain/contract information...');
-    const enrichedTickers = await this.enrichTickersWithBlockchainInfo(allTickers);
+    let enrichedTickers: Map<string, Ticker[]>;
+    try {
+      enrichedTickers = await this.enrichTickersWithBlockchainInfo(allTickers);
+      console.log(`   ✅ Enrichment completed: ${enrichedTickers.size} exchanges processed`);
+    } catch (error) {
+      console.error('❌ Error during ticker enrichment:', error);
+      // Fall back to original tickers if enrichment fails
+      enrichedTickers = allTickers;
+    }
     
     const opportunities: ArbitrageOpportunity[] = [];
     
@@ -257,101 +265,27 @@ export class ArbitrageCalculator {
   /**
    * Enrich tickers with blockchain and contract address information
    * This ensures contract ID matching works properly
-   * Optimized: Groups by symbol to avoid duplicate API calls
+   * FAST: Uses pattern-based detection and database lookups (no slow API calls)
    */
   private async enrichTickersWithBlockchainInfo(allTickers: Map<string, Ticker[]>): Promise<Map<string, Ticker[]>> {
     const enriched = new Map<string, Ticker[]>();
     let enrichedCount = 0;
     let unchangedCount = 0;
+    let totalTickers = 0;
 
-    // Group all unique symbols that need enrichment
-    const symbolsToEnrich = new Set<string>();
+    // Count total tickers for logging
     for (const tickers of allTickers.values()) {
-      for (const ticker of tickers) {
-        if (!ticker.blockchain || !ticker.contractAddress) {
-          symbolsToEnrich.add(ticker.symbol.split('/')[0].toUpperCase());
-        }
-      }
+      totalTickers += tickers.length;
     }
-
-    // Batch enrich symbols (limit to avoid too many API calls)
-    const enrichmentCache = new Map<string, { blockchain?: string; contractAddress?: string }>();
-    const symbolsArray = Array.from(symbolsToEnrich).slice(0, 500); // Limit to 500 symbols max
     
-    if (symbolsArray.length > 0) {
-      console.log(`   🔍 Enriching ${symbolsArray.length} unique symbols...`);
-      
-      // Batch process symbols for enrichment
-      for (const baseSymbol of symbolsArray) {
-        try {
-          // Try BlockchainAggregator first
-          let blockchain: string | undefined;
-          if (this.blockchainAggregator) {
-            try {
-              blockchain = await this.blockchainAggregator.getBlockchainForToken(`${baseSymbol}/USDT`) || undefined;
-            } catch (error) {
-              // Fall through
-            }
-          }
+    console.log(`   🔍 Processing ${totalTickers} tickers across ${allTickers.size} exchanges...`);
 
-          // If still no blockchain, use database/pattern detection
-          if (!blockchain) {
-            const symbolWithQuote = `${baseSymbol}/USDT`;
-            const blockchainFromDb = getTokenBlockchain(symbolWithQuote);
-            if (blockchainFromDb) {
-              blockchain = blockchainFromDb;
-            } else {
-              // Pattern-based detection
-              const cleanSymbol = baseSymbol
-                .replace(/[\/\-_]/g, '')
-                .replace(/USDT$|USDC$|BTC$|ETH$|BNB$|USD$|EUR$/i, '')
-                .toUpperCase();
-              
-              if (cleanSymbol === 'SOL' || cleanSymbol.includes('WSOL')) blockchain = 'solana';
-              else if (cleanSymbol === 'TRX' || cleanSymbol.includes('TRON')) blockchain = 'tron';
-              else if (cleanSymbol === 'BNB' || cleanSymbol.includes('WBNB')) blockchain = 'bsc';
-              else if (cleanSymbol === 'MATIC' || cleanSymbol.includes('WMATIC')) blockchain = 'polygon';
-              else if (cleanSymbol === 'ARB' && !cleanSymbol.includes('BARB')) blockchain = 'arbitrum';
-              else if (cleanSymbol === 'OP' && cleanSymbol.length <= 8) blockchain = 'optimism';
-              else if (cleanSymbol === 'AVAX' || cleanSymbol.includes('WAVAX')) blockchain = 'avalanche';
-              else if (cleanSymbol === 'BTC') blockchain = 'bitcoin';
-              else if (cleanSymbol === 'ETH') blockchain = 'ethereum';
-              else blockchain = 'ethereum'; // Default
-            }
-          }
-
-          // Try to get contract address if we have blockchain
-          let contractAddress: string | undefined;
-          if (blockchain) {
-            try {
-              const { DexScreenerService } = await import('../../services/DexScreenerService.js');
-              const dexInfo = await DexScreenerService.getInstance().resolveBySymbol(baseSymbol);
-              if (dexInfo?.tokenAddress) {
-                const dexChain = this.mapDexChainIdToBlockchain(dexInfo.chainId);
-                if (dexChain === blockchain) {
-                  contractAddress = dexInfo.tokenAddress;
-                }
-              }
-            } catch (error) {
-              // Fall through
-            }
-          }
-
-          if (blockchain) {
-            enrichmentCache.set(baseSymbol, { blockchain, contractAddress });
-          }
-        } catch (error) {
-          // Skip this symbol if enrichment fails
-        }
-      }
-    }
-
-    // Apply enrichment to tickers
+    // Process each exchange's tickers
     for (const [exchange, tickers] of allTickers.entries()) {
       const enrichedTickers: Ticker[] = [];
 
       for (const ticker of tickers) {
-        // If ticker already has blockchain and contract info, keep it
+        // If ticker already has blockchain info, keep it but may still need contract address
         if (ticker.blockchain && ticker.contractAddress) {
           enrichedTickers.push(ticker);
           unchangedCount++;
@@ -359,15 +293,44 @@ export class ArbitrageCalculator {
         }
 
         const baseSymbol = ticker.symbol.split('/')[0].toUpperCase();
-        const enrichment = enrichmentCache.get(baseSymbol);
+        let blockchain = ticker.blockchain;
+        let contractAddress = ticker.contractAddress;
 
-        let blockchain = ticker.blockchain || enrichment?.blockchain;
-        let contractAddress = ticker.contractAddress || enrichment?.contractAddress;
+        // Fast pattern-based blockchain detection (no API calls)
+        if (!blockchain) {
+          const symbolWithQuote = ticker.symbol;
+          const blockchainFromDb = getTokenBlockchain(symbolWithQuote);
+          
+          if (blockchainFromDb) {
+            blockchain = blockchainFromDb;
+          } else {
+            // Pattern-based detection (fast, no API calls)
+            const cleanSymbol = baseSymbol
+              .replace(/[\/\-_]/g, '')
+              .replace(/USDT$|USDC$|BTC$|ETH$|BNB$|USD$|EUR$/i, '')
+              .toUpperCase();
+            
+            if (cleanSymbol === 'SOL' || cleanSymbol.includes('WSOL')) blockchain = 'solana';
+            else if (cleanSymbol === 'TRX' || cleanSymbol.includes('TRON')) blockchain = 'tron';
+            else if (cleanSymbol === 'BNB' || cleanSymbol.includes('WBNB')) blockchain = 'bsc';
+            else if (cleanSymbol === 'MATIC' || cleanSymbol.includes('WMATIC')) blockchain = 'polygon';
+            else if (cleanSymbol === 'ARB' && !cleanSymbol.includes('BARB')) blockchain = 'arbitrum';
+            else if (cleanSymbol === 'OP' && cleanSymbol.length <= 8) blockchain = 'optimism';
+            else if (cleanSymbol === 'AVAX' || cleanSymbol.includes('WAVAX')) blockchain = 'avalanche';
+            else if (cleanSymbol === 'BTC') blockchain = 'bitcoin';
+            else if (cleanSymbol === 'ETH') blockchain = 'ethereum';
+            else blockchain = 'ethereum'; // Default for ERC-20 tokens
+          }
+        }
+
+        // Only try to get contract address if we have blockchain but no contract
+        // Skip DexScreener API calls for speed - we'll match by blockchain + symbol instead
+        // Contract addresses can be fetched later during enrichment phase if needed
 
         // Log if we enriched this ticker
         if (blockchain && blockchain !== ticker.blockchain) {
           enrichedCount++;
-          if (enrichedCount <= 10) { // Log first 10 for debugging
+          if (enrichedCount <= 20) { // Log first 20 for debugging
             const contractInfo = contractAddress ? ` | contract=${contractAddress.substring(0, 10)}...` : '';
             console.log(`   📍 [${exchange}] ${ticker.symbol}: ${blockchain}${contractInfo}`);
           }
@@ -384,9 +347,9 @@ export class ArbitrageCalculator {
     }
 
     if (enrichedCount > 0) {
-      console.log(`   ✅ Enriched ${enrichedCount} tickers with blockchain/contract info (${unchangedCount} already had info)`);
+      console.log(`   ✅ Enriched ${enrichedCount} tickers with blockchain info (${unchangedCount} already had info)`);
     } else {
-      console.log(`   ℹ️  All tickers already had blockchain/contract info or couldn't be enriched`);
+      console.log(`   ℹ️  All tickers already had blockchain info or couldn't be enriched`);
     }
 
     return enriched;
