@@ -68,6 +68,7 @@ export class ArbitrageCalculator {
   }
 
   public async calculateArbitrageOpportunities(allTickers: Map<string, Ticker[]>): Promise<ArbitrageOpportunity[]> {
+    console.log(`📊 [VERSION CHECK] calculateArbitrageOpportunities called - version with enrichment`);
     console.log(`📊 Calculating arbitrage for ${allTickers.size} exchanges`);
     
     // Log ticker counts per exchange
@@ -85,11 +86,13 @@ export class ArbitrageCalculator {
       console.log('📈 First ticker sample:', firstTickers[0]);
     }
     
+    console.log('🔍 [STEP 1] About to check for mock data...');
     // Add validation for mock data - NEVER allow mock data
     if (this.isMockData(allTickers)) {
       console.error('❌ MOCK DATA DETECTED - Returning empty opportunities');
       return [];
     }
+    console.log('✅ [STEP 2] Mock data check passed, proceeding to enrichment...');
     
     // CRITICAL: Enrich tickers with blockchain/contract info BEFORE grouping
     // This ensures contract ID matching works properly
