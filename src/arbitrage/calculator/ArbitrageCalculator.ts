@@ -265,11 +265,12 @@ export class ArbitrageCalculator {
   /**
    * Enrich tickers with blockchain and contract address information
    * This ensures contract ID matching works properly
-   * FAST: Uses pattern-based detection and database lookups (no slow API calls)
+   * Uses DexScreener to get contract addresses for accurate matching
    */
   private async enrichTickersWithBlockchainInfo(allTickers: Map<string, Ticker[]>): Promise<Map<string, Ticker[]>> {
     const enriched = new Map<string, Ticker[]>();
     let enrichedCount = 0;
+    let contractEnrichedCount = 0;
     let unchangedCount = 0;
     let totalTickers = 0;
 
@@ -280,23 +281,22 @@ export class ArbitrageCalculator {
     
     console.log(`   🔍 Processing ${totalTickers} tickers across ${allTickers.size} exchanges...`);
 
-    // Process each exchange's tickers
-    for (const [exchange, tickers] of allTickers.entries()) {
-      const enrichedTickers: Ticker[] = [];
-
+    // Group unique symbols that need enrichment to avoid duplicate API calls
+    const symbolsNeedingContract = new Set<string>();
+    const symbolBlockchainMap = new Map<string, string>(); // symbol -> blockchain
+    
+    // First pass: Get blockchain info for all symbols
+    for (const tickers of allTickers.values()) {
       for (const ticker of tickers) {
-        // If ticker already has blockchain info, keep it but may still need contract address
         if (ticker.blockchain && ticker.contractAddress) {
-          enrichedTickers.push(ticker);
           unchangedCount++;
           continue;
         }
 
         const baseSymbol = ticker.symbol.split('/')[0].toUpperCase();
         let blockchain = ticker.blockchain;
-        let contractAddress = ticker.contractAddress;
 
-        // Fast pattern-based blockchain detection (no API calls)
+        // Fast pattern-based blockchain detection
         if (!blockchain) {
           const symbolWithQuote = ticker.symbol;
           const blockchainFromDb = getTokenBlockchain(symbolWithQuote);
@@ -304,7 +304,7 @@ export class ArbitrageCalculator {
           if (blockchainFromDb) {
             blockchain = blockchainFromDb;
           } else {
-            // Pattern-based detection (fast, no API calls)
+            // Pattern-based detection
             const cleanSymbol = baseSymbol
               .replace(/[\/\-_]/g, '')
               .replace(/USDT$|USDC$|BTC$|ETH$|BNB$|USD$|EUR$/i, '')
@@ -321,11 +321,103 @@ export class ArbitrageCalculator {
             else if (cleanSymbol === 'ETH') blockchain = 'ethereum';
             else blockchain = 'ethereum'; // Default for ERC-20 tokens
           }
+          
+          if (blockchain) {
+            symbolBlockchainMap.set(baseSymbol, blockchain);
+          }
         }
 
-        // Only try to get contract address if we have blockchain but no contract
-        // Skip DexScreener API calls for speed - we'll match by blockchain + symbol instead
-        // Contract addresses can be fetched later during enrichment phase if needed
+        // Track symbols that need contract address
+        if (blockchain && !ticker.contractAddress) {
+          symbolsNeedingContract.add(baseSymbol);
+        }
+      }
+    }
+
+    // Second pass: Fetch contract addresses from DexScreener for symbols that need them
+    const symbolContractMap = new Map<string, Map<string, string>>(); // symbol -> Map<chainId, contractAddress>
+    const symbolsArray = Array.from(symbolsNeedingContract);
+    
+    if (symbolsArray.length > 0) {
+      console.log(`   🔍 Fetching contract addresses from DexScreener for ${symbolsArray.length} symbols...`);
+      
+      try {
+        const { DexScreenerService } = await import('../../services/DexScreenerService.js');
+        const dexService = DexScreenerService.getInstance();
+        
+        // Process symbols in batches to avoid overwhelming the API
+        const batchSize = 10;
+        let processed = 0;
+        
+        for (let i = 0; i < symbolsArray.length && i < 200; i++) { // Limit to 200 symbols max
+          const baseSymbol = symbolsArray[i];
+          try {
+            // Get all contract candidates for this symbol
+            const candidates = await dexService.resolveAllBySymbol(baseSymbol);
+            
+            if (candidates && candidates.length > 0) {
+              const contractMap = new Map<string, string>();
+              for (const candidate of candidates) {
+                if (candidate.chainId && candidate.tokenAddress) {
+                  contractMap.set(candidate.chainId.toLowerCase(), candidate.tokenAddress);
+                }
+              }
+              if (contractMap.size > 0) {
+                symbolContractMap.set(baseSymbol, contractMap);
+              }
+            }
+            
+            processed++;
+            if (processed % batchSize === 0) {
+              console.log(`   ⏳ Processed ${processed}/${Math.min(symbolsArray.length, 200)} symbols...`);
+            }
+          } catch (error) {
+            // Continue with next symbol if this one fails
+          }
+        }
+        
+        console.log(`   ✅ Fetched contract info for ${symbolContractMap.size} symbols`);
+      } catch (error) {
+        console.error('   ⚠️ Error fetching contract addresses from DexScreener:', error);
+      }
+    }
+
+    // Third pass: Apply enrichment to all tickers
+    for (const [exchange, tickers] of allTickers.entries()) {
+      const enrichedTickers: Ticker[] = [];
+
+      for (const ticker of tickers) {
+        // If ticker already has blockchain and contract info, keep it
+        if (ticker.blockchain && ticker.contractAddress) {
+          enrichedTickers.push(ticker);
+          unchangedCount++;
+          continue;
+        }
+
+        const baseSymbol = ticker.symbol.split('/')[0].toUpperCase();
+        let blockchain = ticker.blockchain || symbolBlockchainMap.get(baseSymbol);
+        let contractAddress = ticker.contractAddress;
+
+        // If we have blockchain but no contract, try to get it from DexScreener results
+        if (blockchain && !contractAddress) {
+          const contracts = symbolContractMap.get(baseSymbol);
+          if (contracts) {
+            // Try to find contract for this blockchain
+            const chainId = this.getChainIdFromBlockchain(blockchain);
+            if (chainId && contracts.has(chainId)) {
+              contractAddress = contracts.get(chainId)!;
+              contractEnrichedCount++;
+            } else {
+              // If no exact match, use first contract (less ideal but better than nothing)
+              const firstContract = contracts.values().next().value;
+              if (firstContract) {
+                contractAddress = firstContract;
+                contractEnrichedCount++;
+                console.log(`   ⚠️ [${exchange}] ${ticker.symbol}: Using contract ${firstContract.substring(0, 10)}... for blockchain ${blockchain} (no exact chain match)`);
+              }
+            }
+          }
+        }
 
         // Log if we enriched this ticker
         if (blockchain && blockchain !== ticker.blockchain) {
@@ -346,13 +438,42 @@ export class ArbitrageCalculator {
       enriched.set(exchange, enrichedTickers);
     }
 
-    if (enrichedCount > 0) {
-      console.log(`   ✅ Enriched ${enrichedCount} tickers with blockchain info (${unchangedCount} already had info)`);
+    if (enrichedCount > 0 || contractEnrichedCount > 0) {
+      console.log(`   ✅ Enriched ${enrichedCount} tickers with blockchain info, ${contractEnrichedCount} with contract addresses (${unchangedCount} already had info)`);
     } else {
-      console.log(`   ℹ️  All tickers already had blockchain info or couldn't be enriched`);
+      console.log(`   ℹ️  All tickers already had blockchain/contract info or couldn't be enriched`);
     }
 
     return enriched;
+  }
+
+  /**
+   * Map blockchain name to DexScreener chainId
+   */
+  private getChainIdFromBlockchain(blockchain: string): string | null {
+    const mapping: { [key: string]: string } = {
+      'ethereum': 'ethereum',
+      'eth': 'ethereum',
+      'bsc': 'bsc',
+      'bnb': 'bsc',
+      'polygon': 'polygon',
+      'matic': 'polygon',
+      'arbitrum': 'arbitrum',
+      'arb': 'arbitrum',
+      'optimism': 'optimism',
+      'op': 'optimism',
+      'base': 'base',
+      'solana': 'solana',
+      'sol': 'solana',
+      'avalanche': 'avalanche',
+      'avax': 'avalanche',
+      'fantom': 'fantom',
+      'ftm': 'fantom',
+      'tron': 'tron',
+      'trx': 'tron',
+    };
+
+    return mapping[blockchain.toLowerCase()] || null;
   }
 
   private isMockData(allTickers: Map<string, Ticker[]>): boolean {
