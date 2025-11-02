@@ -27,28 +27,36 @@ class CryptoArbitrageApp {
 
   constructor() {
     try {
-      const botToken = process.env.TELEGRAM_BOT_TOKEN;
-      if (!botToken) {
-        throw new Error('TELEGRAM_BOT_TOKEN is required');
-      }
-
       console.log('🔧 Initializing components...');
-      this.bot = new CryptoArbitrageBot(botToken);
-      console.log('✅ Telegram bot initialized');
       
-      this.arbitrageService = UnifiedArbitrageService.getInstance();
-      console.log('✅ Arbitrage service initialized');
-      
+      // Initialize database first (required for web app)
       this.db = DatabaseManager.getInstance();
       console.log('✅ Database manager initialized');
       
+      // Initialize web app server (required for health checks)
       this.webAppServer = new WebAppServer();
       console.log('✅ Web app server initialized');
+      
+      // Initialize arbitrage service
+      this.arbitrageService = UnifiedArbitrageService.getInstance();
+      console.log('✅ Arbitrage service initialized');
+      
+      // Initialize Telegram bot (optional - app can run without it)
+      const botToken = process.env.TELEGRAM_BOT_TOKEN;
+      if (botToken) {
+        this.bot = new CryptoArbitrageBot(botToken);
+        console.log('✅ Telegram bot initialized');
+      } else {
+        console.warn('⚠️ TELEGRAM_BOT_TOKEN not found - Telegram bot will be disabled');
+        // Create a dummy bot instance that won't be used
+        this.bot = null as any;
+      }
       
       this.updateInterval = parseInt(process.env.UPDATE_INTERVAL || '600000');
       console.log('✅ All components initialized successfully');
     } catch (error) {
       console.error('❌ Failed to initialize components:', error);
+      console.error('   Error details:', error instanceof Error ? error.stack : error);
       throw error;
     }
   }
@@ -77,8 +85,12 @@ class CryptoArbitrageApp {
     });
 
     // Start the Telegram bot (non-blocking with graceful error handling)
-    if (process.env.DISABLE_TELEGRAM_BOT === 'true') {
-      console.log('🚫 Telegram bot disabled via DISABLE_TELEGRAM_BOT environment variable');
+    if (process.env.DISABLE_TELEGRAM_BOT === 'true' || !process.env.TELEGRAM_BOT_TOKEN) {
+      if (process.env.DISABLE_TELEGRAM_BOT === 'true') {
+        console.log('🚫 Telegram bot disabled via DISABLE_TELEGRAM_BOT environment variable');
+      } else {
+        console.log('🚫 Telegram bot disabled - TELEGRAM_BOT_TOKEN not found');
+      }
       console.log('🌐 Web application will run without Telegram bot');
     } else {
       this.bot.start().catch((botError: any) => {
@@ -148,7 +160,9 @@ class CryptoArbitrageApp {
     
     try {
       this.arbitrageService.stop();
-      await this.bot.stop();
+      if (this.bot && process.env.TELEGRAM_BOT_TOKEN) {
+        await this.bot.stop();
+      }
       await this.webAppServer.stop();
       await this.db.close();
       console.log('✅ Application stopped successfully');
