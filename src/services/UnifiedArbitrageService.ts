@@ -179,16 +179,57 @@ export class UnifiedArbitrageService {
 
   private async storeOpportunities(opportunities: ArbitrageOpportunity[]): Promise<void> {
     try {
+      // Final filtering: Remove opportunities with extreme values that could cause database overflow
+      const MAX_DECIMAL_20_8 = 999999999999; // Max for NUMERIC(20,8)
+      const MAX_DECIMAL_18_8 = 9999999999; // Max for NUMERIC(18,8)
+      
+      const filtered = opportunities.filter(opp => {
+        // Filter out unrealistic profits (>50% is already filtered, but check for extreme values)
+        if (Math.abs(opp.profitPercentage) > MAX_DECIMAL_18_8) {
+          console.warn(`🚨 [PRE-DB FILTER] Filtering ${opp.symbol}: profit percentage too extreme: ${opp.profitPercentage}`);
+          return false;
+        }
+        
+        // Filter out opportunities with extreme volumes
+        if (opp.volume && Math.abs(opp.volume) > MAX_DECIMAL_20_8) {
+          console.warn(`🚨 [PRE-DB FILTER] Filtering ${opp.symbol}: volume too extreme: ${opp.volume}`);
+          return false;
+        }
+        
+        // Filter out opportunities with extreme prices
+        if (Math.abs(opp.buyPrice) > MAX_DECIMAL_20_8 || Math.abs(opp.sellPrice) > MAX_DECIMAL_20_8) {
+          console.warn(`🚨 [PRE-DB FILTER] Filtering ${opp.symbol}: price too extreme: buy=${opp.buyPrice}, sell=${opp.sellPrice}`);
+          return false;
+        }
+        
+        // Filter out opportunities with extreme profit amounts
+        if (Math.abs(opp.profitAmount) > MAX_DECIMAL_20_8) {
+          console.warn(`🚨 [PRE-DB FILTER] Filtering ${opp.symbol}: profit amount too extreme: ${opp.profitAmount}`);
+          return false;
+        }
+        
+        return true;
+      });
+      
+      if (filtered.length < opportunities.length) {
+        console.warn(`⚠️ [PRE-DB FILTER] Filtered out ${opportunities.length - filtered.length} opportunities with extreme values`);
+      }
+      
       // Log blockchain data for debugging
-      const topThree = opportunities.slice(0, 3).map(opp => ({
+      const topThree = filtered.slice(0, 3).map(opp => ({
         symbol: opp.symbol,
         blockchain: opp.blockchain,
         profit: opp.profitPercentage.toFixed(2) + '%'
       }));
       console.log('🔍 Top 3 opportunities to store:', JSON.stringify(topThree, null, 2));
       
-      await this.db.getArbitrageModel().insert(opportunities);
-      console.log(`💾 Stored ${opportunities.length} opportunities in database with blockchain data`);
+      if (filtered.length === 0) {
+        console.warn('⚠️ [PRE-DB FILTER] No opportunities remaining after filtering');
+        return;
+      }
+      
+      await this.db.getArbitrageModel().insert(filtered);
+      console.log(`💾 Stored ${filtered.length}/${opportunities.length} opportunities in database with blockchain data`);
       
     } catch (error) {
       console.error('❌ Failed to store opportunities:', error);
