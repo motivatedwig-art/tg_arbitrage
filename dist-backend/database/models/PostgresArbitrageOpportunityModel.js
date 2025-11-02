@@ -63,32 +63,58 @@ export class PostgresArbitrageOpportunityModel {
         (symbol, buy_exchange, sell_exchange, buy_price, sell_price, profit_percentage, profit_amount, volume, volume_24h, blockchain, chain_id, token_address, logo_url, timestamp)
         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
       `;
+            let insertedCount = 0;
+            let skippedCount = 0;
             for (const opp of opportunities) {
-                // Validate and sanitize data before inserting
-                const sanitizedOpportunity = this.sanitizeOpportunity(opp);
-                // Skip invalid opportunities
-                if (!this.isValidOpportunity(sanitizedOpportunity)) {
-                    continue;
+                try {
+                    // Validate and sanitize data before inserting
+                    const sanitizedOpportunity = this.sanitizeOpportunity(opp);
+                    // Skip invalid opportunities
+                    if (!this.isValidOpportunity(sanitizedOpportunity)) {
+                        console.warn(`⚠️ [INSERT] Skipping invalid opportunity: ${opp.symbol}`);
+                        skippedCount++;
+                        continue;
+                    }
+                    await client.query(sql, [
+                        sanitizedOpportunity.symbol,
+                        sanitizedOpportunity.buyExchange,
+                        sanitizedOpportunity.sellExchange,
+                        sanitizedOpportunity.buyPrice,
+                        sanitizedOpportunity.sellPrice,
+                        sanitizedOpportunity.profitPercentage,
+                        sanitizedOpportunity.profitAmount,
+                        sanitizedOpportunity.volume,
+                        sanitizedOpportunity.volume_24h || sanitizedOpportunity.volume,
+                        sanitizedOpportunity.blockchain || 'ethereum',
+                        sanitizedOpportunity.chainId || null,
+                        sanitizedOpportunity.tokenAddress || null,
+                        sanitizedOpportunity.logoUrl || null,
+                        sanitizedOpportunity.timestamp
+                    ]);
+                    insertedCount++;
                 }
-                await client.query(sql, [
-                    sanitizedOpportunity.symbol,
-                    sanitizedOpportunity.buyExchange,
-                    sanitizedOpportunity.sellExchange,
-                    sanitizedOpportunity.buyPrice,
-                    sanitizedOpportunity.sellPrice,
-                    sanitizedOpportunity.profitPercentage,
-                    sanitizedOpportunity.profitAmount,
-                    sanitizedOpportunity.volume,
-                    sanitizedOpportunity.volume_24h || sanitizedOpportunity.volume,
-                    sanitizedOpportunity.blockchain || 'ethereum',
-                    sanitizedOpportunity.chainId || null,
-                    sanitizedOpportunity.tokenAddress || null,
-                    sanitizedOpportunity.logoUrl || null,
-                    sanitizedOpportunity.timestamp
-                ]);
+                catch (error) {
+                    // Log the specific opportunity that failed
+                    console.error(`❌ [INSERT] Failed to insert opportunity ${opp.symbol}:`, {
+                        symbol: opp.symbol,
+                        buyPrice: opp.buyPrice,
+                        sellPrice: opp.sellPrice,
+                        profitPercentage: opp.profitPercentage,
+                        profitAmount: opp.profitAmount,
+                        volume: opp.volume,
+                        volume_24h: opp.volume_24h,
+                        error: error.message,
+                        detail: error.detail
+                    });
+                    skippedCount++;
+                    // Continue with next opportunity instead of failing the whole batch
+                }
+            }
+            if (skippedCount > 0) {
+                console.warn(`⚠️ [INSERT] Skipped ${skippedCount} invalid/failed opportunities`);
             }
             await client.query('COMMIT');
-            console.log(`💾 Stored ${opportunities.length} opportunities in PostgreSQL`);
+            console.log(`💾 Stored ${insertedCount}/${opportunities.length} opportunities in PostgreSQL`);
         }
         catch (error) {
             await client.query('ROLLBACK');
@@ -286,62 +312,115 @@ export class PostgresArbitrageOpportunityModel {
         }
     }
     sanitizeOpportunity(opp) {
-        // DECIMAL(20,8) max value: 999,999,999,999.99999999 (must be < 10^12)
-        const MAX_DECIMAL_VALUE = 999999999999.99999999;
-        // Clamp values to prevent database overflow
-        const clampDecimal = (value) => {
-            if (!Number.isFinite(value) || isNaN(value))
+        // NUMERIC(20,8) max absolute value: must round to absolute value < 10^12
+        // Using 999,999,999,999 (well below 10^12) to be safe with rounding
+        const MAX_DECIMAL_20_8 = 999999999999; // Max for NUMERIC(20,8) - buy_price, sell_price, profit_amount, volume
+        // NUMERIC(18,8) max absolute value: must round to absolute value < 10^10
+        // Using 9,999,999,999 (well below 10^10) to be safe with rounding
+        const MAX_DECIMAL_18_8 = 9999999999; // Max for NUMERIC(18,8) - profit_percentage
+        const MIN_DECIMAL_20_8 = -999999999999;
+        const MIN_DECIMAL_18_8 = -9999999999;
+        // Helper function to clamp decimal values with detailed logging
+        const clampDecimal = (value, maxValue, minValue, fieldName) => {
+            // Handle null/undefined
+            if (value === null || value === undefined) {
+                console.warn(`⚠️ [SANITIZE] ${fieldName} is null/undefined for ${opp.symbol}, defaulting to 0`);
                 return 0;
-            if (value > MAX_DECIMAL_VALUE) {
-                console.warn(`⚠️ Clamping value ${value} to max ${MAX_DECIMAL_VALUE} (DECIMAL overflow)`);
-                return MAX_DECIMAL_VALUE;
             }
-            if (value < 0 && Math.abs(value) > MAX_DECIMAL_VALUE) {
-                console.warn(`⚠️ Clamping value ${value} to min -${MAX_DECIMAL_VALUE} (DECIMAL overflow)`);
-                return -MAX_DECIMAL_VALUE;
+            // Convert to number (handle string inputs)
+            let numValue = typeof value === 'string' ? parseFloat(value) : Number(value);
+            // Handle NaN or Infinity
+            if (isNaN(numValue) || !isFinite(numValue)) {
+                console.warn(`⚠️ [SANITIZE] ${fieldName} is NaN/Infinity (${value}) for ${opp.symbol}, defaulting to 0`);
+                return 0;
             }
-            return value;
+            // Clamp to acceptable range
+            if (numValue > maxValue) {
+                console.warn(`⚠️ [SANITIZE] Clamping ${fieldName} from ${numValue} to ${maxValue} for ${opp.symbol}`);
+                return maxValue;
+            }
+            if (numValue < minValue) {
+                console.warn(`⚠️ [SANITIZE] Clamping ${fieldName} from ${numValue} to ${minValue} for ${opp.symbol}`);
+                return minValue;
+            }
+            return numValue;
         };
-        return {
+        // Log extreme values before sanitization
+        const needsWarning = Math.abs(opp.profitPercentage || 0) > 100 ||
+            Math.abs(opp.volume || 0) > 1000000000000 ||
+            Math.abs(opp.profitAmount || 0) > 1000000000000;
+        if (needsWarning) {
+            console.warn(`⚠️ [SANITIZE] Extreme values detected for ${opp.symbol}:`, {
+                profit: opp.profitPercentage,
+                volume: opp.volume,
+                profitAmount: opp.profitAmount,
+                buyPrice: opp.buyPrice,
+                sellPrice: opp.sellPrice
+            });
+        }
+        // Sanitize all numeric fields
+        const sanitized = {
             ...opp,
-            buyPrice: Math.max(clampDecimal(opp.buyPrice), 0.00000001), // Prevent zero prices
-            sellPrice: Math.max(clampDecimal(opp.sellPrice), 0.00000001), // Prevent zero prices
+            buyPrice: Math.max(clampDecimal(opp.buyPrice, MAX_DECIMAL_20_8, MIN_DECIMAL_20_8, 'buyPrice'), 0.00000001),
+            sellPrice: Math.max(clampDecimal(opp.sellPrice, MAX_DECIMAL_20_8, MIN_DECIMAL_20_8, 'sellPrice'), 0.00000001),
             profitPercentage: this.sanitizePercentage(opp.profitPercentage),
-            profitAmount: Math.max(clampDecimal(opp.profitAmount), 0),
-            volume: clampDecimal(Math.max(opp.volume || 0, 0)),
-            volume_24h: opp.volume_24h ? clampDecimal(Math.max(opp.volume_24h, 0)) : undefined,
-            blockchain: opp.blockchain, // Preserve blockchain field
-            timestamp: Date.now()
+            profitAmount: Math.max(clampDecimal(opp.profitAmount, MAX_DECIMAL_20_8, MIN_DECIMAL_20_8, 'profitAmount'), 0),
+            volume: clampDecimal(opp.volume || 0, MAX_DECIMAL_20_8, 0, 'volume'),
+            volume_24h: opp.volume_24h ? clampDecimal(opp.volume_24h, MAX_DECIMAL_20_8, 0, 'volume_24h') : undefined,
+            blockchain: opp.blockchain,
+            timestamp: opp.timestamp || Date.now()
         };
+        return sanitized;
     }
     sanitizePercentage(percentage) {
-        // Handle infinity, NaN, and extreme values
-        if (!isFinite(percentage) || isNaN(percentage)) {
-            console.warn(`⚠️ Invalid profit percentage detected: ${percentage}, setting to 0`);
+        // Handle null/undefined
+        if (percentage === null || percentage === undefined) {
+            console.warn(`⚠️ [SANITIZE] profitPercentage is null/undefined, setting to 0`);
             return 0;
         }
+        // Convert to number (handle string inputs)
+        let numValue = typeof percentage === 'string' ? parseFloat(percentage) : Number(percentage);
+        // Handle infinity, NaN, and extreme values
+        if (isNaN(numValue) || !isFinite(numValue)) {
+            console.warn(`⚠️ [SANITIZE] Invalid profit percentage: ${percentage}, setting to 0`);
+            return 0;
+        }
+        // NUMERIC(18,8) max absolute value: must round to absolute value < 10^10
+        // Using 9,999,999,999 to be safe with rounding
+        const MAX_PERCENTAGE = 9999999999; // Max safe value - well below 10^10
+        const MIN_PERCENTAGE = -9999999999;
         // Cap extreme percentages to prevent database overflow
-        // DECIMAL(15,4) can hold up to 999,999,999,999.9999
-        if (percentage > 999999999999) { // Max safe value for DECIMAL(15,4)
-            console.warn(`⚠️ Profit percentage too high: ${percentage}%, capping to 999999999999%`);
-            return 999999999999;
+        if (numValue >= MAX_PERCENTAGE) {
+            console.warn(`⚠️ [SANITIZE] Profit percentage too high: ${numValue}%, capping to ${MAX_PERCENTAGE}`);
+            return MAX_PERCENTAGE;
         }
-        if (percentage < -999999999999) { // Min safe value for DECIMAL(15,4)
-            console.warn(`⚠️ Profit percentage too low: ${percentage}%, capping to -999999999999%`);
-            return -999999999999;
+        if (numValue <= MIN_PERCENTAGE) {
+            console.warn(`⚠️ [SANITIZE] Profit percentage too low: ${numValue}%, capping to ${MIN_PERCENTAGE}`);
+            return MIN_PERCENTAGE;
         }
-        return Math.round(percentage * 10000) / 10000; // Round to 4 decimal places
+        // Round to 8 decimal places to match NUMERIC(18,8)
+        const rounded = Math.round(numValue * 100000000) / 100000000;
+        return rounded;
     }
     isValidOpportunity(opp) {
+        const MAX_PERCENTAGE = 9999999999.99999999; // NUMERIC(18,8) safe limit
+        const MAX_NUMERIC = 999999999999.99999999; // NUMERIC(20,8) safe limit
         return (opp.symbol &&
             opp.buyExchange &&
             opp.sellExchange &&
             opp.buyPrice > 0 &&
+            opp.buyPrice < MAX_NUMERIC &&
             opp.sellPrice > 0 &&
+            opp.sellPrice < MAX_NUMERIC &&
             isFinite(opp.profitPercentage) &&
             !isNaN(opp.profitPercentage) &&
-            opp.profitPercentage >= -999999999999 && // Reasonable lower bound
-            opp.profitPercentage <= 999999999999 && // Cap at safe DECIMAL(15,4) limit
+            opp.profitPercentage >= -MAX_PERCENTAGE &&
+            opp.profitPercentage <= MAX_PERCENTAGE &&
+            isFinite(opp.profitAmount) &&
+            opp.profitAmount >= 0 &&
+            opp.profitAmount < MAX_NUMERIC &&
+            (!opp.volume || (opp.volume >= 0 && opp.volume < MAX_NUMERIC)) &&
+            (!opp.volume_24h || (opp.volume_24h >= 0 && opp.volume_24h < MAX_NUMERIC)) &&
             opp.timestamp > 0);
     }
 }

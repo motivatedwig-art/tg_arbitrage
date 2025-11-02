@@ -2,7 +2,7 @@
  * Service to identify blockchain networks and contract addresses for tokens
  * This helps prevent cross-chain arbitrage comparisons
  */
-import { CoinApiService } from './CoinApiService';
+import { CoinApiService } from './CoinApiService.js';
 export class TokenMetadataService {
     constructor() {
         this.tokenMetadataCache = new Map();

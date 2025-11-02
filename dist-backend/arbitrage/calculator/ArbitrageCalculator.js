@@ -55,36 +55,46 @@ export class ArbitrageCalculator {
         this.chainTransferCosts.set('same-chain', 0); // No transfer cost for same blockchain
     }
     async calculateArbitrageOpportunities(allTickers) {
+        // CRITICAL LOG MARKER - If you see this, new code is running
+        console.log('\n🚀🚀🚀 NEW STRUCTURED LOGGING VERSION - calculateArbitrageOpportunities START 🚀🚀🚀\n');
+        console.log('\n' + '='.repeat(80));
+        console.log('📊 [PHASE 0] INITIALIZATION');
+        console.log('='.repeat(80));
         console.log(`📊 Calculating arbitrage for ${allTickers.size} exchanges`);
         // Log ticker counts per exchange
         let totalTickers = 0;
         for (const [exchange, tickers] of allTickers) {
-            console.log(`   ${exchange}: ${tickers.length} tickers`);
+            console.log(`   📈 ${exchange}: ${tickers.length} tickers`);
             totalTickers += tickers.length;
         }
-        console.log(`   Total tickers across all exchanges: ${totalTickers}`);
+        console.log(`   📊 Total tickers: ${totalTickers}`);
         // Log first ticker sample to verify if data is real
         const firstExchange = Array.from(allTickers.keys())[0];
         const firstTickers = allTickers.get(firstExchange);
         if (firstTickers && firstTickers.length > 0) {
-            console.log('📈 First ticker sample:', firstTickers[0]);
+            const sample = firstTickers[0];
+            console.log(`   📋 Sample ticker: ${sample.symbol} (${sample.exchange}) - blockchain: ${sample.blockchain || 'undefined'}, contract: ${sample.contractAddress ? sample.contractAddress.substring(0, 10) + '...' : 'undefined'}`);
         }
+        console.log('\n' + '-'.repeat(80));
+        console.log('🔍 [PHASE 1] VALIDATION');
+        console.log('-'.repeat(80));
         // Add validation for mock data - NEVER allow mock data
         if (this.isMockData(allTickers)) {
             console.error('❌ MOCK DATA DETECTED - Returning empty opportunities');
             return [];
         }
+        console.log('✅ Mock data check passed');
+        console.log('\n' + '-'.repeat(80));
+        console.log('🔍 [PHASE 2] ENRICHMENT');
+        console.log('-'.repeat(80));
+        console.log(`📥 Input: ${allTickers.size} exchanges, ${totalTickers} total tickers`);
         // CRITICAL: Enrich tickers with blockchain/contract info BEFORE grouping
         // This ensures contract ID matching works properly
-        console.log('🔍 [BEFORE ENRICHMENT] About to enrich tickers...');
-        console.log('🔍 Enriching tickers with blockchain/contract information...');
-        console.log(`   📥 Input: ${allTickers.size} exchanges, ${totalTickers} total tickers`);
         let enrichedTickers;
         try {
-            console.log('   🚀 Calling enrichTickersWithBlockchainInfo...');
             enrichedTickers = await this.enrichTickersWithBlockchainInfo(allTickers);
-            console.log(`   ✅ Enrichment completed: ${enrichedTickers.size} exchanges processed`);
-            console.log(`   📤 Output: ${Array.from(enrichedTickers.values()).reduce((sum, tickers) => sum + tickers.length, 0)} total tickers after enrichment`);
+            const outputTotal = Array.from(enrichedTickers.values()).reduce((sum, tickers) => sum + tickers.length, 0);
+            console.log(`📤 Output: ${enrichedTickers.size} exchanges, ${outputTotal} total tickers after enrichment`);
         }
         catch (error) {
             console.error('❌ Error during ticker enrichment:', error);
@@ -93,10 +103,16 @@ export class ArbitrageCalculator {
             enrichedTickers = allTickers;
             console.log('   ⚠️ Using original tickers as fallback');
         }
+        console.log('\n' + '-'.repeat(80));
+        console.log('🔍 [PHASE 3] GROUPING');
+        console.log('-'.repeat(80));
         const opportunities = [];
         // Group tickers by symbol and filter for compatible chains only
         const symbolGroups = this.groupTickersBySymbol(enrichedTickers);
-        console.log(`🔍 Grouped into ${symbolGroups.size} unique symbols`);
+        console.log(`📋 Grouped into ${symbolGroups.size} unique symbol/chain combinations`);
+        console.log('\n' + '-'.repeat(80));
+        console.log('🔍 [PHASE 4] ARBITRAGE CALCULATION');
+        console.log('-'.repeat(80));
         let symbolsProcessed = 0;
         let symbolsSkipped = 0;
         for (const [uniqueKey, tickers] of symbolGroups) {
@@ -123,25 +139,25 @@ export class ArbitrageCalculator {
                 }
                 return true;
             });
-            if (filteredOpportunities.length > 0) {
-                // Extract contract/blockchain info for logging
-                const contracts = [...new Set(tickers.map(t => t.contractAddress).filter(Boolean))];
-                const chains = [...new Set(tickers.map(t => t.blockchain).filter(Boolean))];
-                const contractInfo = contracts.length > 0 ? ` | contracts=${contracts.length}` : '';
-                const chainInfo = chains.length > 0 ? ` | chains=${chains.join(',')}` : '';
-                console.log(`   ✅ ${baseSymbol}: Found ${filteredOpportunities.length} opportunities across ${tickers.length} exchanges${chainInfo}${contractInfo}`);
-            }
             opportunities.push(...filteredOpportunities);
+            if (filteredOpportunities.length > 0 && (symbolsProcessed <= 10 || symbolsProcessed % 50 === 0)) {
+                // Extract contract/blockchain info for logging
+                const chains = [...new Set(tickers.map(t => t.blockchain).filter(Boolean))];
+                const chainInfo = chains.length > 0 ? ` [${chains.join(',')}]` : '';
+                console.log(`   ✅ ${baseSymbol}${chainInfo}: ${filteredOpportunities.length} opportunities across ${tickers.length} exchanges`);
+            }
         }
-        console.log(`📋 Processed ${symbolsProcessed} symbols (${symbolsSkipped} skipped due to single exchange)`);
+        console.log(`\n📊 Summary: Processed ${symbolsProcessed} symbols (${symbolsSkipped} skipped)`);
         console.log(`💎 Found ${opportunities.length} total opportunities before filtering`);
+        console.log('\n' + '-'.repeat(80));
+        console.log('🔍 [PHASE 5] FILTERING');
+        console.log('-'.repeat(80));
         // Filter opportunities by profit thresholds and add logging for unrealistic profits
         let unrealisticCount = 0;
         let lowProfitCount = 0;
         const filteredOpportunities = opportunities.filter(opp => {
             if (opp.profitPercentage > this.maxProfitThreshold) {
                 unrealisticCount++;
-                console.log(`🚨 Filtered out unrealistic opportunity: ${opp.symbol} - ${opp.profitPercentage.toFixed(2)}% profit (${opp.buyExchange} → ${opp.sellExchange})`);
                 return false;
             }
             if (opp.profitPercentage < this.minProfitThreshold) {
@@ -150,60 +166,23 @@ export class ArbitrageCalculator {
             }
             return true;
         });
-        console.log(`🔽 Filtering results:`);
-        console.log(`   Unrealistic profit (>${this.maxProfitThreshold}%): ${unrealisticCount}`);
-        console.log(`   Too low profit (<${this.minProfitThreshold}%): ${lowProfitCount}`);
+        console.log(`📊 Filtering results:`);
+        console.log(`   • Unrealistic profit (>${this.maxProfitThreshold}%): ${unrealisticCount}`);
+        console.log(`   • Too low profit (<${this.minProfitThreshold}%): ${lowProfitCount}`);
         console.log(`   ✅ Final opportunities: ${filteredOpportunities.length}`);
-        // Patch: Use CoinAPI only with base asset symbol (left of slash)
-        // Group the filtered opportunities by base asset CoinAPI asset_id
-        const enrichedResults = [];
-        for (const opp of filteredOpportunities) {
-            const baseAsset = opp.symbol.split('/')[0];
-            const coinApiBuy = await this.coinApiService.getAssetMetadata(baseAsset);
-            console.log(`[CoinAPI] Symbol: ${baseAsset}`, JSON.stringify(coinApiBuy));
-            const logoUrlDefault = await this.iconResolver.resolveIcon(baseAsset);
-            // Fetch all chain candidates for authenticity (contract-level) grouping
-            const candidates = await this.iconResolver.resolveTokenInfo(baseAsset)
-                .then(async (single) => {
-                if (single)
-                    return [single];
-                // Fallback to multi if single not returned (back-compat)
-                try {
-                    const { DexScreenerService } = await import('../../services/DexScreenerService.js');
-                    return await DexScreenerService.getInstance().resolveAllBySymbol(baseAsset);
-                }
-                catch {
-                    return [];
-                }
+        // Sort by profit percentage descending
+        const sortedOpportunities = filteredOpportunities.sort((a, b) => b.profitPercentage - a.profitPercentage);
+        if (sortedOpportunities.length > 0) {
+            console.log('\n📋 Top 5 opportunities:');
+            sortedOpportunities.slice(0, 5).forEach((opp, index) => {
+                const blockchainInfo = opp.blockchain ? ` [${opp.blockchain.toUpperCase()}]` : '';
+                console.log(`   ${index + 1}.${blockchainInfo} ${opp.symbol} | ${opp.buyExchange} → ${opp.sellExchange} | ${opp.profitPercentage.toFixed(2)}%`);
             });
-            // Debug: log resolved contracts per symbol
-            try {
-                const debugList = (candidates || []).map(c => `${c?.chainId || 'unknown'}:${c?.tokenAddress || 'n/a'}`).join(', ');
-                console.log(`[CHAIN_RESOLVE] ${baseAsset} -> [${debugList || 'none'}]`);
-            }
-            catch { }
-            // If no candidates, emit a single opportunity with default icon
-            if (!candidates || candidates.length === 0) {
-                enrichedResults.push({ ...opp, logoUrl: logoUrlDefault });
-                continue;
-            }
-            // Expand one opportunity per chain/contract candidate
-            for (const c of candidates) {
-                const logoUrl = c?.imageUrl || logoUrlDefault;
-                // Map DS chainId to readable blockchain label (fallback to chainId)
-                const chainLabel = this.mapDexChainIdToBlockchain(c?.chainId);
-                const contractDisplay = c?.tokenAddress ? c.tokenAddress.substring(0, 10) + '...' : 'none';
-                console.log(`[OPP_ENRICH] ${baseAsset} | chain=${c?.chainId || 'unknown'} | contract=${contractDisplay} | buy=${opp.buyExchange} | sell=${opp.sellExchange} | profit=${opp.profitPercentage.toFixed(2)}%`);
-                enrichedResults.push({
-                    ...opp,
-                    logoUrl,
-                    chainId: c?.chainId,
-                    tokenAddress: c?.tokenAddress,
-                    blockchain: chainLabel,
-                });
-            }
         }
-        return enrichedResults.sort((a, b) => b.profitPercentage - a.profitPercentage);
+        console.log('\n' + '='.repeat(80));
+        console.log('✅ [COMPLETE] Arbitrage calculation finished');
+        console.log('='.repeat(80) + '\n');
+        return sortedOpportunities;
     }
     mapDexChainIdToBlockchain(chainId) {
         if (!chainId)
@@ -241,7 +220,6 @@ export class ArbitrageCalculator {
      * Uses DexScreener to get contract addresses for accurate matching
      */
     async enrichTickersWithBlockchainInfo(allTickers) {
-        console.log(`   [ENRICH] Method called with ${allTickers.size} exchanges`);
         const enriched = new Map();
         let enrichedCount = 0;
         let contractEnrichedCount = 0;
@@ -251,11 +229,14 @@ export class ArbitrageCalculator {
         for (const tickers of allTickers.values()) {
             totalTickers += tickers.length;
         }
-        console.log(`   🔍 Processing ${totalTickers} tickers across ${allTickers.size} exchanges...`);
-        // Group unique symbols that need enrichment to avoid duplicate API calls
+        console.log(`📊 Analyzing ${totalTickers} tickers across ${allTickers.size} exchanges...`);
+        // STEP 2.1: Pattern-based blockchain detection
+        console.log('\n   [STEP 2.1] Pattern-based blockchain detection');
         const symbolsNeedingContract = new Set();
         const symbolBlockchainMap = new Map(); // symbol -> blockchain
         // First pass: Get blockchain info for all symbols
+        let symbolsWithBlockchain = 0;
+        let symbolsNeedingEnrichment = 0;
         for (const tickers of allTickers.values()) {
             for (const ticker of tickers) {
                 if (ticker.blockchain && ticker.contractAddress) {
@@ -300,28 +281,36 @@ export class ArbitrageCalculator {
                     }
                     if (blockchain) {
                         symbolBlockchainMap.set(baseSymbol, blockchain);
+                        symbolsWithBlockchain++;
                     }
                 }
                 // Track symbols that need contract address
                 if (blockchain && !ticker.contractAddress) {
                     symbolsNeedingContract.add(baseSymbol);
+                    symbolsNeedingEnrichment++;
                 }
             }
         }
-        // Second pass: Fetch contract addresses from DexScreener for symbols that need them
+        console.log(`   ✅ Detected blockchain for ${symbolsWithBlockchain} symbols via patterns`);
+        console.log(`   🔍 ${symbolsNeedingContract.size} unique symbols need contract addresses`);
+        // STEP 2.2: DexScreener API calls
         const symbolContractMap = new Map(); // symbol -> Map<chainId, contractAddress>
         const symbolsArray = Array.from(symbolsNeedingContract);
         if (symbolsArray.length > 0) {
-            console.log(`   🔍 Fetching contract addresses from DexScreener for ${symbolsArray.length} symbols...`);
+            console.log(`\n   [STEP 2.2] DexScreener API calls (${symbolsArray.length} symbols, limit: 200)`);
+            console.log(`   ⏳ Calling DexScreener API for contract addresses...`);
             try {
                 const { DexScreenerService } = await import('../../services/DexScreenerService.js');
                 const dexService = DexScreenerService.getInstance();
                 // Process symbols in batches to avoid overwhelming the API
                 const batchSize = 10;
                 let processed = 0;
+                let successful = 0;
+                let failed = 0;
                 for (let i = 0; i < symbolsArray.length && i < 200; i++) { // Limit to 200 symbols max
                     const baseSymbol = symbolsArray[i];
                     try {
+                        console.log(`      🔍 [${i + 1}/${Math.min(symbolsArray.length, 200)}] Fetching contracts for ${baseSymbol}...`);
                         // Get all contract candidates for this symbol
                         const candidates = await dexService.resolveAllBySymbol(baseSymbol);
                         if (candidates && candidates.length > 0) {
@@ -333,24 +322,43 @@ export class ArbitrageCalculator {
                             }
                             if (contractMap.size > 0) {
                                 symbolContractMap.set(baseSymbol, contractMap);
+                                successful++;
+                                const chains = Array.from(contractMap.keys()).join(', ');
+                                console.log(`      ✅ ${baseSymbol}: Found ${contractMap.size} chain(s) [${chains}]`);
                             }
+                            else {
+                                failed++;
+                                console.log(`      ⚠️  ${baseSymbol}: No valid contracts found`);
+                            }
+                        }
+                        else {
+                            failed++;
+                            console.log(`      ⚠️  ${baseSymbol}: No results from DexScreener`);
                         }
                         processed++;
                         if (processed % batchSize === 0) {
-                            console.log(`   ⏳ Processed ${processed}/${Math.min(symbolsArray.length, 200)} symbols...`);
+                            console.log(`      📊 Progress: ${processed}/${Math.min(symbolsArray.length, 200)} (${successful} success, ${failed} failed)`);
                         }
                     }
                     catch (error) {
+                        failed++;
+                        const errorMsg = error instanceof Error ? error.message : 'Unknown error';
+                        console.log(`      ❌ ${baseSymbol}: Error - ${errorMsg}`);
                         // Continue with next symbol if this one fails
                     }
                 }
-                console.log(`   ✅ Fetched contract info for ${symbolContractMap.size} symbols`);
+                console.log(`\n   ✅ DexScreener API complete: ${successful} symbols found, ${failed} failed`);
+                console.log(`   📊 Contract addresses fetched for ${symbolContractMap.size} symbols`);
             }
             catch (error) {
-                console.error('   ⚠️ Error fetching contract addresses from DexScreener:', error);
+                console.error(`   ❌ Fatal error in DexScreener API:`, error);
             }
         }
-        // Third pass: Apply enrichment to all tickers
+        else {
+            console.log(`\n   [STEP 2.2] Skipped (no symbols need contract addresses)`);
+        }
+        // STEP 2.3: Apply enrichment to all tickers
+        console.log(`\n   [STEP 2.3] Applying enrichment to tickers`);
         for (const [exchange, tickers] of allTickers.entries()) {
             const enrichedTickers = [];
             for (const ticker of tickers) {
@@ -379,18 +387,13 @@ export class ArbitrageCalculator {
                             if (firstContract) {
                                 contractAddress = firstContract;
                                 contractEnrichedCount++;
-                                console.log(`   ⚠️ [${exchange}] ${ticker.symbol}: Using contract ${firstContract.substring(0, 10)}... for blockchain ${blockchain} (no exact chain match)`);
                             }
                         }
                     }
                 }
-                // Log if we enriched this ticker
+                // Track if we enriched this ticker
                 if (blockchain && blockchain !== ticker.blockchain) {
                     enrichedCount++;
-                    if (enrichedCount <= 20) { // Log first 20 for debugging
-                        const contractInfo = contractAddress ? ` | contract=${contractAddress.substring(0, 10)}...` : '';
-                        console.log(`   📍 [${exchange}] ${ticker.symbol}: ${blockchain}${contractInfo}`);
-                    }
                 }
                 enrichedTickers.push({
                     ...ticker,
@@ -400,11 +403,13 @@ export class ArbitrageCalculator {
             }
             enriched.set(exchange, enrichedTickers);
         }
-        if (enrichedCount > 0 || contractEnrichedCount > 0) {
-            console.log(`   ✅ Enriched ${enrichedCount} tickers with blockchain info, ${contractEnrichedCount} with contract addresses (${unchangedCount} already had info)`);
-        }
-        else {
-            console.log(`   ℹ️  All tickers already had blockchain/contract info or couldn't be enriched`);
+        // Summary
+        console.log(`\n   ✅ Enrichment Summary:`);
+        console.log(`      • Blockchain enriched: ${enrichedCount} tickers`);
+        console.log(`      • Contract enriched: ${contractEnrichedCount} tickers`);
+        console.log(`      • Already complete: ${unchangedCount} tickers`);
+        if (enrichedCount === 0 && contractEnrichedCount === 0) {
+            console.log(`      ⚠️  No enrichment performed (all tickers already had info or enrichment failed)`);
         }
         return enriched;
     }
