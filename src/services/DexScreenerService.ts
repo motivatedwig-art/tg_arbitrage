@@ -1,4 +1,5 @@
 import axios, { AxiosError } from 'axios';
+import { DatabaseManager } from '../database/Database.js';
 
 export interface DexScreenerTokenInfo {
   chainId?: string;
@@ -15,6 +16,7 @@ interface RateLimiter {
 export class DexScreenerService {
   private static instance: DexScreenerService;
   private cache: Map<string, DexScreenerTokenInfo> = new Map();
+  private db: DatabaseManager | null = null;
   
   // Rate limiting: 60 requests per minute = max 50 to be safe
   private readonly MAX_REQUESTS_PER_MINUTE = 50;
@@ -44,6 +46,13 @@ export class DexScreenerService {
       DexScreenerService.instance = new DexScreenerService();
     }
     return DexScreenerService.instance;
+  }
+
+  /**
+   * Initialize database connection for caching
+   */
+  public setDatabase(db: DatabaseManager): void {
+    this.db = db;
   }
 
   /**
@@ -191,10 +200,38 @@ export class DexScreenerService {
 
   /**
    * Fetch all candidate tokens for a symbol across chains (deduplicated by chainId+address)
+   * Checks database cache first, then API if needed
    */
   public async resolveAllBySymbol(symbol: string): Promise<DexScreenerTokenInfo[]> {
     const key = (symbol || '').toUpperCase();
     if (!key) return [];
+
+    // Try database cache first
+    if (this.db) {
+      try {
+        const cacheModel = this.db.getDexScreenerCacheModel();
+        if (cacheModel) {
+          const cached = await cacheModel.getBySymbol(key);
+          if (cached && cached.length > 0) {
+            console.log(`💾 [DEXSCREENER] Found ${cached.length} cached entries for ${key}`);
+            return cached;
+          }
+        }
+      } catch (error) {
+        console.warn(`⚠️ Error checking DexScreener cache for ${key}:`, error);
+      }
+    }
+    
+    // Check in-memory cache
+    if (this.cache.has(key)) {
+      const cached = this.cache.get(key)!;
+      if (cached.chainId && cached.tokenAddress) {
+        return [cached];
+      }
+    }
+
+    // Cache miss - fetch from API
+    console.log(`🌐 [DEXSCREENER] Fetching from API for ${key} (cache miss)`);
     
     const out: DexScreenerTokenInfo[] = [];
     const seen = new Set<string>();
@@ -227,6 +264,24 @@ export class DexScreenerService {
         console.warn(`⚠️ DexScreener search failed for query "${q}": ${errorMsg}`);
         // Continue to next query
       }
+    }
+    
+    // Store in database cache if we got results
+    if (out.length > 0 && this.db) {
+      try {
+        const cacheModel = this.db.getDexScreenerCacheModel();
+        if (cacheModel) {
+          await cacheModel.store(out, key);
+          console.log(`💾 [DEXSCREENER] Cached ${out.length} entries for ${key}`);
+        }
+      } catch (error) {
+        console.warn(`⚠️ Error caching DexScreener results for ${key}:`, error);
+      }
+    }
+    
+    // Also store in in-memory cache (first result)
+    if (out.length > 0) {
+      this.cache.set(key, out[0]);
     }
     
     return out;

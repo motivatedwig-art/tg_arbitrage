@@ -4,6 +4,7 @@ import { UserModel } from './models/User.js';
 import { ArbitrageOpportunityModel } from './models/ArbitrageOpportunity.js';
 import { PostgresUserModel } from './models/PostgresUserModel.js';
 import { PostgresArbitrageOpportunityModel } from './models/PostgresArbitrageOpportunityModel.js';
+import { PostgresDexScreenerCacheModel } from './models/PostgresDexScreenerCacheModel.js';
 import { DatabaseManagerPostgres } from './DatabasePostgres.js';
 export class DatabaseManager {
     constructor() {
@@ -22,12 +23,15 @@ export class DatabaseManager {
         // Initialize models based on database type
         if (this.isPostgres) {
             // Use real PostgreSQL models
-            this.userModel = new PostgresUserModel(this.db);
-            this.arbitrageModel = new PostgresArbitrageOpportunityModel(this.db);
+            const postgresDb = this.db;
+            this.userModel = new PostgresUserModel(postgresDb);
+            this.arbitrageModel = new PostgresArbitrageOpportunityModel(postgresDb);
+            this.dexscreenerCacheModel = new PostgresDexScreenerCacheModel(postgresDb);
         }
         else {
             this.userModel = new UserModel(this.db);
             this.arbitrageModel = new ArbitrageOpportunityModel(this.db);
+            // DexScreener cache only available for PostgreSQL
         }
     }
     static getInstance() {
@@ -43,6 +47,9 @@ export class DatabaseManager {
                 await this.db.init();
                 await this.userModel.createTable();
                 await this.arbitrageModel.createTable();
+                if (this.dexscreenerCacheModel) {
+                    await this.dexscreenerCacheModel.createTable();
+                }
                 console.log('✅ PostgreSQL database initialized successfully');
             }
             else {
@@ -62,6 +69,9 @@ export class DatabaseManager {
     }
     getArbitrageModel() {
         return this.arbitrageModel;
+    }
+    getDexScreenerCacheModel() {
+        return this.dexscreenerCacheModel;
     }
     getDatabase() {
         return this.db;

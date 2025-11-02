@@ -3,6 +3,7 @@ import { CryptoArbitrageBot } from './bot/TelegramBot.js';
 import { UnifiedArbitrageService } from './services/UnifiedArbitrageService.js';
 import { DatabaseManager } from './database/Database.js';
 import { WebAppServer } from './webapp/server.js';
+import { DexScreenerService } from './services/DexScreenerService.js';
 import cron from 'node-cron';
 
 // Load environment variables
@@ -40,6 +41,11 @@ class CryptoArbitrageApp {
       // Initialize arbitrage service
       this.arbitrageService = UnifiedArbitrageService.getInstance();
       console.log('✅ Arbitrage service initialized');
+      
+      // Initialize DexScreener service with database cache
+      const dexScreenerService = DexScreenerService.getInstance();
+      dexScreenerService.setDatabase(this.db);
+      console.log('✅ DexScreener service initialized with database cache');
       
       // Initialize Telegram bot (optional - app can run without it)
       const botToken = process.env.TELEGRAM_BOT_TOKEN;

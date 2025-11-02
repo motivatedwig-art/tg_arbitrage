@@ -1,3 +1,4 @@
+import { DatabaseManager } from '../database/Database.js';
 export interface DexScreenerTokenInfo {
     chainId?: string;
     tokenAddress?: string;
@@ -6,6 +7,7 @@ export interface DexScreenerTokenInfo {
 export declare class DexScreenerService {
     private static instance;
     private cache;
+    private db;
     private readonly MAX_REQUESTS_PER_MINUTE;
     private readonly MINUTE_MS;
     private readonly MIN_REQUEST_INTERVAL;
@@ -15,6 +17,10 @@ export declare class DexScreenerService {
     private readonly MAX_RETRY_DELAY;
     private axiosInstance;
     static getInstance(): DexScreenerService;
+    /**
+     * Initialize database connection for caching
+     */
+    setDatabase(db: DatabaseManager): void;
     /**
      * Rate limiter: ensures we stay under 60 requests per minute
      */
@@ -38,6 +44,7 @@ export declare class DexScreenerService {
     resolveBySymbol(symbol: string): Promise<DexScreenerTokenInfo | null>;
     /**
      * Fetch all candidate tokens for a symbol across chains (deduplicated by chainId+address)
+     * Checks database cache first, then API if needed
      */
     resolveAllBySymbol(symbol: string): Promise<DexScreenerTokenInfo[]>;
     /**

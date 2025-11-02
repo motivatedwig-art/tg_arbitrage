@@ -5,6 +5,7 @@ import { UserModel } from './models/User.js';
 import { ArbitrageOpportunityModel } from './models/ArbitrageOpportunity.js';
 import { PostgresUserModel } from './models/PostgresUserModel.js';
 import { PostgresArbitrageOpportunityModel } from './models/PostgresArbitrageOpportunityModel.js';
+import { PostgresDexScreenerCacheModel } from './models/PostgresDexScreenerCacheModel.js';
 import { DatabaseManagerPostgres } from './DatabasePostgres.js';
 
 export class DatabaseManager {
@@ -12,6 +13,7 @@ export class DatabaseManager {
   private db: SQLiteDatabase | DatabaseManagerPostgres;
   private userModel: UserModel | PostgresUserModel;
   private arbitrageModel: ArbitrageOpportunityModel | PostgresArbitrageOpportunityModel;
+  private dexscreenerCacheModel?: PostgresDexScreenerCacheModel;
   private isPostgres: boolean;
 
   private constructor() {
@@ -30,11 +32,14 @@ export class DatabaseManager {
     // Initialize models based on database type
     if (this.isPostgres) {
       // Use real PostgreSQL models
-      this.userModel = new PostgresUserModel(this.db as DatabaseManagerPostgres);
-      this.arbitrageModel = new PostgresArbitrageOpportunityModel(this.db as DatabaseManagerPostgres);
+      const postgresDb = this.db as DatabaseManagerPostgres;
+      this.userModel = new PostgresUserModel(postgresDb);
+      this.arbitrageModel = new PostgresArbitrageOpportunityModel(postgresDb);
+      this.dexscreenerCacheModel = new PostgresDexScreenerCacheModel(postgresDb);
     } else {
       this.userModel = new UserModel(this.db as SQLiteDatabase);
       this.arbitrageModel = new ArbitrageOpportunityModel(this.db as SQLiteDatabase);
+      // DexScreener cache only available for PostgreSQL
     }
   }
 
@@ -52,6 +57,9 @@ export class DatabaseManager {
         await (this.db as DatabaseManagerPostgres).init();
         await this.userModel.createTable();
         await this.arbitrageModel.createTable();
+        if (this.dexscreenerCacheModel) {
+          await this.dexscreenerCacheModel.createTable();
+        }
         console.log('✅ PostgreSQL database initialized successfully');
       } else {
         // SQLite initialization
@@ -71,6 +79,10 @@ export class DatabaseManager {
 
   public getArbitrageModel(): ArbitrageOpportunityModel | PostgresArbitrageOpportunityModel {
     return this.arbitrageModel;
+  }
+
+  public getDexScreenerCacheModel(): PostgresDexScreenerCacheModel | undefined {
+    return this.dexscreenerCacheModel;
   }
 
   public getDatabase(): SQLiteDatabase | DatabaseManagerPostgres {
