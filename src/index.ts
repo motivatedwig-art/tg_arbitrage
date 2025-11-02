@@ -54,70 +54,80 @@ class CryptoArbitrageApp {
   }
 
   public async start(): Promise<void> {
+    // CRITICAL: Start web server FIRST and don't let it fail the app
+    console.log('🌐 Starting web app server (required for health checks)...');
     try {
-      console.log('🚀 Starting Crypto Arbitrage Bot...');
+      await this.webAppServer.start(parseInt(process.env.PORT || '3000'));
+      console.log('✅ Web app server started successfully - health check endpoint available');
+    } catch (webError: any) {
+      console.error('❌ CRITICAL: Web app server failed to start:', webError);
+      console.error('   This is required for Railway health checks - exiting');
+      process.exit(1);
+    }
 
-      // Start web app server first (required for health checks)
-      console.log('🌐 Starting web app server...');
-      try {
-        await this.webAppServer.start(parseInt(process.env.PORT || '3000'));
-        console.log('✅ Web app server started successfully');
-      } catch (webError) {
-        console.error('❌ Web app server failed to start:', webError);
-        throw webError; // Don't continue if web server fails
-      }
+    // Start other services asynchronously (non-blocking)
+    console.log('🚀 Starting Crypto Arbitrage Bot services (non-blocking)...');
 
-      // Start the unified arbitrage service
-      console.log('🔌 Starting unified arbitrage service...');
-      await this.arbitrageService.start();
+    // Start the unified arbitrage service (non-blocking)
+    console.log('🔌 Starting unified arbitrage service...');
+    this.arbitrageService.start().catch((error: any) => {
+      console.error('⚠️ Arbitrage service failed to start:', error.message);
+      console.log('🌐 Web application will continue without arbitrage scanning');
+      console.log('   You can manually trigger a scan via API if needed');
+    });
 
-      // Start the Telegram bot (non-blocking with graceful error handling)
-      if (process.env.DISABLE_TELEGRAM_BOT === 'true') {
-        console.log('🚫 Telegram bot disabled via DISABLE_TELEGRAM_BOT environment variable');
-        console.log('🌐 Web application will run without Telegram bot');
-      } else {
-        try {
-          await this.bot.start();
-          console.log('✅ Telegram bot started successfully');
-        } catch (botError: any) {
-          if (botError.response?.body?.error_code === 409) {
-            console.warn('⚠️ Telegram bot conflict - another instance is running');
-            console.log('🔄 This is normal during Railway deployments - web app will continue');
-          } else {
-            console.error('⚠️ Telegram bot failed to start:', botError.message);
-          }
-          console.log('🌐 Web application will continue to function normally');
+    // Start the Telegram bot (non-blocking with graceful error handling)
+    if (process.env.DISABLE_TELEGRAM_BOT === 'true') {
+      console.log('🚫 Telegram bot disabled via DISABLE_TELEGRAM_BOT environment variable');
+      console.log('🌐 Web application will run without Telegram bot');
+    } else {
+      this.bot.start().catch((botError: any) => {
+        if (botError.response?.body?.error_code === 409) {
+          console.warn('⚠️ Telegram bot conflict - another instance is running');
+          console.log('🔄 This is normal during Railway deployments - web app will continue');
+        } else {
+          console.error('⚠️ Telegram bot failed to start:', botError.message);
         }
-      }
+        console.log('🌐 Web application will continue to function normally');
+      });
+    }
 
-      // Schedule cleanup tasks
+    // Schedule cleanup tasks (non-blocking)
+    try {
       this.scheduleCleanup();
+    } catch (error) {
+      console.warn('⚠️ Failed to schedule cleanup tasks:', error);
+    }
 
-      // Start blockchain scanner job if enabled
-      if (process.env.BLOCKCHAIN_SCANNING_ENABLED !== 'false') {
+    // Start blockchain scanner job if enabled (non-blocking)
+    if (process.env.BLOCKCHAIN_SCANNING_ENABLED !== 'false') {
+      import('./jobs/BlockchainScannerJob.js').then(({ BlockchainScannerJob }) => {
         try {
-          const { BlockchainScannerJob } = await import('./jobs/BlockchainScannerJob.js');
           BlockchainScannerJob.schedule();
           
           // Run initial scan (non-blocking)
-          BlockchainScannerJob.runNow().catch(err => {
+          BlockchainScannerJob.runNow().catch((err: any) => {
             console.warn('⚠️ Initial blockchain scan failed:', err.message);
           });
         } catch (error) {
           console.warn('⚠️ Failed to start blockchain scanner job:', error);
-          // Don't fail the entire app if scanner fails
         }
-      }
+      }).catch((error) => {
+        console.warn('⚠️ Failed to load blockchain scanner job:', error);
+      });
+    }
 
-      console.log('✅ Crypto Arbitrage Bot is running!');
-      console.log(`📊 Update interval: ${this.updateInterval / 1000} seconds`);
+    console.log('✅ Application startup sequence completed!');
+    console.log('🌐 Web server is ready - health check endpoint active at /api/health');
+    console.log(`📊 Update interval: ${this.updateInterval / 1000} seconds`);
+    
+    // Log thresholds (with error handling)
+    try {
       console.log(`💰 Min profit threshold: ${this.arbitrageService.getArbitrageCalculator().getMinProfitThreshold()}%`);
       console.log(`🚨 Max profit threshold: ${this.arbitrageService.getArbitrageCalculator().getMaxProfitThreshold()}%`);
       console.log(`📈 Min volume threshold: ${this.arbitrageService.getArbitrageCalculator().getMinVolumeThreshold()}`);
-
     } catch (error) {
-      console.error('❌ Failed to start application:', error);
-      process.exit(1);
+      console.warn('⚠️ Could not log arbitrage thresholds:', error);
     }
   }
 
