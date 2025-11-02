@@ -12,6 +12,7 @@ export declare class TokenMetadataService {
     private static instance;
     private tokenMetadataCache;
     private exchangeBlockchainMap;
+    private coinApiService;
     private constructor();
     static getInstance(): TokenMetadataService;
     /**
@@ -52,5 +53,10 @@ export declare class TokenMetadataService {
      * Check if a token is known to exist on multiple blockchains
      */
     isMultiChainToken(symbol: string): boolean;
+    /**
+     * Extended: Try to get coin metadata from CoinAPI if not found in cache.
+     * Will cache CoinAPI result for future requests.
+     */
+    getTokenMetadataWithCoinApi(symbol: string): Promise<TokenMetadata[] | null>;
 }
 //# sourceMappingURL=TokenMetadataService.d.ts.map

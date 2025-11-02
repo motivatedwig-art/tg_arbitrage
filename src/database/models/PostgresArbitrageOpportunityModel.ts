@@ -330,20 +330,27 @@ export class PostgresArbitrageOpportunityModel {
   }
 
   private sanitizeOpportunity(opp: ArbitrageOpportunity): ArbitrageOpportunity {
+    // CRITICAL: Log when sanitization runs
+    console.log(`🔧 [SANITIZE] Sanitizing opportunity: ${opp.symbol}, profit: ${opp.profitPercentage}%, volume: ${opp.volume}`);
+    
     // NUMERIC(20,8) max absolute value: must be < 10^12 (1,000,000,000,000)
-    // Using a safe limit well below the threshold to prevent overflow
-    const MAX_NUMERIC_20_8 = 999999999999.99999999; // Max safe value for NUMERIC(20,8)
+    // But error says "precision 20, scale 8 must round to an absolute value less than 10^12"
+    // So max value is actually 999999999999.99999999 (not 10^12)
+    const MAX_NUMERIC_20_8 = 999999999999; // Max safe value for NUMERIC(20,8) - well below 10^12
     
     // NUMERIC(18,8) max absolute value: must be < 10^10 (10,000,000,000)
-    const MAX_NUMERIC_18_8 = 9999999999.99999999; // Max safe value for NUMERIC(18,8)
+    const MAX_NUMERIC_18_8 = 9999999999; // Max safe value for NUMERIC(18,8) - well below 10^10
     
     // Clamp values to prevent database overflow
     const clampDecimal = (value: number, maxValue: number = MAX_NUMERIC_20_8): number => {
-      if (!Number.isFinite(value) || isNaN(value)) return 0;
+      if (!Number.isFinite(value) || isNaN(value)) {
+        console.warn(`⚠️ [SANITIZE] Invalid value: ${value}, setting to 0`);
+        return 0;
+      }
       const absValue = Math.abs(value);
       if (absValue >= maxValue) {
-        const clamped = value > 0 ? maxValue - 0.00000001 : -(maxValue - 0.00000001);
-        console.warn(`⚠️ Clamping value ${value} to ${clamped} (NUMERIC overflow prevention)`);
+        const clamped = value > 0 ? maxValue - 1 : -(maxValue - 1);
+        console.warn(`⚠️ [SANITIZE] Clamping value ${value} to ${clamped} (NUMERIC overflow prevention - max: ${maxValue})`);
         return clamped;
       }
       return value;
@@ -365,28 +372,30 @@ export class PostgresArbitrageOpportunityModel {
   private sanitizePercentage(percentage: number): number {
     // Handle infinity, NaN, and extreme values
     if (!isFinite(percentage) || isNaN(percentage)) {
-      console.warn(`⚠️ Invalid profit percentage detected: ${percentage}, setting to 0`);
+      console.warn(`⚠️ [SANITIZE] Invalid profit percentage: ${percentage}, setting to 0`);
       return 0;
     }
     
     // NUMERIC(18,8) max absolute value: must be < 10^10 (10,000,000,000)
-    // Using a safe limit well below the threshold
-    const MAX_PERCENTAGE = 9999999999.99999999; // Max safe value for NUMERIC(18,8)
+    // Error says must round to absolute value less than 10^10, so use 9999999999 (not 10^10)
+    const MAX_PERCENTAGE = 9999999999; // Max safe value - well below 10^10
     
     // Cap extreme percentages to prevent database overflow
     if (percentage >= MAX_PERCENTAGE) {
-      const clamped = MAX_PERCENTAGE - 0.00000001;
-      console.warn(`⚠️ Profit percentage too high: ${percentage}%, capping to ${clamped}%`);
+      const clamped = MAX_PERCENTAGE - 1;
+      console.warn(`⚠️ [SANITIZE] Profit percentage too high: ${percentage}%, capping to ${clamped}%`);
       return clamped;
     }
     
     if (percentage <= -MAX_PERCENTAGE) {
-      const clamped = -(MAX_PERCENTAGE - 0.00000001);
-      console.warn(`⚠️ Profit percentage too low: ${percentage}%, capping to ${clamped}%`);
+      const clamped = -(MAX_PERCENTAGE - 1);
+      console.warn(`⚠️ [SANITIZE] Profit percentage too low: ${percentage}%, capping to ${clamped}%`);
       return clamped;
     }
     
-    return Math.round(percentage * 100000000) / 100000000; // Round to 8 decimal places to match NUMERIC(18,8)
+    // Round to 8 decimal places to match NUMERIC(18,8)
+    const rounded = Math.round(percentage * 100000000) / 100000000;
+    return rounded;
   }
 
   private isValidOpportunity(opp: ArbitrageOpportunity): boolean {

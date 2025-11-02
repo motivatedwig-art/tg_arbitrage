@@ -1,16 +1,29 @@
 import { TokenMetadataService } from '../../services/TokenMetadataService.js';
 import { ExchangeManager } from '../../exchanges/ExchangeManager.js';
 import { getTokenBlockchain } from '../../services/TokenMetadataDatabase.js';
+import { BlockchainAggregator } from '../../services/BlockchainAggregator.js';
+import { CoinApiService } from '../../services/CoinApiService.js';
+import { IconResolver } from '../../services/IconResolver.js';
 export class ArbitrageCalculator {
     constructor(minProfitThreshold = 0.5, maxProfitThreshold = 50, minVolumeThreshold = 100) {
         this.tradingFees = new Map();
         this.chainTransferCosts = new Map();
+        this.blockchainAggregator = null;
         this.excludedBlockchains = new Set([]); // DISABLED: Blockchain filtering disabled due to inaccurate blockchain detection
+        this.coinApiService = CoinApiService.getInstance();
+        this.iconResolver = IconResolver.getInstance();
         this.minProfitThreshold = minProfitThreshold;
         this.maxProfitThreshold = maxProfitThreshold;
         this.minVolumeThreshold = minVolumeThreshold;
         this.tokenMetadataService = TokenMetadataService.getInstance();
         this.exchangeManager = ExchangeManager.getInstance();
+        // Initialize blockchain aggregator (lazy load to avoid circular deps)
+        try {
+            this.blockchainAggregator = new BlockchainAggregator();
+        }
+        catch (error) {
+            console.warn('⚠️ Could not initialize BlockchainAggregator, using fallback detection');
+        }
         this.initializeTradingFees();
         this.initializeChainTransferCosts();
         console.log(`📊 Arbitrage Calculator initialized with:`);
@@ -61,13 +74,34 @@ export class ArbitrageCalculator {
             console.error('❌ MOCK DATA DETECTED - Returning empty opportunities');
             return [];
         }
+        // CRITICAL: Enrich tickers with blockchain/contract info BEFORE grouping
+        // This ensures contract ID matching works properly
+        console.log('🔍 [BEFORE ENRICHMENT] About to enrich tickers...');
+        console.log('🔍 Enriching tickers with blockchain/contract information...');
+        console.log(`   📥 Input: ${allTickers.size} exchanges, ${totalTickers} total tickers`);
+        let enrichedTickers;
+        try {
+            console.log('   🚀 Calling enrichTickersWithBlockchainInfo...');
+            enrichedTickers = await this.enrichTickersWithBlockchainInfo(allTickers);
+            console.log(`   ✅ Enrichment completed: ${enrichedTickers.size} exchanges processed`);
+            console.log(`   📤 Output: ${Array.from(enrichedTickers.values()).reduce((sum, tickers) => sum + tickers.length, 0)} total tickers after enrichment`);
+        }
+        catch (error) {
+            console.error('❌ Error during ticker enrichment:', error);
+            console.error('   Stack:', error instanceof Error ? error.stack : 'No stack trace');
+            // Fall back to original tickers if enrichment fails
+            enrichedTickers = allTickers;
+            console.log('   ⚠️ Using original tickers as fallback');
+        }
         const opportunities = [];
         // Group tickers by symbol and filter for compatible chains only
-        const symbolGroups = this.groupTickersBySymbol(allTickers);
+        const symbolGroups = this.groupTickersBySymbol(enrichedTickers);
         console.log(`🔍 Grouped into ${symbolGroups.size} unique symbols`);
         let symbolsProcessed = 0;
         let symbolsSkipped = 0;
-        for (const [symbol, tickers] of symbolGroups) {
+        for (const [uniqueKey, tickers] of symbolGroups) {
+            // Extract base symbol from unique key (format: SYMBOL|blockchain|contractAddress)
+            const baseSymbol = uniqueKey.split('|')[0];
             // No pre-filtering - let the transfer availability check handle blockchain compatibility
             // This allows us to find more opportunities and only filter when we definitively know transfer won't work
             if (tickers.length < 2) {
@@ -75,7 +109,9 @@ export class ArbitrageCalculator {
                 continue; // Skip if not enough tickers across exchanges
             }
             symbolsProcessed++;
-            const symbolOpportunities = await this.findArbitrageForSymbol(symbol, tickers);
+            // Use the original symbol from first ticker for display purposes
+            const displaySymbol = tickers[0].symbol;
+            const symbolOpportunities = await this.findArbitrageForSymbol(displaySymbol, tickers);
             // Filter out opportunities on excluded blockchains AFTER they're calculated
             // Only filter if blockchain is EXPLICITLY set (not defaulted)
             const filteredOpportunities = symbolOpportunities.filter(opp => {
@@ -88,7 +124,12 @@ export class ArbitrageCalculator {
                 return true;
             });
             if (filteredOpportunities.length > 0) {
-                console.log(`   ✅ ${symbol}: Found ${filteredOpportunities.length} opportunities across ${tickers.length} exchanges`);
+                // Extract contract/blockchain info for logging
+                const contracts = [...new Set(tickers.map(t => t.contractAddress).filter(Boolean))];
+                const chains = [...new Set(tickers.map(t => t.blockchain).filter(Boolean))];
+                const contractInfo = contracts.length > 0 ? ` | contracts=${contracts.length}` : '';
+                const chainInfo = chains.length > 0 ? ` | chains=${chains.join(',')}` : '';
+                console.log(`   ✅ ${baseSymbol}: Found ${filteredOpportunities.length} opportunities across ${tickers.length} exchanges${chainInfo}${contractInfo}`);
             }
             opportunities.push(...filteredOpportunities);
         }
@@ -113,8 +154,286 @@ export class ArbitrageCalculator {
         console.log(`   Unrealistic profit (>${this.maxProfitThreshold}%): ${unrealisticCount}`);
         console.log(`   Too low profit (<${this.minProfitThreshold}%): ${lowProfitCount}`);
         console.log(`   ✅ Final opportunities: ${filteredOpportunities.length}`);
-        // Sort by profit percentage (highest first)
-        return filteredOpportunities.sort((a, b) => b.profitPercentage - a.profitPercentage);
+        // Patch: Use CoinAPI only with base asset symbol (left of slash)
+        // Group the filtered opportunities by base asset CoinAPI asset_id
+        const enrichedResults = [];
+        for (const opp of filteredOpportunities) {
+            const baseAsset = opp.symbol.split('/')[0];
+            const coinApiBuy = await this.coinApiService.getAssetMetadata(baseAsset);
+            console.log(`[CoinAPI] Symbol: ${baseAsset}`, JSON.stringify(coinApiBuy));
+            const logoUrlDefault = await this.iconResolver.resolveIcon(baseAsset);
+            // Fetch all chain candidates for authenticity (contract-level) grouping
+            const candidates = await this.iconResolver.resolveTokenInfo(baseAsset)
+                .then(async (single) => {
+                if (single)
+                    return [single];
+                // Fallback to multi if single not returned (back-compat)
+                try {
+                    const { DexScreenerService } = await import('../../services/DexScreenerService.js');
+                    return await DexScreenerService.getInstance().resolveAllBySymbol(baseAsset);
+                }
+                catch {
+                    return [];
+                }
+            });
+            // Debug: log resolved contracts per symbol
+            try {
+                const debugList = (candidates || []).map(c => `${c?.chainId || 'unknown'}:${c?.tokenAddress || 'n/a'}`).join(', ');
+                console.log(`[CHAIN_RESOLVE] ${baseAsset} -> [${debugList || 'none'}]`);
+            }
+            catch { }
+            // If no candidates, emit a single opportunity with default icon
+            if (!candidates || candidates.length === 0) {
+                enrichedResults.push({ ...opp, logoUrl: logoUrlDefault });
+                continue;
+            }
+            // Expand one opportunity per chain/contract candidate
+            for (const c of candidates) {
+                const logoUrl = c?.imageUrl || logoUrlDefault;
+                // Map DS chainId to readable blockchain label (fallback to chainId)
+                const chainLabel = this.mapDexChainIdToBlockchain(c?.chainId);
+                const contractDisplay = c?.tokenAddress ? c.tokenAddress.substring(0, 10) + '...' : 'none';
+                console.log(`[OPP_ENRICH] ${baseAsset} | chain=${c?.chainId || 'unknown'} | contract=${contractDisplay} | buy=${opp.buyExchange} | sell=${opp.sellExchange} | profit=${opp.profitPercentage.toFixed(2)}%`);
+                enrichedResults.push({
+                    ...opp,
+                    logoUrl,
+                    chainId: c?.chainId,
+                    tokenAddress: c?.tokenAddress,
+                    blockchain: chainLabel,
+                });
+            }
+        }
+        return enrichedResults.sort((a, b) => b.profitPercentage - a.profitPercentage);
+    }
+    mapDexChainIdToBlockchain(chainId) {
+        if (!chainId)
+            return undefined;
+        const id = chainId.toLowerCase();
+        switch (id) {
+            case 'ethereum':
+            case 'eth':
+                return 'ethereum';
+            case 'bsc':
+            case 'bnb':
+                return 'bsc';
+            case 'polygon':
+            case 'matic':
+                return 'polygon';
+            case 'arbitrum':
+                return 'arbitrum';
+            case 'optimism':
+                return 'optimism';
+            case 'base':
+                return 'base';
+            case 'solana':
+            case 'sol':
+                return 'solana';
+            case 'avalanche':
+            case 'avax':
+                return 'avalanche';
+            default:
+                return id;
+        }
+    }
+    /**
+     * Enrich tickers with blockchain and contract address information
+     * This ensures contract ID matching works properly
+     * Uses DexScreener to get contract addresses for accurate matching
+     */
+    async enrichTickersWithBlockchainInfo(allTickers) {
+        console.log(`   [ENRICH] Method called with ${allTickers.size} exchanges`);
+        const enriched = new Map();
+        let enrichedCount = 0;
+        let contractEnrichedCount = 0;
+        let unchangedCount = 0;
+        let totalTickers = 0;
+        // Count total tickers for logging
+        for (const tickers of allTickers.values()) {
+            totalTickers += tickers.length;
+        }
+        console.log(`   🔍 Processing ${totalTickers} tickers across ${allTickers.size} exchanges...`);
+        // Group unique symbols that need enrichment to avoid duplicate API calls
+        const symbolsNeedingContract = new Set();
+        const symbolBlockchainMap = new Map(); // symbol -> blockchain
+        // First pass: Get blockchain info for all symbols
+        for (const tickers of allTickers.values()) {
+            for (const ticker of tickers) {
+                if (ticker.blockchain && ticker.contractAddress) {
+                    unchangedCount++;
+                    continue;
+                }
+                const baseSymbol = ticker.symbol.split('/')[0].toUpperCase();
+                let blockchain = ticker.blockchain;
+                // Fast pattern-based blockchain detection
+                if (!blockchain) {
+                    const symbolWithQuote = ticker.symbol;
+                    const blockchainFromDb = getTokenBlockchain(symbolWithQuote);
+                    if (blockchainFromDb) {
+                        blockchain = blockchainFromDb;
+                    }
+                    else {
+                        // Pattern-based detection
+                        const cleanSymbol = baseSymbol
+                            .replace(/[\/\-_]/g, '')
+                            .replace(/USDT$|USDC$|BTC$|ETH$|BNB$|USD$|EUR$/i, '')
+                            .toUpperCase();
+                        if (cleanSymbol === 'SOL' || cleanSymbol.includes('WSOL'))
+                            blockchain = 'solana';
+                        else if (cleanSymbol === 'TRX' || cleanSymbol.includes('TRON'))
+                            blockchain = 'tron';
+                        else if (cleanSymbol === 'BNB' || cleanSymbol.includes('WBNB'))
+                            blockchain = 'bsc';
+                        else if (cleanSymbol === 'MATIC' || cleanSymbol.includes('WMATIC'))
+                            blockchain = 'polygon';
+                        else if (cleanSymbol === 'ARB' && !cleanSymbol.includes('BARB'))
+                            blockchain = 'arbitrum';
+                        else if (cleanSymbol === 'OP' && cleanSymbol.length <= 8)
+                            blockchain = 'optimism';
+                        else if (cleanSymbol === 'AVAX' || cleanSymbol.includes('WAVAX'))
+                            blockchain = 'avalanche';
+                        else if (cleanSymbol === 'BTC')
+                            blockchain = 'bitcoin';
+                        else if (cleanSymbol === 'ETH')
+                            blockchain = 'ethereum';
+                        else
+                            blockchain = 'ethereum'; // Default for ERC-20 tokens
+                    }
+                    if (blockchain) {
+                        symbolBlockchainMap.set(baseSymbol, blockchain);
+                    }
+                }
+                // Track symbols that need contract address
+                if (blockchain && !ticker.contractAddress) {
+                    symbolsNeedingContract.add(baseSymbol);
+                }
+            }
+        }
+        // Second pass: Fetch contract addresses from DexScreener for symbols that need them
+        const symbolContractMap = new Map(); // symbol -> Map<chainId, contractAddress>
+        const symbolsArray = Array.from(symbolsNeedingContract);
+        if (symbolsArray.length > 0) {
+            console.log(`   🔍 Fetching contract addresses from DexScreener for ${symbolsArray.length} symbols...`);
+            try {
+                const { DexScreenerService } = await import('../../services/DexScreenerService.js');
+                const dexService = DexScreenerService.getInstance();
+                // Process symbols in batches to avoid overwhelming the API
+                const batchSize = 10;
+                let processed = 0;
+                for (let i = 0; i < symbolsArray.length && i < 200; i++) { // Limit to 200 symbols max
+                    const baseSymbol = symbolsArray[i];
+                    try {
+                        // Get all contract candidates for this symbol
+                        const candidates = await dexService.resolveAllBySymbol(baseSymbol);
+                        if (candidates && candidates.length > 0) {
+                            const contractMap = new Map();
+                            for (const candidate of candidates) {
+                                if (candidate.chainId && candidate.tokenAddress) {
+                                    contractMap.set(candidate.chainId.toLowerCase(), candidate.tokenAddress);
+                                }
+                            }
+                            if (contractMap.size > 0) {
+                                symbolContractMap.set(baseSymbol, contractMap);
+                            }
+                        }
+                        processed++;
+                        if (processed % batchSize === 0) {
+                            console.log(`   ⏳ Processed ${processed}/${Math.min(symbolsArray.length, 200)} symbols...`);
+                        }
+                    }
+                    catch (error) {
+                        // Continue with next symbol if this one fails
+                    }
+                }
+                console.log(`   ✅ Fetched contract info for ${symbolContractMap.size} symbols`);
+            }
+            catch (error) {
+                console.error('   ⚠️ Error fetching contract addresses from DexScreener:', error);
+            }
+        }
+        // Third pass: Apply enrichment to all tickers
+        for (const [exchange, tickers] of allTickers.entries()) {
+            const enrichedTickers = [];
+            for (const ticker of tickers) {
+                // If ticker already has blockchain and contract info, keep it
+                if (ticker.blockchain && ticker.contractAddress) {
+                    enrichedTickers.push(ticker);
+                    unchangedCount++;
+                    continue;
+                }
+                const baseSymbol = ticker.symbol.split('/')[0].toUpperCase();
+                let blockchain = ticker.blockchain || symbolBlockchainMap.get(baseSymbol);
+                let contractAddress = ticker.contractAddress;
+                // If we have blockchain but no contract, try to get it from DexScreener results
+                if (blockchain && !contractAddress) {
+                    const contracts = symbolContractMap.get(baseSymbol);
+                    if (contracts) {
+                        // Try to find contract for this blockchain
+                        const chainId = this.getChainIdFromBlockchain(blockchain);
+                        if (chainId && contracts.has(chainId)) {
+                            contractAddress = contracts.get(chainId);
+                            contractEnrichedCount++;
+                        }
+                        else {
+                            // If no exact match, use first contract (less ideal but better than nothing)
+                            const firstContract = contracts.values().next().value;
+                            if (firstContract) {
+                                contractAddress = firstContract;
+                                contractEnrichedCount++;
+                                console.log(`   ⚠️ [${exchange}] ${ticker.symbol}: Using contract ${firstContract.substring(0, 10)}... for blockchain ${blockchain} (no exact chain match)`);
+                            }
+                        }
+                    }
+                }
+                // Log if we enriched this ticker
+                if (blockchain && blockchain !== ticker.blockchain) {
+                    enrichedCount++;
+                    if (enrichedCount <= 20) { // Log first 20 for debugging
+                        const contractInfo = contractAddress ? ` | contract=${contractAddress.substring(0, 10)}...` : '';
+                        console.log(`   📍 [${exchange}] ${ticker.symbol}: ${blockchain}${contractInfo}`);
+                    }
+                }
+                enrichedTickers.push({
+                    ...ticker,
+                    blockchain: blockchain || undefined,
+                    contractAddress: contractAddress || undefined
+                });
+            }
+            enriched.set(exchange, enrichedTickers);
+        }
+        if (enrichedCount > 0 || contractEnrichedCount > 0) {
+            console.log(`   ✅ Enriched ${enrichedCount} tickers with blockchain info, ${contractEnrichedCount} with contract addresses (${unchangedCount} already had info)`);
+        }
+        else {
+            console.log(`   ℹ️  All tickers already had blockchain/contract info or couldn't be enriched`);
+        }
+        return enriched;
+    }
+    /**
+     * Map blockchain name to DexScreener chainId
+     */
+    getChainIdFromBlockchain(blockchain) {
+        const mapping = {
+            'ethereum': 'ethereum',
+            'eth': 'ethereum',
+            'bsc': 'bsc',
+            'bnb': 'bsc',
+            'polygon': 'polygon',
+            'matic': 'polygon',
+            'arbitrum': 'arbitrum',
+            'arb': 'arbitrum',
+            'optimism': 'optimism',
+            'op': 'optimism',
+            'base': 'base',
+            'solana': 'solana',
+            'sol': 'solana',
+            'avalanche': 'avalanche',
+            'avax': 'avalanche',
+            'fantom': 'fantom',
+            'ftm': 'fantom',
+            'tron': 'tron',
+            'trx': 'tron',
+        };
+        return mapping[blockchain.toLowerCase()] || null;
     }
     isMockData(allTickers) {
         // Check for common mock data patterns - be very specific
@@ -176,14 +495,47 @@ export class ArbitrageCalculator {
         }
         return compatibleTickers;
     }
+    /**
+     * Create a unique key for a ticker based on symbol, blockchain, and contract address
+     * This ensures we only compare tickers that represent the same asset
+     */
+    createTickerKey(ticker) {
+        const baseSymbol = ticker.symbol.split('/')[0].toUpperCase();
+        const blockchain = ticker.blockchain?.toLowerCase() || 'unknown';
+        const contractAddress = ticker.contractAddress?.toLowerCase() || '';
+        // Create unique key: symbol|blockchain|contractAddress
+        // If contract address exists, use it; otherwise use blockchain
+        if (contractAddress) {
+            return `${baseSymbol}|${blockchain}|${contractAddress}`;
+        }
+        // For native tokens or tokens without contract address, use symbol + blockchain
+        return `${baseSymbol}|${blockchain}|native`;
+    }
     groupTickersBySymbol(allTickers) {
         const symbolGroups = new Map();
         for (const tickers of allTickers.values()) {
             for (const ticker of tickers) {
-                if (!symbolGroups.has(ticker.symbol)) {
-                    symbolGroups.set(ticker.symbol, []);
+                // Use unique key that includes blockchain and contract address
+                const uniqueKey = this.createTickerKey(ticker);
+                if (!symbolGroups.has(uniqueKey)) {
+                    symbolGroups.set(uniqueKey, []);
                 }
-                symbolGroups.get(ticker.symbol).push(ticker);
+                symbolGroups.get(uniqueKey).push(ticker);
+            }
+        }
+        // Log contract ID information for debugging
+        console.log(`📋 Grouped tickers by unique asset keys:`);
+        for (const [key, tickers] of symbolGroups.entries()) {
+            if (tickers.length > 1) {
+                const [blockchain, contract] = key.split('|').slice(1);
+                const contractDisplay = contract && contract !== 'native' ? contract.substring(0, 10) + '...' : 'native';
+                console.log(`   ${key.split('|')[0]}: ${tickers.length} tickers | blockchain=${blockchain} | contract=${contractDisplay}`);
+                // Log contract addresses for each ticker in this group
+                tickers.forEach(t => {
+                    const contractInfo = t.contractAddress ? `contract=${t.contractAddress.substring(0, 10)}...` : 'no contract';
+                    const chainInfo = t.blockchain ? `chain=${t.blockchain}` : 'no chain';
+                    console.log(`      - ${t.exchange}: ${chainInfo} | ${contractInfo}`);
+                });
             }
         }
         return symbolGroups;
@@ -205,13 +557,69 @@ export class ArbitrageCalculator {
         // Filter out null results
         return results.filter((opp) => opp !== null);
     }
+    /**
+     * Verify that two tickers represent the same asset (same contract or same native token on same chain)
+     */
+    areSameAsset(ticker1, ticker2) {
+        const baseSymbol1 = ticker1.symbol.split('/')[0].toUpperCase();
+        const baseSymbol2 = ticker2.symbol.split('/')[0].toUpperCase();
+        // Symbols must match
+        if (baseSymbol1 !== baseSymbol2) {
+            return false;
+        }
+        const blockchain1 = ticker1.blockchain?.toLowerCase();
+        const blockchain2 = ticker2.blockchain?.toLowerCase();
+        const contract1 = ticker1.contractAddress?.toLowerCase();
+        const contract2 = ticker2.contractAddress?.toLowerCase();
+        // If both have contract addresses, they must match exactly
+        if (contract1 && contract2) {
+            if (contract1 !== contract2) {
+                console.log(`   ⚠️ [CONTRACT_MISMATCH] ${baseSymbol1}: ${ticker1.exchange} (${contract1.substring(0, 10)}...) vs ${ticker2.exchange} (${contract2.substring(0, 10)}...) - Different contracts, skipping`);
+                return false;
+            }
+            // Same contract address = same asset
+            return true;
+        }
+        // If both have blockchain info, they must match
+        if (blockchain1 && blockchain2) {
+            if (blockchain1 !== blockchain2) {
+                console.log(`   ⚠️ [BLOCKCHAIN_MISMATCH] ${baseSymbol1}: ${ticker1.exchange} (${blockchain1}) vs ${ticker2.exchange} (${blockchain2}) - Different blockchains, skipping`);
+                return false;
+            }
+            // Same blockchain + symbol = likely same asset (if both native tokens or both have no contract)
+            return true;
+        }
+        // If one has contract/blockchain and other doesn't, be conservative - assume different
+        if ((blockchain1 || contract1) && !(blockchain2 || contract2)) {
+            console.log(`   ⚠️ [INFO_MISMATCH] ${baseSymbol1}: ${ticker1.exchange} has blockchain info but ${ticker2.exchange} doesn't - skipping for safety`);
+            return false;
+        }
+        if ((blockchain2 || contract2) && !(blockchain1 || contract1)) {
+            console.log(`   ⚠️ [INFO_MISMATCH] ${baseSymbol2}: ${ticker2.exchange} has blockchain info but ${ticker1.exchange} doesn't - skipping for safety`);
+            return false;
+        }
+        // Both lack blockchain/contract info - assume same if symbol matches (legacy behavior)
+        // This is less safe but maintains backward compatibility
+        console.log(`   ⚠️ [LEGACY_MATCH] ${baseSymbol1}: Both tickers lack contract/blockchain info - assuming same asset (less safe)`);
+        return true;
+    }
     async calculateOpportunity(symbol, buyTicker, sellTicker) {
+        // CRITICAL: Verify buy and sell are the same asset before calculating opportunity
+        if (!this.areSameAsset(buyTicker, sellTicker)) {
+            return null;
+        }
         const buyPrice = buyTicker.ask; // Price to buy (ask price)
         const sellPrice = sellTicker.bid; // Price to sell (bid price)
         if (buyPrice >= sellPrice)
             return null; // No arbitrage opportunity
         // Extract currency from symbol (e.g., "BTC/USDT" -> "BTC")
         const currency = symbol.split('/')[0];
+        // Log contract IDs for this opportunity
+        const buyContract = buyTicker.contractAddress ? buyTicker.contractAddress.substring(0, 10) + '...' : 'native/no-contract';
+        const sellContract = sellTicker.contractAddress ? sellTicker.contractAddress.substring(0, 10) + '...' : 'native/no-contract';
+        const buyChain = buyTicker.blockchain || 'unknown';
+        const sellChain = sellTicker.blockchain || 'unknown';
+        console.log(`   ✅ [OPP] ${symbol}: ${buyTicker.exchange} (${buyChain}, ${buyContract}) → ${sellTicker.exchange} (${sellChain}, ${sellContract})`);
         // TRANSFER CHECK DISABLED - Finding all opportunities regardless of network compatibility
         // This allows us to identify ALL price discrepancies
         // User should manually verify transfer paths before trading
@@ -257,7 +665,7 @@ export class ArbitrageCalculator {
             volume: volume,
             volume_24h: buyTicker.volume_24h || sellTicker.volume_24h || volume,
             timestamp: Math.max(buyTicker.timestamp, sellTicker.timestamp),
-            blockchain: this.determineBlockchain(buyTicker, sellTicker),
+            blockchain: await this.determineBlockchain(buyTicker, sellTicker),
             fees: {
                 buyFee: buyFee,
                 sellFee: sellFee,
@@ -325,7 +733,7 @@ export class ArbitrageCalculator {
      * Determine the primary blockchain for an arbitrage opportunity
      * Uses comprehensive token database for accurate blockchain detection
      */
-    determineBlockchain(buyTicker, sellTicker) {
+    async determineBlockchain(buyTicker, sellTicker) {
         // If both tickers have blockchain info and they match, use that
         if (buyTicker.blockchain && sellTicker.blockchain && buyTicker.blockchain === sellTicker.blockchain) {
             return buyTicker.blockchain;
@@ -335,32 +743,85 @@ export class ArbitrageCalculator {
             return buyTicker.blockchain;
         if (sellTicker.blockchain)
             return sellTicker.blockchain;
-        // Use comprehensive token database
+        // Try blockchain aggregator first (most accurate)
         const symbol = buyTicker.symbol || sellTicker.symbol || '';
+        if (this.blockchainAggregator) {
+            try {
+                const blockchain = await this.blockchainAggregator.getBlockchainForToken(symbol);
+                if (blockchain) {
+                    return blockchain;
+                }
+            }
+            catch (error) {
+                // Fall through to static database
+            }
+        }
+        // Use comprehensive token database (Jacob)
         const blockchainFromDb = getTokenBlockchain(symbol);
         if (blockchainFromDb) {
             return blockchainFromDb;
         }
-        // Fallback: pattern-based detection for unknown tokens
-        const upperSymbol = symbol.toUpperCase();
-        // Check for blockchain indicators in symbol
-        if (upperSymbol.includes('SOL') || upperSymbol.includes('WSOL'))
+        // Fallback: Enhanced pattern-based detection
+        const cleanSymbol = symbol
+            .replace(/[\/\-_]/g, '')
+            .replace(/USDT$|USDC$|BTC$|ETH$|BNB$|USD$|EUR$/i, '')
+            .toUpperCase();
+        // Native chain tokens (exact match first)
+        if (cleanSymbol === 'SOL' || cleanSymbol.includes('WSOL'))
             return 'solana';
-        if (upperSymbol.includes('TRX') || upperSymbol.includes('TRON'))
+        if (cleanSymbol === 'TRX' || cleanSymbol.includes('TRON'))
             return 'tron';
-        if (upperSymbol.includes('BNB') || upperSymbol.includes('WBNB'))
+        if (cleanSymbol === 'BNB' || cleanSymbol.includes('WBNB'))
             return 'bsc';
-        if (upperSymbol.includes('MATIC') || upperSymbol.includes('WMATIC'))
+        if (cleanSymbol === 'MATIC' || cleanSymbol.includes('WMATIC'))
             return 'polygon';
-        if (upperSymbol.includes('ARB') && !upperSymbol.includes('BARB'))
+        if (cleanSymbol === 'ARB' || (cleanSymbol.includes('ARB') && !cleanSymbol.includes('BARB')))
             return 'arbitrum';
-        if (upperSymbol.includes('OP') && upperSymbol.length <= 8)
+        if (cleanSymbol === 'OP' || (cleanSymbol.includes('OP') && cleanSymbol.length <= 8))
             return 'optimism';
-        if (upperSymbol.includes('AVAX') || upperSymbol.includes('WAVAX'))
+        if (cleanSymbol === 'AVAX' || cleanSymbol.includes('WAVAX'))
             return 'avalanche';
-        if (upperSymbol.includes('TON'))
+        if (cleanSymbol === 'TON')
             return 'ton';
-        // Default to ethereum for ERC-20 tokens
+        if (cleanSymbol === 'APT')
+            return 'aptos';
+        if (cleanSymbol === 'SUI')
+            return 'sui';
+        if (cleanSymbol === 'NEAR')
+            return 'near';
+        if (cleanSymbol === 'ATOM')
+            return 'cosmos';
+        if (cleanSymbol === 'DOT')
+            return 'polkadot';
+        if (cleanSymbol === 'ADA')
+            return 'cardano';
+        if (cleanSymbol === 'BTC')
+            return 'bitcoin';
+        if (cleanSymbol === 'XRP')
+            return 'ripple';
+        if (cleanSymbol === 'XLM')
+            return 'stellar';
+        if (cleanSymbol === 'DOGE')
+            return 'dogecoin';
+        if (cleanSymbol === 'LTC')
+            return 'litecoin';
+        // Wrapped tokens
+        if (cleanSymbol.startsWith('W') && cleanSymbol.length > 4) {
+            const unwrapped = cleanSymbol.substring(1);
+            if (unwrapped === 'BTC' || unwrapped === 'ETH')
+                return 'ethereum';
+            if (unwrapped === 'SOL')
+                return 'solana';
+            if (unwrapped === 'BNB')
+                return 'bsc';
+            if (unwrapped === 'MATIC')
+                return 'polygon';
+        }
+        // Log unknown tokens for future analysis instead of silently defaulting
+        if (process.env.NODE_ENV === 'development') {
+            console.log(`⚠️ Unknown blockchain for ${symbol}, defaulting to Ethereum`);
+        }
+        // Default to ethereum for unknown ERC-20 tokens
         return 'ethereum';
     }
 }

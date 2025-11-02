@@ -395,6 +395,73 @@ export class WebAppServer {
                 });
             }
         });
+        // Blockchain scan endpoint
+        this.app.get('/api/blockchain-scan', async (req, res) => {
+            try {
+                const { BlockchainScannerJob } = await import('../jobs/BlockchainScannerJob.js');
+                const { BlockchainAggregator } = await import('../services/BlockchainAggregator.js');
+                const job = new BlockchainScannerJob();
+                const status = job.getStatus();
+                const aggregator = new BlockchainAggregator();
+                const data = aggregator.getAggregatedData();
+                res.json({
+                    success: true,
+                    status,
+                    statistics: {
+                        totalTokens: data.size,
+                        highConfidence: Array.from(data.values()).filter(t => t.confidence >= 80).length,
+                        verified: Array.from(data.values()).filter(t => t.contractVerified).length
+                    }
+                });
+            }
+            catch (error) {
+                console.error('Blockchain scan status error:', error);
+                res.status(500).json({
+                    success: false,
+                    error: error.message || 'Failed to get scan status'
+                });
+            }
+        });
+        this.app.post('/api/blockchain-scan', async (req, res) => {
+            try {
+                const { BlockchainScannerJob } = await import('../jobs/BlockchainScannerJob.js');
+                const { BlockchainAggregator } = await import('../services/BlockchainAggregator.js');
+                console.log('🔄 Manual blockchain scan triggered via API');
+                const startTime = Date.now();
+                try {
+                    await BlockchainScannerJob.runNow();
+                    const duration = ((Date.now() - startTime) / 1000).toFixed(2);
+                    const aggregator = new BlockchainAggregator();
+                    const data = aggregator.getAggregatedData();
+                    res.json({
+                        success: true,
+                        message: 'Blockchain scan completed successfully',
+                        duration: `${duration}s`,
+                        statistics: {
+                            totalTokens: data.size,
+                            highConfidence: Array.from(data.values()).filter(t => t.confidence >= 80).length,
+                            verified: Array.from(data.values()).filter(t => t.contractVerified).length
+                        }
+                    });
+                }
+                catch (error) {
+                    console.error('❌ Blockchain scan error:', error);
+                    res.status(500).json({
+                        success: false,
+                        error: error.message || 'Failed to run blockchain scan',
+                        details: error.stack
+                    });
+                }
+            }
+            catch (error) {
+                console.error('Blockchain scan API error:', error);
+                res.status(500).json({
+                    success: false,
+                    error: 'Internal server error',
+                    details: error.message
+                });
+            }
+        });
         // Health check endpoint (simple, always works)
         this.app.get('/api/health', (req, res) => {
             try {

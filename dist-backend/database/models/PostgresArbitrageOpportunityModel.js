@@ -9,13 +9,16 @@ export class PostgresArbitrageOpportunityModel {
         symbol VARCHAR(20) NOT NULL,
         buy_exchange VARCHAR(50) NOT NULL,
         sell_exchange VARCHAR(50) NOT NULL,
-        buy_price DECIMAL(20,8) NOT NULL,
-        sell_price DECIMAL(20,8) NOT NULL,
-        profit_percentage DECIMAL(15,4) NOT NULL,
-        profit_amount DECIMAL(20,8) NOT NULL,
-        volume DECIMAL(20,8) NOT NULL DEFAULT 0,
-        volume_24h DECIMAL(20,8),
+        buy_price NUMERIC(38,18) NOT NULL,
+        sell_price NUMERIC(38,18) NOT NULL,
+        profit_percentage NUMERIC(18,8) NOT NULL,
+        profit_amount NUMERIC(38,18) NOT NULL,
+        volume NUMERIC(38,18) NOT NULL DEFAULT 0,
+        volume_24h NUMERIC(38,18),
         blockchain VARCHAR(50),
+        chain_id VARCHAR(50),
+        token_address VARCHAR(120),
+        logo_url TEXT,
         timestamp BIGINT NOT NULL,
         created_at TIMESTAMP DEFAULT NOW()
       );
@@ -25,6 +28,28 @@ export class PostgresArbitrageOpportunityModel {
       CREATE INDEX IF NOT EXISTS idx_arbitrage_timestamp ON arbitrage_opportunities(timestamp);
     `;
         await this.db.query(sql);
+        // Attempt to migrate existing columns to wider precision and add new columns if missing
+        try {
+            await this.db.query(`
+        DO $$ BEGIN
+          -- Widen numeric precisions if columns exist with narrower types
+          BEGIN ALTER TABLE arbitrage_opportunities ALTER COLUMN buy_price TYPE NUMERIC(38,18) USING buy_price::NUMERIC; EXCEPTION WHEN others THEN END;
+          BEGIN ALTER TABLE arbitrage_opportunities ALTER COLUMN sell_price TYPE NUMERIC(38,18) USING sell_price::NUMERIC; EXCEPTION WHEN others THEN END;
+          BEGIN ALTER TABLE arbitrage_opportunities ALTER COLUMN profit_amount TYPE NUMERIC(38,18) USING profit_amount::NUMERIC; EXCEPTION WHEN others THEN END;
+          BEGIN ALTER TABLE arbitrage_opportunities ALTER COLUMN volume TYPE NUMERIC(38,18) USING volume::NUMERIC; EXCEPTION WHEN others THEN END;
+          BEGIN ALTER TABLE arbitrage_opportunities ALTER COLUMN volume_24h TYPE NUMERIC(38,18) USING volume_24h::NUMERIC; EXCEPTION WHEN others THEN END;
+          BEGIN ALTER TABLE arbitrage_opportunities ALTER COLUMN profit_percentage TYPE NUMERIC(18,8) USING profit_percentage::NUMERIC; EXCEPTION WHEN others THEN END;
+          -- Add new metadata columns if they don't exist
+          BEGIN ALTER TABLE arbitrage_opportunities ADD COLUMN IF NOT EXISTS chain_id VARCHAR(50); EXCEPTION WHEN others THEN END;
+          BEGIN ALTER TABLE arbitrage_opportunities ADD COLUMN IF NOT EXISTS token_address VARCHAR(120); EXCEPTION WHEN others THEN END;
+          BEGIN ALTER TABLE arbitrage_opportunities ADD COLUMN IF NOT EXISTS logo_url TEXT; EXCEPTION WHEN others THEN END;
+        END $$;
+      `);
+            console.log('🔧 PostgreSQL arbitrage_opportunities schema migrated (numeric widths + metadata cols)');
+        }
+        catch (e) {
+            console.warn('⚠️ Schema migration step skipped/failed:', e);
+        }
         console.log('PostgreSQL arbitrage_opportunities table created/verified');
     }
     async insert(opportunities) {
@@ -35,8 +60,8 @@ export class PostgresArbitrageOpportunityModel {
             await client.query('BEGIN');
             const sql = `
         INSERT INTO arbitrage_opportunities 
-        (symbol, buy_exchange, sell_exchange, buy_price, sell_price, profit_percentage, profit_amount, volume, volume_24h, blockchain, timestamp)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+        (symbol, buy_exchange, sell_exchange, buy_price, sell_price, profit_percentage, profit_amount, volume, volume_24h, blockchain, chain_id, token_address, logo_url, timestamp)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
       `;
             for (const opp of opportunities) {
                 // Validate and sanitize data before inserting
@@ -56,6 +81,9 @@ export class PostgresArbitrageOpportunityModel {
                     sanitizedOpportunity.volume,
                     sanitizedOpportunity.volume_24h || sanitizedOpportunity.volume,
                     sanitizedOpportunity.blockchain || 'ethereum',
+                    sanitizedOpportunity.chainId || null,
+                    sanitizedOpportunity.tokenAddress || null,
+                    sanitizedOpportunity.logoUrl || null,
                     sanitizedOpportunity.timestamp
                 ]);
             }
@@ -258,14 +286,30 @@ export class PostgresArbitrageOpportunityModel {
         }
     }
     sanitizeOpportunity(opp) {
+        // DECIMAL(20,8) max value: 999,999,999,999.99999999 (must be < 10^12)
+        const MAX_DECIMAL_VALUE = 999999999999.99999999;
+        // Clamp values to prevent database overflow
+        const clampDecimal = (value) => {
+            if (!Number.isFinite(value) || isNaN(value))
+                return 0;
+            if (value > MAX_DECIMAL_VALUE) {
+                console.warn(`⚠️ Clamping value ${value} to max ${MAX_DECIMAL_VALUE} (DECIMAL overflow)`);
+                return MAX_DECIMAL_VALUE;
+            }
+            if (value < 0 && Math.abs(value) > MAX_DECIMAL_VALUE) {
+                console.warn(`⚠️ Clamping value ${value} to min -${MAX_DECIMAL_VALUE} (DECIMAL overflow)`);
+                return -MAX_DECIMAL_VALUE;
+            }
+            return value;
+        };
         return {
             ...opp,
-            buyPrice: Math.max(opp.buyPrice, 0.00000001), // Prevent zero prices
-            sellPrice: Math.max(opp.sellPrice, 0.00000001), // Prevent zero prices
+            buyPrice: Math.max(clampDecimal(opp.buyPrice), 0.00000001), // Prevent zero prices
+            sellPrice: Math.max(clampDecimal(opp.sellPrice), 0.00000001), // Prevent zero prices
             profitPercentage: this.sanitizePercentage(opp.profitPercentage),
-            profitAmount: Math.max(opp.profitAmount, 0),
-            volume: Math.max(opp.volume, 0),
-            volume_24h: opp.volume_24h ? Math.max(opp.volume_24h, 0) : undefined,
+            profitAmount: Math.max(clampDecimal(opp.profitAmount), 0),
+            volume: clampDecimal(Math.max(opp.volume || 0, 0)),
+            volume_24h: opp.volume_24h ? clampDecimal(Math.max(opp.volume_24h, 0)) : undefined,
             blockchain: opp.blockchain, // Preserve blockchain field
             timestamp: Date.now()
         };

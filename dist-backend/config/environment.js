@@ -78,6 +78,8 @@ export const config = {
             passphrase: getEnvVar('KUCOIN_PASSPHRASE', ''),
         },
     },
+    // CoinAPI Key for Metadata Lookup
+    coinapiKey: getEnvVar('COINAPI_KEY', getEnvVar('VITE_COINAPI_KEY', '')),
     // Public API Endpoints
     publicApiEndpoints: {
         binance: {

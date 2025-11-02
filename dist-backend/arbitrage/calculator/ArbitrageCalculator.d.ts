@@ -7,19 +7,42 @@ export declare class ArbitrageCalculator {
     private chainTransferCosts;
     private tokenMetadataService;
     private exchangeManager;
+    private blockchainAggregator;
     private excludedBlockchains;
+    private coinApiService;
+    private iconResolver;
     constructor(minProfitThreshold?: number, maxProfitThreshold?: number, minVolumeThreshold?: number);
     private initializeTradingFees;
     private initializeChainTransferCosts;
     calculateArbitrageOpportunities(allTickers: Map<string, Ticker[]>): Promise<ArbitrageOpportunity[]>;
+    private mapDexChainIdToBlockchain;
+    /**
+     * Enrich tickers with blockchain and contract address information
+     * This ensures contract ID matching works properly
+     * Uses DexScreener to get contract addresses for accurate matching
+     */
+    private enrichTickersWithBlockchainInfo;
+    /**
+     * Map blockchain name to DexScreener chainId
+     */
+    private getChainIdFromBlockchain;
     private isMockData;
     /**
      * Pre-filter tickers to only include those on compatible blockchains
      * This reduces processing by eliminating incompatible pairs early
      */
     private filterCompatibleTickers;
+    /**
+     * Create a unique key for a ticker based on symbol, blockchain, and contract address
+     * This ensures we only compare tickers that represent the same asset
+     */
+    private createTickerKey;
     private groupTickersBySymbol;
     private findArbitrageForSymbol;
+    /**
+     * Verify that two tickers represent the same asset (same contract or same native token on same chain)
+     */
+    private areSameAsset;
     private calculateOpportunity;
     setMinProfitThreshold(threshold: number): void;
     getMinProfitThreshold(): number;

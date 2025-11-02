@@ -42,6 +42,7 @@ export interface EnvironmentConfig {
             passphrase: string;
         };
     };
+    coinapiKey: string;
     publicApiEndpoints: {
         binance: {
             price: string;

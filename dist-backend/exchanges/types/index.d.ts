@@ -36,6 +36,7 @@ export interface ArbitrageOpportunity {
     volume_24h?: number;
     timestamp: number;
     blockchain?: string;
+    logoUrl?: string;
     fees?: {
         buyFee: number;
         sellFee: number;

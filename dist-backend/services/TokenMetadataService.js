@@ -2,10 +2,12 @@
  * Service to identify blockchain networks and contract addresses for tokens
  * This helps prevent cross-chain arbitrage comparisons
  */
+import { CoinApiService } from './CoinApiService';
 export class TokenMetadataService {
     constructor() {
         this.tokenMetadataCache = new Map();
         this.exchangeBlockchainMap = new Map();
+        this.coinApiService = CoinApiService.getInstance();
         this.initializeExchangeBlockchainMap();
         this.initializeCommonTokenMetadata();
     }
@@ -145,6 +147,32 @@ export class TokenMetadataService {
         const cleanSymbol = this.extractBaseSymbol(symbol);
         const metadata = this.tokenMetadataCache.get(cleanSymbol);
         return metadata ? metadata.length > 1 : false;
+    }
+    /**
+     * Extended: Try to get coin metadata from CoinAPI if not found in cache.
+     * Will cache CoinAPI result for future requests.
+     */
+    async getTokenMetadataWithCoinApi(symbol) {
+        // Check local cache first
+        const cached = this.getTokenMetadata(symbol);
+        if (cached && cached.length > 0)
+            return cached;
+        // Not found in internal cache, try CoinAPI
+        const coinApiMeta = await this.coinApiService.getAssetMetadata(symbol);
+        if (!coinApiMeta)
+            return null;
+        if (!coinApiMeta.asset_id)
+            return null;
+        // Form TokenMetadata object (for EVM tokens, grab contract address from .platform)
+        const meta = {
+            symbol: coinApiMeta.asset_id,
+            blockchain: coinApiMeta.platform?.symbol ? coinApiMeta.platform.symbol.toLowerCase() : 'unknown',
+            contractAddress: coinApiMeta.platform?.token_address,
+            isNative: !(coinApiMeta.platform?.token_address),
+        };
+        // Enrich our cache for future use
+        this.addTokenMetadata(meta.symbol, [meta]);
+        return [meta];
     }
 }
 //# sourceMappingURL=TokenMetadataService.js.map
