@@ -68,6 +68,9 @@ export class ArbitrageCalculator {
   }
 
   public async calculateArbitrageOpportunities(allTickers: Map<string, Ticker[]>): Promise<ArbitrageOpportunity[]> {
+    // CRITICAL LOG MARKER - If you see this, new code is running
+    console.log('\n🚀🚀🚀 NEW STRUCTURED LOGGING VERSION - calculateArbitrageOpportunities START 🚀🚀🚀\n');
+    
     console.log('\n' + '='.repeat(80));
     console.log('📊 [PHASE 0] INITIALIZATION');
     console.log('='.repeat(80));
