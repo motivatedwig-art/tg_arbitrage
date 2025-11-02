@@ -3,7 +3,7 @@
  * This helps prevent cross-chain arbitrage comparisons
  */
 
-import { CoinApiService } from './CoinApiService';
+import { CoinApiService } from './CoinApiService.js';
 
 export interface TokenMetadata {
   symbol: string;
