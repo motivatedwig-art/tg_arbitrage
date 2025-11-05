@@ -315,7 +315,8 @@ export class ArbitrageCalculator {
             else if (cleanSymbol === 'AVAX' || cleanSymbol.includes('WAVAX')) blockchain = 'avalanche';
             else if (cleanSymbol === 'BTC') blockchain = 'bitcoin';
             else if (cleanSymbol === 'ETH') blockchain = 'ethereum';
-            else blockchain = 'ethereum'; // Default for ERC-20 tokens
+            // Don't default to ethereum - let DexScreener or other sources provide blockchain info
+            // If no blockchain is found, it will remain undefined and be handled later
           }
           
           if (blockchain) {
@@ -363,16 +364,63 @@ export class ArbitrageCalculator {
             
             if (candidates && candidates.length > 0) {
               const contractMap = new Map<string, string>();
+              let primaryBlockchain: string | null = null;
+              
               for (const candidate of candidates) {
                 if (candidate.chainId && candidate.tokenAddress) {
                   contractMap.set(candidate.chainId.toLowerCase(), candidate.tokenAddress);
+                  
+                  // Extract blockchain from DexScreener chainId (e.g., 'ethereum', 'arbitrum', 'solana')
+                  // Use the first chain found as primary, or prefer known chains
+                  if (!primaryBlockchain || 
+                      (candidate.chainId.toLowerCase() === 'arbitrum' || 
+                       candidate.chainId.toLowerCase() === 'solana' ||
+                       candidate.chainId.toLowerCase() === 'base' ||
+                       candidate.chainId.toLowerCase() === 'optimism' ||
+                       candidate.chainId.toLowerCase() === 'polygon')) {
+                    // Map DexScreener chainId to our blockchain name format
+                    const chainId = candidate.chainId.toLowerCase();
+                    const blockchainMapping: { [key: string]: string } = {
+                      'ethereum': 'ethereum',
+                      'bsc': 'bsc',
+                      'polygon': 'polygon',
+                      'arbitrum': 'arbitrum',
+                      'optimism': 'optimism',
+                      'base': 'base',
+                      'solana': 'solana',
+                      'avalanche': 'avalanche',
+                      'fantom': 'fantom',
+                      'tron': 'tron',
+                      'aptos': 'aptos',
+                      'sui': 'sui',
+                      'near': 'near',
+                      'cosmos': 'cosmos',
+                      'polkadot': 'polkadot',
+                      'cardano': 'cardano',
+                      'bitcoin': 'bitcoin',
+                      'ripple': 'ripple',
+                      'stellar': 'stellar',
+                      'dogecoin': 'dogecoin',
+                      'litecoin': 'litecoin',
+                      'ton': 'ton'
+                    };
+                    primaryBlockchain = blockchainMapping[chainId] || chainId;
+                  }
                 }
               }
+              
               if (contractMap.size > 0) {
                 symbolContractMap.set(baseSymbol, contractMap);
+                
+                // CRITICAL: Update symbolBlockchainMap with blockchain from DexScreener
+                // This overrides the default Ethereum assignment from pattern matching
+                if (primaryBlockchain) {
+                  symbolBlockchainMap.set(baseSymbol, primaryBlockchain);
+                  console.log(`      ✅ ${baseSymbol}: Found ${contractMap.size} chain(s) [${Array.from(contractMap.keys()).join(', ')}] - Primary: ${primaryBlockchain}`);
+                } else {
+                  console.log(`      ✅ ${baseSymbol}: Found ${contractMap.size} chain(s) [${Array.from(contractMap.keys()).join(', ')}]`);
+                }
                 successful++;
-                const chains = Array.from(contractMap.keys()).join(', ');
-                console.log(`      ✅ ${baseSymbol}: Found ${contractMap.size} chain(s) [${chains}]`);
               } else {
                 failed++;
                 console.log(`      ⚠️  ${baseSymbol}: No valid contracts found`);
@@ -927,12 +975,13 @@ export class ArbitrageCalculator {
       if (unwrapped === 'MATIC') return 'polygon';
     }
 
-    // Log unknown tokens for future analysis instead of silently defaulting
+    // Log unknown tokens for future analysis
     if (process.env.NODE_ENV === 'development') {
-      console.log(`⚠️ Unknown blockchain for ${symbol}, defaulting to Ethereum`);
+      console.log(`⚠️ Unknown blockchain for ${symbol}, using Ethereum as fallback`);
     }
     
-    // Default to ethereum for unknown ERC-20 tokens
+    // Last resort: Default to ethereum for unknown tokens
+    // This should rarely happen if DexScreener enrichment is working properly
     return 'ethereum';
   }
 }
