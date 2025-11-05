@@ -31,6 +31,22 @@ export class TokenMetadataService {
         this.exchangeBlockchainMap.set('kucoin', ['ethereum', 'bsc', 'polygon', 'arbitrum', 'optimism', 'solana']);
     }
     /**
+     * Get supported blockchains for an exchange
+     */
+    getSupportedBlockchains(exchangeId) {
+        return this.exchangeBlockchainMap.get(exchangeId.toLowerCase()) || [];
+    }
+    /**
+     * Get all unique blockchains supported by all exchanges
+     */
+    getAllSupportedBlockchains() {
+        const allBlockchains = new Set();
+        this.exchangeBlockchainMap.forEach((blockchains) => {
+            blockchains.forEach(chain => allBlockchains.add(chain));
+        });
+        return Array.from(allBlockchains);
+    }
+    /**
      * Initialize common token metadata for known cross-chain tokens
      */
     initializeCommonTokenMetadata() {
