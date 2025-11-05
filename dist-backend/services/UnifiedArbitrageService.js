@@ -87,10 +87,8 @@ export class UnifiedArbitrageService {
             console.log('==================================================');
             console.log('📊 [ARBITRAGE SCAN] Starting scan at', new Date().toISOString());
             console.log('==================================================');
-            // Clear old opportunities before new scan to prevent stale data
-            console.log('🧹 Clearing old opportunities from database...');
-            await this.db.getArbitrageModel().clearAllOpportunities();
-            console.log('✅ Database cleared, starting fresh scan');
+            // Note: We no longer clear the database before each scan to allow data persistence
+            // Users can react to opportunities over time, and data accumulates naturally
             // Update ticker data from all exchanges
             console.log('🔄 Updating ticker data from all exchanges...');
             await this.exchangeManager.updateAllTickers();

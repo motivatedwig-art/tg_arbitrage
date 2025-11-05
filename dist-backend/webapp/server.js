@@ -143,8 +143,33 @@ export class WebAppServer {
                     diverseOpportunities.sort((a, b) => b.profitPercentage - a.profitPercentage);
                     console.log(`📊 Filtered to ${diverseOpportunities.length} diverse chain opportunities`);
                     
-                    // Group opportunities by blockchain (top 10 per blockchain)
-                    const groupedByBlockchain = this.groupOpportunitiesByBlockchain(diverseOpportunities);
+                    // Extract all unique blockchains from opportunities and tickers
+                    const allBlockchainsSet = new Set();
+                    diverseOpportunities.forEach(opp => {
+                        if (opp.blockchain) {
+                            allBlockchainsSet.add(opp.blockchain);
+                        }
+                    });
+                    // Also try to get blockchains from current tickers if available
+                    try {
+                        const exchangeManager = this.arbitrageService.getExchangeManager();
+                        const allTickers = exchangeManager.getAllTickers();
+                        for (const tickers of allTickers.values()) {
+                            tickers.forEach(ticker => {
+                                if (ticker.blockchain) {
+                                    allBlockchainsSet.add(ticker.blockchain);
+                                }
+                            });
+                        }
+                    }
+                    catch (error) {
+                        console.warn('Could not get blockchains from tickers:', error);
+                    }
+                    const allBlockchains = Array.from(allBlockchainsSet);
+                    console.log(`📊 Found ${allBlockchains.length} unique blockchains in scan: ${allBlockchains.join(', ')}`);
+                    
+                    // Group opportunities by blockchain (top 5 per blockchain)
+                    const groupedByBlockchain = this.groupOpportunitiesByBlockchain(diverseOpportunities, allBlockchains);
                     console.log(`📊 Grouped opportunities: ${Object.keys(groupedByBlockchain).length} blockchains`);
                     
                     // Map opportunities for response
@@ -229,8 +254,33 @@ export class WebAppServer {
                     diverseOpportunities.sort((a, b) => b.profitPercentage - a.profitPercentage);
                     console.log(`📊 Filtered to ${diverseOpportunities.length} diverse chain opportunities`);
                     
-                    // Group opportunities by blockchain (top 10 per blockchain)
-                    const groupedByBlockchain = this.groupOpportunitiesByBlockchain(diverseOpportunities);
+                    // Extract all unique blockchains from opportunities and tickers
+                    const allBlockchainsSet = new Set();
+                    diverseOpportunities.forEach(opp => {
+                        if (opp.blockchain) {
+                            allBlockchainsSet.add(opp.blockchain);
+                        }
+                    });
+                    // Also try to get blockchains from current tickers if available
+                    try {
+                        const exchangeManager = this.arbitrageService.getExchangeManager();
+                        const allTickers = exchangeManager.getAllTickers();
+                        for (const tickers of allTickers.values()) {
+                            tickers.forEach(ticker => {
+                                if (ticker.blockchain) {
+                                    allBlockchainsSet.add(ticker.blockchain);
+                                }
+                            });
+                        }
+                    }
+                    catch (error) {
+                        console.warn('Could not get blockchains from tickers:', error);
+                    }
+                    const allBlockchains = Array.from(allBlockchainsSet);
+                    console.log(`📊 Found ${allBlockchains.length} unique blockchains in scan: ${allBlockchains.join(', ')}`);
+                    
+                    // Group opportunities by blockchain (top 5 per blockchain)
+                    const groupedByBlockchain = this.groupOpportunitiesByBlockchain(diverseOpportunities, allBlockchains);
                     console.log(`📊 Grouped opportunities: ${Object.keys(groupedByBlockchain).length} blockchains`);
                     
                     // Map opportunities for response
@@ -571,8 +621,9 @@ export class WebAppServer {
         console.log(`✅ [CHAIN FILTER] Showing ALL ${opportunities.length} opportunities (no chain limit)`);
         return opportunities;
     }
-    // Group opportunities by blockchain and return top 5-10 per blockchain
-    groupOpportunitiesByBlockchain(opportunities) {
+    // Group opportunities by blockchain and return top 5 per blockchain
+    // Also includes all blockchains found in tickers (even without opportunities)
+    groupOpportunitiesByBlockchain(opportunities, allBlockchains = []) {
         const blockchainGroups = {};
         // Group by blockchain
         opportunities.forEach(opp => {
@@ -582,12 +633,20 @@ export class WebAppServer {
             }
             blockchainGroups[blockchain].push(opp);
         });
-        // Sort each blockchain group by profit percentage and take top 10
+        
+        // Ensure all blockchains from scan are included (even if no opportunities)
+        allBlockchains.forEach(blockchain => {
+            if (!blockchainGroups[blockchain]) {
+                blockchainGroups[blockchain] = []; // Empty array for blockchains with no opportunities
+            }
+        });
+        
+        // Sort each blockchain group by profit percentage and take top 5
         const result = {};
         Object.keys(blockchainGroups).forEach(blockchain => {
             result[blockchain] = blockchainGroups[blockchain]
                 .sort((a, b) => b.profitPercentage - a.profitPercentage)
-                .slice(0, 10); // Top 10 from each blockchain
+                .slice(0, 5); // Top 5 from each blockchain
         });
         return result;
     }
