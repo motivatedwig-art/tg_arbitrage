@@ -56,14 +56,18 @@ export const BlockchainGroupedTable: React.FC<BlockchainGroupedTableProps> = ({
   const [expandedBlockchains, setExpandedBlockchains] = useState<Set<string>>(new Set(Object.keys(data)));
 
   // Sort blockchains by average profitability (highest first)
+  // Show ALL blockchains even if they have no opportunities (for professional UI)
   const sortedBlockchains = useMemo(() => {
     return Object.entries(data)
-      .filter(([_, opportunities]) => opportunities.length > 0) // Hide empty blockchains
       .map(([blockchain, opportunities]) => {
-        // Calculate average profit for this blockchain
-        const avgProfit = opportunities.reduce((sum, opp) => sum + opp.spreadPercentage, 0) / opportunities.length;
-        // Calculate max profit for this blockchain
-        const maxProfit = Math.max(...opportunities.map(opp => opp.spreadPercentage));
+        // Calculate average profit for this blockchain (default to 0 if no opportunities)
+        const avgProfit = opportunities.length > 0 
+          ? opportunities.reduce((sum, opp) => sum + opp.spreadPercentage, 0) / opportunities.length 
+          : 0;
+        // Calculate max profit for this blockchain (default to 0 if no opportunities)
+        const maxProfit = opportunities.length > 0 
+          ? Math.max(...opportunities.map(opp => opp.spreadPercentage))
+          : 0;
         
         return {
           blockchain,
@@ -74,11 +78,14 @@ export const BlockchainGroupedTable: React.FC<BlockchainGroupedTableProps> = ({
         };
       })
       .sort((a, b) => {
-        // Primary sort: by average profit (descending)
+        // First, prioritize blockchains with opportunities
+        if (a.count === 0 && b.count > 0) return 1;
+        if (a.count > 0 && b.count === 0) return -1;
+        // Then sort by average profit (descending)
         if (Math.abs(a.avgProfit - b.avgProfit) > 0.1) {
           return b.avgProfit - a.avgProfit;
         }
-        // Secondary sort: by opportunity count (descending)
+        // Finally, sort by opportunity count (descending)
         return b.count - a.count;
       });
   }, [data]);
@@ -152,9 +159,15 @@ export const BlockchainGroupedTable: React.FC<BlockchainGroupedTableProps> = ({
                     {config.name}
                   </h4>
                   <p className="text-xs text-[var(--tg-theme-hint-color)]">
-                    {opportunities.length} {opportunities.length === 1 ? 'opportunity' : 'opportunities'}
-                    {' • '}
-                    Avg: {avgProfit.toFixed(2)}% • Max: {maxProfit.toFixed(2)}%
+                    {opportunities.length > 0 ? (
+                      <>
+                        {opportunities.length} {opportunities.length === 1 ? 'opportunity' : 'opportunities'}
+                        {' • '}
+                        Avg: {avgProfit.toFixed(2)}% • Max: {maxProfit.toFixed(2)}%
+                      </>
+                    ) : (
+                      <span className="opacity-75">No opportunities yet • Monitoring this blockchain</span>
+                    )}
                   </p>
                 </div>
               </div>
@@ -186,7 +199,17 @@ export const BlockchainGroupedTable: React.FC<BlockchainGroupedTableProps> = ({
             {/* Opportunities List */}
             {isExpanded && (
               <div className="space-y-3 ml-4">
-                {sortedOpportunities.map((opp, index) => {
+                {sortedOpportunities.length === 0 ? (
+                  <div className="rounded-lg p-6 text-center bg-[var(--tg-theme-secondary-bg-color)] opacity-75">
+                    <p className="text-sm text-[var(--tg-theme-hint-color)]">
+                      No arbitrage opportunities found for {config.name} at the moment.
+                    </p>
+                    <p className="text-xs text-[var(--tg-theme-hint-color)] mt-2">
+                      Monitoring this blockchain for new opportunities...
+                    </p>
+                  </div>
+                ) : (
+                  sortedOpportunities.map((opp, index) => {
                   const profitStyles = getProfitRowStyles(opp.spreadPercentage);
                   const badgeColors = getProfitBadgeColors(opp.spreadPercentage);
                   
@@ -255,7 +278,8 @@ export const BlockchainGroupedTable: React.FC<BlockchainGroupedTableProps> = ({
                     )}
                   </div>
                   );
-                })}
+                  })
+                )}
               </div>
             )}
           </div>

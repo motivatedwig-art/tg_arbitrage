@@ -46,6 +46,24 @@ export class TokenMetadataService {
   }
 
   /**
+   * Get supported blockchains for an exchange
+   */
+  public getSupportedBlockchains(exchangeId: string): string[] {
+    return this.exchangeBlockchainMap.get(exchangeId.toLowerCase()) || [];
+  }
+
+  /**
+   * Get all unique blockchains supported by all exchanges
+   */
+  public getAllSupportedBlockchains(): string[] {
+    const allBlockchains = new Set<string>();
+    this.exchangeBlockchainMap.forEach((blockchains) => {
+      blockchains.forEach(chain => allBlockchains.add(chain));
+    });
+    return Array.from(allBlockchains);
+  }
+
+  /**
    * Initialize common token metadata for known cross-chain tokens
    */
   private initializeCommonTokenMetadata(): void {

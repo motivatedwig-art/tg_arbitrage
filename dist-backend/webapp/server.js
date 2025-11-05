@@ -143,13 +143,33 @@ export class WebAppServer {
                     diverseOpportunities.sort((a, b) => b.profitPercentage - a.profitPercentage);
                     console.log(`📊 Filtered to ${diverseOpportunities.length} diverse chain opportunities`);
                     
-                    // Extract all unique blockchains from opportunities and tickers
+                    // Extract all unique blockchains from opportunities
                     const allBlockchainsSet = new Set();
                     diverseOpportunities.forEach(opp => {
                         if (opp.blockchain) {
                             allBlockchainsSet.add(opp.blockchain);
                         }
                     });
+                    // Also get all supported blockchains from connected exchanges
+                    try {
+                        const exchangeManager = this.arbitrageService.getExchangeManager();
+                        const exchangeStatuses = exchangeManager.getExchangeStatus();
+                        const connectedExchanges = exchangeStatuses.filter(status => status.isOnline);
+                        
+                        // Get all supported blockchains from TokenMetadataService
+                        const tokenMetadataService = this.tokenMetadataService;
+                        connectedExchanges.forEach(exchangeStatus => {
+                            const exchangeId = exchangeStatus.name.toLowerCase();
+                            // Get supported blockchains for this exchange
+                            const supportedBlockchains = tokenMetadataService.getSupportedBlockchains(exchangeId);
+                            if (supportedBlockchains && supportedBlockchains.length > 0) {
+                                supportedBlockchains.forEach(chain => allBlockchainsSet.add(chain));
+                            }
+                        });
+                    }
+                    catch (error) {
+                        console.warn('Could not get blockchains from exchanges:', error);
+                    }
                     // Also try to get blockchains from current tickers if available
                     try {
                         const exchangeManager = this.arbitrageService.getExchangeManager();
@@ -254,13 +274,33 @@ export class WebAppServer {
                     diverseOpportunities.sort((a, b) => b.profitPercentage - a.profitPercentage);
                     console.log(`📊 Filtered to ${diverseOpportunities.length} diverse chain opportunities`);
                     
-                    // Extract all unique blockchains from opportunities and tickers
+                    // Extract all unique blockchains from opportunities
                     const allBlockchainsSet = new Set();
                     diverseOpportunities.forEach(opp => {
                         if (opp.blockchain) {
                             allBlockchainsSet.add(opp.blockchain);
                         }
                     });
+                    // Also get all supported blockchains from connected exchanges
+                    try {
+                        const exchangeManager = this.arbitrageService.getExchangeManager();
+                        const exchangeStatuses = exchangeManager.getExchangeStatus();
+                        const connectedExchanges = exchangeStatuses.filter(status => status.isOnline);
+                        
+                        // Get all supported blockchains from TokenMetadataService
+                        const tokenMetadataService = this.tokenMetadataService;
+                        connectedExchanges.forEach(exchangeStatus => {
+                            const exchangeId = exchangeStatus.name.toLowerCase();
+                            // Get supported blockchains for this exchange
+                            const supportedBlockchains = tokenMetadataService.getSupportedBlockchains(exchangeId);
+                            if (supportedBlockchains && supportedBlockchains.length > 0) {
+                                supportedBlockchains.forEach(chain => allBlockchainsSet.add(chain));
+                            }
+                        });
+                    }
+                    catch (error) {
+                        console.warn('Could not get blockchains from exchanges:', error);
+                    }
                     // Also try to get blockchains from current tickers if available
                     try {
                         const exchangeManager = this.arbitrageService.getExchangeManager();
