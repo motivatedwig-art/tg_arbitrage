@@ -162,7 +162,7 @@ export class WebAppServer {
             return acc;
           }, []);
           
-          // Apply chain diversity filter: limit Ethereum to max 3 opportunities
+          // Apply chain diversity filter: show all opportunities
           const diverseOpportunities = this.applyChainDiversityFilter(uniqueOpportunities);
           
           // Sort by profit percentage (highest first)
@@ -170,9 +170,35 @@ export class WebAppServer {
           
           console.log(`📊 Filtered to ${diverseOpportunities.length} diverse chain opportunities`);
           
-          res.json({
-            success: true,
-            data: diverseOpportunities.map(opp => ({
+          // Group opportunities by blockchain (top 10 per blockchain)
+          const groupedByBlockchain = this.groupOpportunitiesByBlockchain(diverseOpportunities);
+          console.log(`📊 Grouped opportunities: ${Object.keys(groupedByBlockchain).length} blockchains`);
+          
+          // Map opportunities for response
+          const mappedOpportunities = diverseOpportunities.map(opp => ({
+            symbol: opp.symbol,
+            buyExchange: opp.buyExchange,
+            sellExchange: opp.sellExchange,
+            buyPrice: opp.buyPrice,
+            sellPrice: opp.sellPrice,
+            profitPercentage: opp.profitPercentage,
+            profitAmount: opp.profitAmount,
+            volume: opp.volume,
+            // Multi-chain support
+            blockchains: (this.tokenMetadataService.getTokenMetadata(opp.symbol) || []).map(m => m.blockchain),
+            blockchain: opp.blockchain || (this.tokenMetadataService.getTokenMetadata(opp.symbol)?.[0]?.blockchain) || 'ethereum',
+            timestamp: opp.timestamp,
+            transferAvailability: opp.transferAvailability || {
+              buyAvailable: true,
+              sellAvailable: true,
+              commonNetworks: [opp.blockchain || 'ethereum']
+            }
+          }));
+          
+          // Map grouped opportunities for response
+          const mappedGrouped: { [blockchain: string]: any[] } = {};
+          Object.keys(groupedByBlockchain).forEach(blockchain => {
+            mappedGrouped[blockchain] = groupedByBlockchain[blockchain].map(opp => ({
               symbol: opp.symbol,
               buyExchange: opp.buyExchange,
               sellExchange: opp.sellExchange,
@@ -181,7 +207,6 @@ export class WebAppServer {
               profitPercentage: opp.profitPercentage,
               profitAmount: opp.profitAmount,
               volume: opp.volume,
-              // Multi-chain support
               blockchains: (this.tokenMetadataService.getTokenMetadata(opp.symbol) || []).map(m => m.blockchain),
               blockchain: opp.blockchain || (this.tokenMetadataService.getTokenMetadata(opp.symbol)?.[0]?.blockchain) || 'ethereum',
               timestamp: opp.timestamp,
@@ -190,7 +215,13 @@ export class WebAppServer {
                 sellAvailable: true,
                 commonNetworks: [opp.blockchain || 'ethereum']
               }
-            }))
+            }));
+          });
+          
+          res.json({
+            success: true,
+            data: mappedOpportunities,
+            grouped: mappedGrouped // Add grouped data for UI
           });
           return;
         }
@@ -227,7 +258,7 @@ export class WebAppServer {
             return acc;
           }, []);
           
-          // Apply chain diversity filter: limit Ethereum to max 3 opportunities
+          // Apply chain diversity filter: show all opportunities
           const diverseOpportunities = this.applyChainDiversityFilter(uniqueOpportunities);
           
           // Sort by profit percentage (highest first)
@@ -235,9 +266,35 @@ export class WebAppServer {
           
           console.log(`📊 Filtered to ${diverseOpportunities.length} diverse chain opportunities`);
           
-          res.json({
-            success: true,
-            data: diverseOpportunities.map(opp => ({
+          // Group opportunities by blockchain (top 10 per blockchain)
+          const groupedByBlockchain = this.groupOpportunitiesByBlockchain(diverseOpportunities);
+          console.log(`📊 Grouped opportunities: ${Object.keys(groupedByBlockchain).length} blockchains`);
+          
+          // Map opportunities for response
+          const mappedOpportunities = diverseOpportunities.map(opp => ({
+            symbol: opp.symbol,
+            buyExchange: opp.buyExchange,
+            sellExchange: opp.sellExchange,
+            buyPrice: opp.buyPrice,
+            sellPrice: opp.sellPrice,
+            profitPercentage: opp.profitPercentage,
+            profitAmount: opp.profitAmount,
+            volume: opp.volume,
+            // Multi-chain support
+            blockchains: (this.tokenMetadataService.getTokenMetadata(opp.symbol) || []).map(m => m.blockchain),
+            blockchain: opp.blockchain || (this.tokenMetadataService.getTokenMetadata(opp.symbol)?.[0]?.blockchain) || 'ethereum',
+            timestamp: opp.timestamp,
+            transferAvailability: opp.transferAvailability || {
+              buyAvailable: true,
+              sellAvailable: true,
+              commonNetworks: [opp.blockchain || 'ethereum']
+            }
+          }));
+          
+          // Map grouped opportunities for response
+          const mappedGrouped: { [blockchain: string]: any[] } = {};
+          Object.keys(groupedByBlockchain).forEach(blockchain => {
+            mappedGrouped[blockchain] = groupedByBlockchain[blockchain].map(opp => ({
               symbol: opp.symbol,
               buyExchange: opp.buyExchange,
               sellExchange: opp.sellExchange,
@@ -246,7 +303,6 @@ export class WebAppServer {
               profitPercentage: opp.profitPercentage,
               profitAmount: opp.profitAmount,
               volume: opp.volume,
-              // Multi-chain support
               blockchains: (this.tokenMetadataService.getTokenMetadata(opp.symbol) || []).map(m => m.blockchain),
               blockchain: opp.blockchain || (this.tokenMetadataService.getTokenMetadata(opp.symbol)?.[0]?.blockchain) || 'ethereum',
               timestamp: opp.timestamp,
@@ -255,7 +311,13 @@ export class WebAppServer {
                 sellAvailable: true,
                 commonNetworks: [opp.blockchain || 'ethereum']
               }
-            }))
+            }));
+          });
+          
+          res.json({
+            success: true,
+            data: mappedOpportunities,
+            grouped: mappedGrouped // Add grouped data for UI
           });
           return;
         }
@@ -580,6 +642,30 @@ export class WebAppServer {
     console.log(`✅ [CHAIN FILTER] Showing ALL ${opportunities.length} opportunities (no chain limit)`);
     
     return opportunities;
+  }
+
+  // Group opportunities by blockchain and return top 5-10 per blockchain
+  private groupOpportunitiesByBlockchain(opportunities: any[]): { [blockchain: string]: any[] } {
+    const blockchainGroups: { [blockchain: string]: any[] } = {};
+    
+    // Group by blockchain
+    opportunities.forEach(opp => {
+      const blockchain = opp.blockchain || 'ethereum';
+      if (!blockchainGroups[blockchain]) {
+        blockchainGroups[blockchain] = [];
+      }
+      blockchainGroups[blockchain].push(opp);
+    });
+    
+    // Sort each blockchain group by profit percentage and take top 10
+    const result: { [blockchain: string]: any[] } = {};
+    Object.keys(blockchainGroups).forEach(blockchain => {
+      result[blockchain] = blockchainGroups[blockchain]
+        .sort((a, b) => b.profitPercentage - a.profitPercentage)
+        .slice(0, 10); // Top 10 from each blockchain
+    });
+    
+    return result;
   }
 
   public async start(port: number): Promise<void> {

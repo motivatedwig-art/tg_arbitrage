@@ -21,7 +21,7 @@ export class DexScreenerService {
   // Rate limiting: 60 requests per minute = max 50 to be safe
   private readonly MAX_REQUESTS_PER_MINUTE = 50;
   private readonly MINUTE_MS = 60 * 1000;
-  private readonly MIN_REQUEST_INTERVAL = 1200; // 1.2 seconds between requests to stay under limit
+  private readonly MIN_REQUEST_INTERVAL = 1000; // 1 second between requests to stay under limit (60 req/min)
   private rateLimiter: RateLimiter = {
     lastRequestTime: 0,
     requestCount: 0,

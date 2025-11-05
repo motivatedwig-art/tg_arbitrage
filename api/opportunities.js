@@ -62,12 +62,12 @@ const groupOpportunitiesByBlockchain = (opportunities) => {
     blockchainGroups[blockchain].push(opp);
   });
   
-  // Sort each blockchain group by profit percentage and take top 5
+  // Sort each blockchain group by profit percentage and take top 10
   const result = {};
   Object.keys(blockchainGroups).forEach(blockchain => {
     result[blockchain] = blockchainGroups[blockchain]
       .sort((a, b) => b.profitPercentage - a.profitPercentage)
-      .slice(0, 5); // Top 5 from each blockchain
+      .slice(0, 10); // Top 10 from each blockchain
   });
   
   return result;
