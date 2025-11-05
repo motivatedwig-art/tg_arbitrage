@@ -466,7 +466,9 @@ export class ArbitrageCalculator {
         }
 
         const baseSymbol = ticker.symbol.split('/')[0].toUpperCase();
-        let blockchain = ticker.blockchain || symbolBlockchainMap.get(baseSymbol);
+        // CRITICAL: Prioritize DexScreener results (in symbolBlockchainMap) over ticker's existing blockchain
+        // This ensures DexScreener's correct blockchain detection overrides any defaults
+        let blockchain = symbolBlockchainMap.get(baseSymbol) || ticker.blockchain;
         let contractAddress = ticker.contractAddress;
 
         // If we have blockchain but no contract, try to get it from DexScreener results
