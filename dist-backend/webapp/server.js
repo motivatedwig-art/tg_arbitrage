@@ -204,12 +204,12 @@ export class WebAppServer {
                         volume: opp.volume,
                         // Multi-chain support
                         blockchains: (this.tokenMetadataService.getTokenMetadata(opp.symbol) || []).map(m => m.blockchain),
-                        blockchain: opp.blockchain || (this.tokenMetadataService.getTokenMetadata(opp.symbol)?.[0]?.blockchain) || 'ethereum',
+                        blockchain: opp.blockchain || (this.tokenMetadataService.getTokenMetadata(opp.symbol)?.[0]?.blockchain) || null, // Use actual blockchain, don't default to ethereum
                         timestamp: opp.timestamp,
                         transferAvailability: opp.transferAvailability || {
                             buyAvailable: true,
                             sellAvailable: true,
-                            commonNetworks: [opp.blockchain || 'ethereum']
+                            commonNetworks: opp.blockchain ? [opp.blockchain] : []
                         }
                     }));
                     
@@ -226,12 +226,12 @@ export class WebAppServer {
                             profitAmount: opp.profitAmount,
                             volume: opp.volume,
                             blockchains: (this.tokenMetadataService.getTokenMetadata(opp.symbol) || []).map(m => m.blockchain),
-                            blockchain: opp.blockchain || (this.tokenMetadataService.getTokenMetadata(opp.symbol)?.[0]?.blockchain) || 'ethereum',
+                            blockchain: opp.blockchain || (this.tokenMetadataService.getTokenMetadata(opp.symbol)?.[0]?.blockchain) || null, // Use actual blockchain, don't default to ethereum
                             timestamp: opp.timestamp,
                             transferAvailability: opp.transferAvailability || {
                                 buyAvailable: true,
                                 sellAvailable: true,
-                                commonNetworks: [opp.blockchain || 'ethereum']
+                                commonNetworks: opp.blockchain ? [opp.blockchain] : []
                             }
                         }));
                     });
@@ -335,12 +335,12 @@ export class WebAppServer {
                         volume: opp.volume,
                         // Multi-chain support
                         blockchains: (this.tokenMetadataService.getTokenMetadata(opp.symbol) || []).map(m => m.blockchain),
-                        blockchain: opp.blockchain || (this.tokenMetadataService.getTokenMetadata(opp.symbol)?.[0]?.blockchain) || 'ethereum',
+                        blockchain: opp.blockchain || (this.tokenMetadataService.getTokenMetadata(opp.symbol)?.[0]?.blockchain) || null, // Use actual blockchain, don't default to ethereum
                         timestamp: opp.timestamp,
                         transferAvailability: opp.transferAvailability || {
                             buyAvailable: true,
                             sellAvailable: true,
-                            commonNetworks: [opp.blockchain || 'ethereum']
+                            commonNetworks: opp.blockchain ? [opp.blockchain] : []
                         }
                     }));
                     
@@ -357,12 +357,12 @@ export class WebAppServer {
                             profitAmount: opp.profitAmount,
                             volume: opp.volume,
                             blockchains: (this.tokenMetadataService.getTokenMetadata(opp.symbol) || []).map(m => m.blockchain),
-                            blockchain: opp.blockchain || (this.tokenMetadataService.getTokenMetadata(opp.symbol)?.[0]?.blockchain) || 'ethereum',
+                            blockchain: opp.blockchain || (this.tokenMetadataService.getTokenMetadata(opp.symbol)?.[0]?.blockchain) || null, // Use actual blockchain, don't default to ethereum
                             timestamp: opp.timestamp,
                             transferAvailability: opp.transferAvailability || {
                                 buyAvailable: true,
                                 sellAvailable: true,
-                                commonNetworks: [opp.blockchain || 'ethereum']
+                                commonNetworks: opp.blockchain ? [opp.blockchain] : []
                             }
                         }));
                     });
@@ -667,7 +667,7 @@ export class WebAppServer {
         const blockchainGroups = {};
         // Group by blockchain
         opportunities.forEach(opp => {
-            const blockchain = opp.blockchain || 'ethereum';
+            const blockchain = opp.blockchain || 'unknown'; // Use actual blockchain, group unknown separately (don't default to ethereum)
             if (!blockchainGroups[blockchain]) {
                 blockchainGroups[blockchain] = [];
             }

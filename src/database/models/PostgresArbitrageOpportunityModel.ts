@@ -98,7 +98,7 @@ export class PostgresArbitrageOpportunityModel {
             sanitizedOpportunity.profitAmount,
             sanitizedOpportunity.volume,
             sanitizedOpportunity.volume_24h || sanitizedOpportunity.volume,
-            sanitizedOpportunity.blockchain || 'ethereum',
+            sanitizedOpportunity.blockchain || null, // Don't default to ethereum - use actual blockchain or null
             (sanitizedOpportunity as any).chainId || null,
             (sanitizedOpportunity as any).tokenAddress || null,
             sanitizedOpportunity.logoUrl || null,
