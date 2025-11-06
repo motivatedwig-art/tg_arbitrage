@@ -135,9 +135,23 @@ export class WebAppServer {
       });
       
       try {
-        // Get live opportunities from the arbitrage service (most recent data)
-        const liveOpportunities = await this.arbitrageService.getRecentOpportunities(30); // Last 30 minutes
-        console.log(`📊 Found ${liveOpportunities.length} live opportunities from arbitrage service`);
+                // Get live opportunities from the arbitrage service (most recent data)
+                const liveOpportunities = await this.arbitrageService.getRecentOpportunities(30); // Last 30 minutes
+                console.log(`📊 Found ${liveOpportunities.length} live opportunities from arbitrage service`);
+                
+                // Log blockchain distribution from database
+                const dbBlockchainCount = new Map<string, number>();
+                liveOpportunities.forEach(opp => {
+                  const chain = opp.blockchain || 'null';
+                  dbBlockchainCount.set(chain, (dbBlockchainCount.get(chain) || 0) + 1);
+                });
+                if (dbBlockchainCount.size > 0) {
+                  console.log(`   📊 Blockchain distribution from database:`);
+                  const sorted = Array.from(dbBlockchainCount.entries()).sort((a, b) => b[1] - a[1]);
+                  sorted.forEach(([blockchain, count]) => {
+                    console.log(`      - ${blockchain}: ${count} opportunities`);
+                  });
+                }
         
         if (liveOpportunities.length > 0) {
           // Deduplicate opportunities - keep only the most profitable per coin pair
