@@ -7,6 +7,7 @@ import { fileURLToPath } from 'url';
 import { DatabaseManager } from '../database/Database.js';
 import { UnifiedArbitrageService } from '../services/UnifiedArbitrageService.js';
 import { TokenMetadataService } from '../services/TokenMetadataService.js';
+import { config } from '../config/environment.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -39,7 +40,7 @@ export class WebAppServer {
         const allowedOrigins = [
           'https://web.telegram.org',
           'https://telegram.org',
-          process.env.WEBAPP_URL,
+          config.webappUrl,
           'http://localhost:3000',
           'http://localhost:5173'
         ];

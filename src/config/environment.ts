@@ -84,6 +84,41 @@ const getEnvVar = (key: string, defaultValue?: string): string => {
   return value;
 };
 
+// Get webapp URL with Railway auto-detection
+const getWebappUrl = (): string => {
+  const isBrowser = typeof window !== 'undefined';
+  const envValue = isBrowser 
+    ? (import.meta as any).env?.WEBAPP_URL || process.env.WEBAPP_URL
+    : process.env.WEBAPP_URL;
+  
+  // If WEBAPP_URL is explicitly set and doesn't point to Vercel, use it
+  if (envValue && !envValue.includes('vercel.app')) {
+    return envValue;
+  }
+  
+  // Check if we're on Railway
+  const isRailway = process.env.RAILWAY_ENVIRONMENT || process.env.RAILWAY_SERVICE_NAME;
+  
+  if (isRailway) {
+    // Try to get Railway public domain
+    const railwayDomain = process.env.RAILWAY_PUBLIC_DOMAIN || 
+                          process.env.RAILWAY_STATIC_URL ||
+                          process.env.RAILWAY_URL;
+    
+    if (railwayDomain) {
+      // Ensure it starts with https://
+      const url = railwayDomain.startsWith('http') ? railwayDomain : `https://${railwayDomain}`;
+      return url;
+    }
+    
+    // Fallback to default Railway URL
+    return 'https://webapp-production-c779.up.railway.app';
+  }
+  
+  // Use provided value or default
+  return envValue || 'https://webapp-production-c779.up.railway.app';
+};
+
 // Get environment variable as number
 const getEnvNumber = (key: string, defaultValue: number): number => {
   const isBrowser = typeof window !== 'undefined';
@@ -106,7 +141,7 @@ const getEnvBoolean = (key: string, defaultValue: boolean): boolean => {
 export const config: EnvironmentConfig = {
   // Telegram Bot
   telegramBotToken: getEnvVar('TELEGRAM_BOT_TOKEN'),
-  webappUrl: getEnvVar('WEBAPP_URL', 'https://webapp-production-c779.up.railway.app'),
+  webappUrl: getWebappUrl(),
   
   // API Configuration
   apiBaseUrl: getEnvVar('VITE_API_BASE_URL', 'https://web.telegram.org'),

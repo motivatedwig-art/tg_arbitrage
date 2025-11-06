@@ -1,5 +1,6 @@
 import TelegramBot from 'node-telegram-bot-api';
 import { i18n } from '../../utils/i18n.js';
+import { config } from '../../config/environment.js';
 
 export class KeyboardManager {
   
@@ -19,7 +20,7 @@ export class KeyboardManager {
           { text: i18n.t('buttons.language', lng), callback_data: 'language' }
         ],
         [
-          { text: i18n.t('buttons.web_application', lng), web_app: { url: process.env.WEBAPP_URL || 'https://webapp-production-c779.up.railway.app' } }
+          { text: i18n.t('buttons.web_application', lng), web_app: { url: config.webappUrl } }
         ]
       ]
     };
@@ -75,7 +76,7 @@ export class KeyboardManager {
         [
           { 
             text: i18n.t('buttons.webapp', lng), 
-            web_app: { url: process.env.WEBAPP_URL || 'https://webapp-production-c779.up.railway.app' }
+            web_app: { url: config.webappUrl }
           }
         ]
       ]

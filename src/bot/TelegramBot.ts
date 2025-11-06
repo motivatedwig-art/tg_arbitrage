@@ -4,6 +4,7 @@ import { CommandHandler } from './handlers/CommandHandler.js';
 import { CallbackHandler } from './handlers/CallbackHandler.js';
 import { i18n } from '../utils/i18n.js';
 import { ArbitrageOpportunity } from '../exchanges/types/index.js';
+import { config } from '../config/environment.js';
 
 export class CryptoArbitrageBot {
   private bot: TelegramBot;
@@ -29,7 +30,7 @@ export class CryptoArbitrageBot {
     console.log('=== BOT INITIALIZATION ===');
     console.log('Environment:', process.env.NODE_ENV);
     console.log('Mock Data Enabled:', process.env.USE_MOCK_DATA === 'true');
-    console.log('Webapp URL:', process.env.WEBAPP_URL);
+    console.log('Webapp URL:', config.webappUrl);
     console.log('Exchange APIs configured:', {
       binance: !!process.env.BINANCE_API_KEY,
       okx: !!process.env.OKX_API_KEY,
