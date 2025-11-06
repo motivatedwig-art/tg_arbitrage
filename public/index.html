@@ -698,6 +698,9 @@
 
         // Blockchain marker functions
         function getBlockchainColor(blockchain) {
+            if (!blockchain || blockchain === 'unknown' || blockchain === 'null') {
+                return '#6b7280'; // Gray for unknown
+            }
             const colors = {
                 'ethereum': '#627eea',
                 'bsc': '#f0b90b',
@@ -706,12 +709,16 @@
                 'optimism': '#ff0420',
                 'solana': '#14f195',
                 'avalanche': '#e84142',
-                'tron': '#ff0013'
+                'tron': '#ff0013',
+                'base': '#0052ff'
             };
-            return colors[blockchain] || '#627eea';
+            return colors[blockchain.toLowerCase()] || '#6b7280'; // Gray for unknown chains
         }
 
         function getBlockchainIcon(blockchain) {
+            if (!blockchain || blockchain === 'unknown' || blockchain === 'null') {
+                return '❓';
+            }
             const icons = {
                 'ethereum': '⟠',
                 'bsc': 'Ⓑ',
@@ -720,12 +727,16 @@
                 'optimism': '◯',
                 'solana': '◎',
                 'avalanche': '▲',
-                'tron': '◇'
+                'tron': '◇',
+                'base': '🔵'
             };
-            return icons[blockchain] || '⟠';
+            return icons[blockchain.toLowerCase()] || '❓';
         }
 
         function getBlockchainName(blockchain) {
+            if (!blockchain || blockchain === 'unknown' || blockchain === 'null') {
+                return 'Unknown Chain';
+            }
             const names = {
                 'ethereum': 'Ethereum',
                 'bsc': 'BSC',
@@ -734,9 +745,10 @@
                 'optimism': 'Optimism',
                 'solana': 'Solana',
                 'avalanche': 'Avalanche',
-                'tron': 'Tron'
+                'tron': 'Tron',
+                'base': 'Base'
             };
-            return names[blockchain] || 'Ethereum';
+            return names[blockchain.toLowerCase()] || blockchain.charAt(0).toUpperCase() + blockchain.slice(1);
         }
 
         function renderBlockchainMarker(blockchain) {
@@ -793,11 +805,17 @@
             }
 
             // Group opportunities by symbol-blockchain to prevent duplicates
-            // CRITICAL: Don't default blockchain to 'ethereum' - use unique identifier
+            // CRITICAL: Properly normalize blockchain names for accurate grouping
             const grouped = {};
             opportunities.forEach(opp => {
-                // Use 'unknown' instead of 'ethereum' for null blockchain to prevent false grouping
-                const blockchain = opp.blockchain || 'unknown';
+                // Normalize blockchain: lowercase, handle null/undefined, don't default to 'ethereum'
+                let blockchain = opp.blockchain;
+                if (!blockchain || blockchain === 'null' || blockchain === 'undefined') {
+                    blockchain = 'unknown';
+                } else {
+                    blockchain = blockchain.toLowerCase().trim();
+                }
+                
                 // Create unique key: symbol-blockchain to prevent cross-chain duplicates
                 const groupKey = `${opp.symbol}-${blockchain}`;
                 if (!grouped[groupKey]) {
