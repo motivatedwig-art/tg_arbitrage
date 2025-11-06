@@ -206,14 +206,14 @@ export class DexScreenerService {
     const key = (symbol || '').toUpperCase();
     if (!key) return [];
 
-    // Try database cache first
+    // Try database cache first (avoids unnecessary API calls)
     if (this.db) {
       try {
         const cacheModel = this.db.getDexScreenerCacheModel();
         if (cacheModel) {
           const cached = await cacheModel.getBySymbol(key);
           if (cached && cached.length > 0) {
-            console.log(`💾 [DEXSCREENER] Found ${cached.length} cached entries for ${key}`);
+            // Return cached data - no API call needed
             return cached;
           }
         }

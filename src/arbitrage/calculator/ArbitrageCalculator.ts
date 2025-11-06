@@ -341,27 +341,38 @@ export class ArbitrageCalculator {
     const symbolsArray = Array.from(symbolsNeedingContract);
     
     if (symbolsArray.length > 0) {
-      console.log(`\n   [STEP 2.2] DexScreener API calls (${symbolsArray.length} symbols, limit: 200)`);
-      console.log(`   ⏳ Calling DexScreener API for contract addresses...`);
+            console.log(`\n   [STEP 2.2] DexScreener API calls (${symbolsArray.length} symbols, no limit - database cache enabled)`);
+            console.log(`   ⏳ Calling DexScreener API for contract addresses (will use database cache when available)...`);
       
       try {
         const { DexScreenerService } = await import('../../services/DexScreenerService.js');
         const dexService = DexScreenerService.getInstance();
         
-        // Process symbols in batches to avoid overwhelming the API
+        // Initialize database for caching if available
+        try {
+          const { DatabaseManager } = await import('../../database/Database.js');
+          const db = DatabaseManager.getInstance();
+          dexService.setDatabase(db);
+        } catch (error) {
+          console.warn('⚠️ Could not initialize database for DexScreener cache:', error);
+        }
+        
+        // Process ALL symbols (no limit) - database cache will reduce API calls
         const batchSize = 10;
         let processed = 0;
         let successful = 0;
         let failed = 0;
+        let cached = 0;
         
-        for (let i = 0; i < symbolsArray.length && i < 200; i++) { // Limit to 200 symbols max
+        for (let i = 0; i < symbolsArray.length; i++) { // Process ALL symbols
           const baseSymbol = symbolsArray[i];
           try {
-            console.log(`      🔍 [${i + 1}/${Math.min(symbolsArray.length, 200)}] Fetching contracts for ${baseSymbol}...`);
+            console.log(`      🔍 [${i + 1}/${symbolsArray.length}] Fetching contracts for ${baseSymbol}...`);
             
-            // Get all contract candidates for this symbol
+            // Get all contract candidates for this symbol (checks database cache first)
             const candidates = await dexService.resolveAllBySymbol(baseSymbol);
             
+            // Check if this was from cache (already logged in DexScreenerService)
             if (candidates && candidates.length > 0) {
               const contractMap = new Map<string, string>();
               let primaryBlockchain: string | null = null;
@@ -432,7 +443,7 @@ export class ArbitrageCalculator {
             
             processed++;
             if (processed % batchSize === 0) {
-              console.log(`      📊 Progress: ${processed}/${Math.min(symbolsArray.length, 200)} (${successful} success, ${failed} failed)`);
+              console.log(`      📊 Progress: ${processed}/${symbolsArray.length} (${successful} success, ${cached} cached, ${failed} failed)`);
             }
           } catch (error) {
             failed++;
@@ -442,7 +453,7 @@ export class ArbitrageCalculator {
           }
         }
         
-        console.log(`\n   ✅ DexScreener API complete: ${successful} symbols found, ${failed} failed`);
+        console.log(`\n   ✅ DexScreener API complete: ${successful} symbols found (with database cache), ${failed} failed`);
         console.log(`   📊 Contract addresses fetched for ${symbolContractMap.size} symbols`);
       } catch (error) {
         console.error(`   ❌ Fatal error in DexScreener API:`, error);
