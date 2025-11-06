@@ -97,7 +97,14 @@ const getWebappUrl = (): string => {
   }
   
   // Check if we're on Railway
-  const isRailway = process.env.RAILWAY_ENVIRONMENT || process.env.RAILWAY_SERVICE_NAME;
+  // Railway typically sets these environment variables or we can detect by:
+  // - RAILWAY_ENVIRONMENT, RAILWAY_SERVICE_NAME (Railway-specific)
+  // - PORT is set (typical for Railway)
+  // - NODE_ENV is production (typical for Railway)
+  const isRailway = process.env.RAILWAY_ENVIRONMENT || 
+                    process.env.RAILWAY_SERVICE_NAME ||
+                    process.env.RAILWAY_PUBLIC_DOMAIN ||
+                    (process.env.NODE_ENV === 'production' && process.env.PORT);
   
   if (isRailway) {
     // Try to get Railway public domain
@@ -109,6 +116,12 @@ const getWebappUrl = (): string => {
       // Ensure it starts with https://
       const url = railwayDomain.startsWith('http') ? railwayDomain : `https://${railwayDomain}`;
       return url;
+    }
+    
+    // If WEBAPP_URL points to Vercel but we're on Railway, use Railway default
+    if (envValue && envValue.includes('vercel.app')) {
+      console.log('⚠️ WEBAPP_URL points to Vercel but running on Railway. Using Railway URL instead.');
+      return 'https://webapp-production-c779.up.railway.app';
     }
     
     // Fallback to default Railway URL
