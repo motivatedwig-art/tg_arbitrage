@@ -743,14 +743,16 @@ export class ArbitrageCalculator {
       return true;
     }
 
-    // If one has contract/blockchain and other doesn't, be conservative - assume different
+    // If one has contract/blockchain and other doesn't, allow the match if symbols match
+    // This is more lenient to allow opportunities when enrichment is inconsistent across exchanges
+    // The blockchain will be determined later from the ticker that has it
     if ((blockchain1 || contract1) && !(blockchain2 || contract2)) {
-      console.log(`   ⚠️ [INFO_MISMATCH] ${baseSymbol1}: ${ticker1.exchange} has blockchain info but ${ticker2.exchange} doesn't - skipping for safety`);
-      return false;
+      // Allow match - use ticker1's blockchain info
+      return true;
     }
     if ((blockchain2 || contract2) && !(blockchain1 || contract1)) {
-      console.log(`   ⚠️ [INFO_MISMATCH] ${baseSymbol2}: ${ticker2.exchange} has blockchain info but ${ticker1.exchange} doesn't - skipping for safety`);
-      return false;
+      // Allow match - use ticker2's blockchain info
+      return true;
     }
 
     // Both lack blockchain/contract info - assume same if symbol matches (legacy behavior)
