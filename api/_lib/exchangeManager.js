@@ -173,18 +173,67 @@ export const fetchTickers = async (clients, symbols = DEFAULT_SYMBOLS) => {
 };
 
 /**
+ * Normalize chain name to standard format
+ */
+const normalizeChain = (chain) => {
+  if (!chain) return null;
+  
+  const normalized = chain.toLowerCase().trim();
+  
+  // Map common aliases to standard names
+  const chainMap = {
+    'eth': 'ethereum',
+    'ether': 'ethereum',
+    'mainnet': 'ethereum',
+    'bnb': 'bsc',
+    'binance': 'bsc',
+    'binance-smart-chain': 'bsc',
+    'matic': 'polygon',
+    'arb': 'arbitrum',
+    'arbitrum-one': 'arbitrum',
+    'op': 'optimism',
+    'optimistic-ethereum': 'optimism',
+    'sol': 'solana',
+    'avax': 'avalanche',
+    'trx': 'tron'
+  };
+  
+  // Check if it's a known alias
+  if (chainMap[normalized]) {
+    return chainMap[normalized];
+  }
+  
+  // Supported chains
+  const supportedChains = ['ethereum', 'bsc', 'polygon', 'arbitrum', 'optimism', 'base', 'solana', 'avalanche', 'tron'];
+  if (supportedChains.includes(normalized)) {
+    return normalized;
+  }
+  
+  // Return null for unknown chains (don't default to ethereum)
+  return null;
+};
+
+/**
  * Determine the primary blockchain for an arbitrage opportunity
- * If both tickers have the same blockchain, use that; otherwise use the most common one
+ * Uses contract addresses when available for accurate identification
  */
 const determineBlockchain = (buyTicker, sellTicker) => {
   // If both tickers have blockchain info and they match, use that
   if (buyTicker.blockchain && sellTicker.blockchain && buyTicker.blockchain === sellTicker.blockchain) {
-    return buyTicker.blockchain;
+    return normalizeChain(buyTicker.blockchain);
+  }
+
+  // If both have contract addresses, they should be on the same chain
+  if (buyTicker.contractAddress && sellTicker.contractAddress) {
+    // If contract addresses match, use the blockchain from either ticker
+    if (buyTicker.contractAddress.toLowerCase() === sellTicker.contractAddress.toLowerCase()) {
+      return normalizeChain(buyTicker.blockchain || sellTicker.blockchain);
+    }
   }
 
   // If only one has blockchain info, use that
-  if (buyTicker.blockchain) return buyTicker.blockchain;
-  if (sellTicker.blockchain) return sellTicker.blockchain;
+  if (buyTicker.blockchain) return normalizeChain(buyTicker.blockchain);
+  if (sellTicker.blockchain) return normalizeChain(sellTicker.blockchain);
 
   // Fallback: determine based on symbol patterns
   const symbol = buyTicker.symbol || sellTicker.symbol || '';
@@ -198,8 +247,8 @@ const determineBlockchain = (buyTicker, sellTicker) => {
   if (symbol.includes('ARB')) return 'arbitrum';
   if (symbol.includes('OP')) return 'optimism';
 
-  // Default to ethereum for most ERC-20 tokens
-  return 'ethereum';
+  // Don't default to ethereum - return null instead
+  return null;
 };
 
 const calculateOpportunity = ({
@@ -226,6 +275,26 @@ const calculateOpportunity = ({
     return null;
   }
 
+  // Determine blockchain with normalization
+  const blockchain = determineBlockchain(buy, sell);
+  
+  // Get contract address from tickers (prefer buy ticker, fallback to sell)
+  const contractAddress = buy.contractAddress || sell.contractAddress || undefined;
+  
+  // Map blockchain to chainId for API calls
+  const chainIdMap = {
+    'ethereum': 'ethereum',
+    'bsc': 'bsc',
+    'polygon': 'polygon',
+    'arbitrum': 'arbitrum',
+    'optimism': 'optimism',
+    'base': 'base',
+    'solana': 'solana',
+    'avalanche': 'avalanche',
+    'tron': 'tron'
+  };
+  const chainId = blockchain ? chainIdMap[blockchain] : undefined;
+
   return {
     symbol,
     buyExchange: buy.exchangeId,
@@ -236,8 +305,13 @@ const calculateOpportunity = ({
     profitAmount: netProfitAmount,
     volume: Math.min(buy.baseVolume || 0, sell.baseVolume || 0),
     timestamp: Date.now(),
-    blockchain: determineBlockchain(buy, sell),
+    blockchain: blockchain || undefined, // Use null instead of defaulting to ethereum
+    contractAddress,
+    chainId,
     realData: true,
+    executable: true, // Default to executable
+    confidenceScore: 85, // Default confidence score
+    risks: [], // Empty risks array by default
     fees: {
       buyFee,
       sellFee

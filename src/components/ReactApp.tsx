@@ -38,21 +38,28 @@ const App: React.FC = () => {
       const data = await response.json();
       if (data.success && data.data) {
         // Filter to show only the most profitable opportunity per coin pair
+        // CRITICAL: Include blockchain in key to prevent cross-chain duplicates
         const uniqueOpportunities = data.data.reduce((acc: ArbitrageOpportunity[], current: ArbitrageOpportunity) => {
-          const key = `${current.symbol}-${current.buyExchange}-${current.sellExchange}`;
-          const existing = acc.find(opp => 
-            opp.symbol === current.symbol && 
-            opp.buyExchange === current.buyExchange && 
-            opp.sellExchange === current.sellExchange
-          );
+          // Normalize blockchain for key (use null if not set, don't default to 'ethereum')
+          const blockchainKey = (current.blockchain || 'null').toLowerCase();
+          const key = `${current.symbol}-${blockchainKey}-${current.buyExchange}-${current.sellExchange}`;
+          const existing = acc.find(opp => {
+            const oppBlockchainKey = (opp.blockchain || 'null').toLowerCase();
+            return opp.symbol === current.symbol && 
+                   oppBlockchainKey === blockchainKey &&
+                   opp.buyExchange === current.buyExchange && 
+                   opp.sellExchange === current.sellExchange;
+          });
           
           if (!existing || current.profitPercentage > existing.profitPercentage) {
             // Remove existing if it exists, then add current
-            const filtered = acc.filter(opp => 
-              !(opp.symbol === current.symbol && 
-                opp.buyExchange === current.buyExchange && 
-                opp.sellExchange === current.sellExchange)
-            );
+            const filtered = acc.filter(opp => {
+              const oppBlockchainKey = (opp.blockchain || 'null').toLowerCase();
+              return !(opp.symbol === current.symbol && 
+                      oppBlockchainKey === blockchainKey &&
+                      opp.buyExchange === current.buyExchange && 
+                      opp.sellExchange === current.sellExchange);
+            });
             filtered.push(current);
             return filtered;
           }

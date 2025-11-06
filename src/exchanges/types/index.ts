@@ -39,7 +39,15 @@ export interface ArbitrageOpportunity {
   volume_24h?: number;
   timestamp: number;
   blockchain?: string; // e.g., 'ethereum', 'bsc', 'polygon', 'arbitrum', 'optimism', 'solana', 'tron'
+  contractAddress?: string; // Token contract address for verification
+  chainId?: string; // Chain ID for multi-chain support
   logoUrl?: string;
+  liquidityUsd?: number; // Liquidity in USD
+  gasCostUsd?: number; // Estimated gas cost in USD
+  netProfitPercentage?: number; // Profit after fees and gas
+  confidenceScore?: number; // Confidence score (0-100)
+  risks?: string[]; // Array of risk indicators
+  executable?: boolean; // Whether the opportunity is executable
   fees?: {
     buyFee: number;
     sellFee: number;

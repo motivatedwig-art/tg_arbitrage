@@ -49,25 +49,29 @@ const parseSymbols = (req) => {
     .filter(Boolean);
 };
 
-// Group opportunities by blockchain, returning top 5 from each
+// Group opportunities by symbol-blockchain, returning top 5 from each
+// CRITICAL: Don't default blockchain to 'ethereum' - use unique identifier
 const groupOpportunitiesByBlockchain = (opportunities) => {
   const blockchainGroups = {};
   
-  // Group by blockchain
+  // Group by symbol-blockchain to prevent cross-chain duplicates
   opportunities.forEach(opp => {
-    const blockchain = opp.blockchain || 'ethereum';
-    if (!blockchainGroups[blockchain]) {
-      blockchainGroups[blockchain] = [];
+    // Use 'unknown' instead of 'ethereum' for null blockchain to prevent false grouping
+    const blockchain = opp.blockchain || 'unknown';
+    // Create unique key: symbol-blockchain to prevent cross-chain duplicates
+    const groupKey = `${opp.symbol}-${blockchain}`;
+    if (!blockchainGroups[groupKey]) {
+      blockchainGroups[groupKey] = [];
     }
-    blockchainGroups[blockchain].push(opp);
+    blockchainGroups[groupKey].push(opp);
   });
   
-  // Sort each blockchain group by profit percentage and take top 5
+  // Sort each symbol-blockchain group by profit percentage and take top 5
   const result = {};
-  Object.keys(blockchainGroups).forEach(blockchain => {
-    result[blockchain] = blockchainGroups[blockchain]
+  Object.keys(blockchainGroups).forEach(groupKey => {
+    result[groupKey] = blockchainGroups[groupKey]
       .sort((a, b) => b.profitPercentage - a.profitPercentage)
-      .slice(0, 5); // Top 5 from each blockchain
+      .slice(0, 5); // Top 5 from each symbol-blockchain group
   });
   
   return result;

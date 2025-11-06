@@ -317,6 +317,47 @@ export class DexScreenerService {
   }
 
   /**
+   * Get token price data using the pairs endpoint (requires chainId and tokenAddress)
+   * Rate limit: 60 requests per minute
+   */
+  public async getTokenPrice(chainId: string, tokenAddress: string): Promise<any | null> {
+    if (!chainId || !tokenAddress) return null;
+    
+    const cacheKey = `price:${chainId}:${tokenAddress.toLowerCase()}`;
+    
+    // Check in-memory cache
+    // Note: We could add TTL cache here if needed
+    
+    try {
+      const response = await this.makeRequest<{ pairs?: any[] }>(
+        `https://api.dexscreener.com/latest/dex/tokens/${tokenAddress}`
+      );
+      
+      // Filter pairs by chainId
+      const pairs = (response.pairs || []).filter((pair: any) => 
+        pair.chainId && pair.chainId.toLowerCase() === chainId.toLowerCase()
+      );
+      
+      return {
+        pairs: pairs,
+        chainId: chainId,
+        tokenAddress: tokenAddress
+      };
+    } catch (error) {
+      const errorMsg = error instanceof Error ? error.message : 'Unknown error';
+      const status = error instanceof AxiosError ? error.response?.status : null;
+      
+      // Don't log 404s as errors (token might not exist)
+      if (status === 404) {
+        return null;
+      }
+      
+      console.warn(`⚠️ Failed to fetch token price for ${chainId}:${tokenAddress}: ${errorMsg}`);
+      return null;
+    }
+  }
+
+  /**
    * Clear the cache (useful for testing or memory management)
    */
   public clearCache(): void {

@@ -95,15 +95,57 @@ export class WebAppServer {
 
     // API Routes
 
-    // Debug API route to get all opportunities without filtering
+    // Debug API route to get all opportunities with diagnostic information
     this.app.get('/api/debug/opportunities', async (req, res) => {
       try {
         const opportunities = await this.db.getArbitrageModel().getRecentOpportunities(60); // 60 minutes instead of 30
         
+        // Collect diagnostic information
+        const chainsDetected = new Set<string>();
+        const uniqueTokens = new Set<string>();
+        let missingChainCount = 0;
+        let missingAddressCount = 0;
+        
+        opportunities.forEach(opp => {
+          if (opp.blockchain) {
+            chainsDetected.add(opp.blockchain);
+          } else {
+            missingChainCount++;
+          }
+          
+          if (opp.contractAddress) {
+            const tokenKey = `${opp.blockchain || 'unknown'}:${opp.contractAddress.toLowerCase()}`;
+            uniqueTokens.add(tokenKey);
+          } else {
+            missingAddressCount++;
+          }
+        });
+        
+        const debugInfo = {
+          total_opportunities: opportunities.length,
+          chains_detected: Array.from(chainsDetected),
+          unique_tokens: Array.from(uniqueTokens).slice(0, 20), // Limit to first 20
+          missing_chain_count: missingChainCount,
+          missing_address_count: missingAddressCount,
+          chain_distribution: {} as Record<string, number>,
+          sample_opportunity: opportunities[0] || null,
+          cutoffTime: new Date(Date.now() - 60 * 60 * 1000).toISOString()
+        };
+        
+        // Calculate chain distribution
+        opportunities.forEach(opp => {
+          const chain = opp.blockchain || 'unknown';
+          debugInfo.chain_distribution[chain] = (debugInfo.chain_distribution[chain] || 0) + 1;
+        });
+        
         res.json({ 
           success: true, 
-          data: opportunities.map(opp => ({
+          ...debugInfo,
+          all_opportunities: opportunities.map(opp => ({
             symbol: opp.symbol,
+            blockchain: opp.blockchain || null,
+            contractAddress: opp.contractAddress || null,
+            chainId: opp.chainId || null,
             buyExchange: opp.buyExchange,
             sellExchange: opp.sellExchange,
             buyPrice: opp.buyPrice,
@@ -111,17 +153,20 @@ export class WebAppServer {
             profitPercentage: opp.profitPercentage,
             profitAmount: opp.profitAmount,
             volume: opp.volume,
+            liquidityUsd: opp.liquidityUsd || null,
+            confidenceScore: opp.confidenceScore || null,
+            risks: opp.risks || [],
+            executable: opp.executable !== false,
             timestamp: opp.timestamp
-          })),
-          count: opportunities.length,
-          cutoffTime: new Date(Date.now() - 60 * 60 * 1000).toISOString()
+          }))
         });
       } catch (error) {
         console.error('Debug API error:', error);
         res.status(500).json({ 
           success: false, 
           error: 'Failed to fetch opportunities',
-          count: 0
+          count: 0,
+          details: error instanceof Error ? error.message : 'Unknown error'
         });
       }
     });
@@ -156,21 +201,28 @@ export class WebAppServer {
         
         if (liveOpportunities.length > 0) {
           // Deduplicate opportunities - keep only the most profitable per coin pair
+          // CRITICAL: Include blockchain in key to prevent cross-chain duplicates
           const uniqueOpportunities = liveOpportunities.reduce((acc: any[], current: any) => {
-            const key = `${current.symbol}-${current.buyExchange}-${current.sellExchange}`;
-            const existing = acc.find(opp => 
-              opp.symbol === current.symbol && 
-              opp.buyExchange === current.buyExchange && 
-              opp.sellExchange === current.sellExchange
-            );
+            // Normalize blockchain for key (use null if not set, don't default to 'ethereum')
+            const blockchainKey = (current.blockchain || 'null').toLowerCase();
+            const key = `${current.symbol}-${blockchainKey}-${current.buyExchange}-${current.sellExchange}`;
+            const existing = acc.find(opp => {
+              const oppBlockchainKey = (opp.blockchain || 'null').toLowerCase();
+              return opp.symbol === current.symbol && 
+                     oppBlockchainKey === blockchainKey &&
+                     opp.buyExchange === current.buyExchange && 
+                     opp.sellExchange === current.sellExchange;
+            });
             
             if (!existing || current.profitPercentage > existing.profitPercentage) {
               // Remove existing and add current (most profitable)
-              const filtered = acc.filter(opp => 
-                !(opp.symbol === current.symbol && 
-                  opp.buyExchange === current.buyExchange && 
-                  opp.sellExchange === current.sellExchange)
-              );
+              const filtered = acc.filter(opp => {
+                const oppBlockchainKey = (opp.blockchain || 'null').toLowerCase();
+                return !(opp.symbol === current.symbol && 
+                        oppBlockchainKey === blockchainKey &&
+                        opp.buyExchange === current.buyExchange && 
+                        opp.sellExchange === current.sellExchange);
+              });
               filtered.push(current);
               return filtered;
             }
@@ -297,21 +349,28 @@ export class WebAppServer {
           console.log(`📊 Found ${opportunities.length} opportunities from database`);
           
           // Deduplicate opportunities - keep only the most profitable per coin pair
+          // CRITICAL: Include blockchain in key to prevent cross-chain duplicates
           const uniqueOpportunities = opportunities.reduce((acc: any[], current: any) => {
-            const key = `${current.symbol}-${current.buyExchange}-${current.sellExchange}`;
-            const existing = acc.find(opp => 
-              opp.symbol === current.symbol && 
-              opp.buyExchange === current.buyExchange && 
-              opp.sellExchange === current.sellExchange
-            );
+            // Normalize blockchain for key (use null if not set, don't default to 'ethereum')
+            const blockchainKey = (current.blockchain || 'null').toLowerCase();
+            const key = `${current.symbol}-${blockchainKey}-${current.buyExchange}-${current.sellExchange}`;
+            const existing = acc.find(opp => {
+              const oppBlockchainKey = (opp.blockchain || 'null').toLowerCase();
+              return opp.symbol === current.symbol && 
+                     oppBlockchainKey === blockchainKey &&
+                     opp.buyExchange === current.buyExchange && 
+                     opp.sellExchange === current.sellExchange;
+            });
             
             if (!existing || current.profitPercentage > existing.profitPercentage) {
               // Remove existing and add current (most profitable)
-              const filtered = acc.filter(opp => 
-                !(opp.symbol === current.symbol && 
-                  opp.buyExchange === current.buyExchange && 
-                  opp.sellExchange === current.sellExchange)
-              );
+              const filtered = acc.filter(opp => {
+                const oppBlockchainKey = (opp.blockchain || 'null').toLowerCase();
+                return !(opp.symbol === current.symbol && 
+                        oppBlockchainKey === blockchainKey &&
+                        opp.buyExchange === current.buyExchange && 
+                        opp.sellExchange === current.sellExchange);
+              });
               filtered.push(current);
               return filtered;
             }
@@ -538,19 +597,25 @@ export class WebAppServer {
         
         if (liveOpportunities && liveOpportunities.length > 0) {
           // Deduplicate for accurate stats
+          // CRITICAL: Include blockchain in key to prevent cross-chain duplicates
           const uniqueOpportunities = liveOpportunities.reduce((acc: any[], current: any) => {
-            const existing = acc.find(opp => 
-              opp.symbol === current.symbol && 
-              opp.buyExchange === current.buyExchange && 
-              opp.sellExchange === current.sellExchange
-            );
+            const blockchainKey = (current.blockchain || 'null').toLowerCase();
+            const existing = acc.find(opp => {
+              const oppBlockchainKey = (opp.blockchain || 'null').toLowerCase();
+              return opp.symbol === current.symbol && 
+                     oppBlockchainKey === blockchainKey &&
+                     opp.buyExchange === current.buyExchange && 
+                     opp.sellExchange === current.sellExchange;
+            });
             
             if (!existing || current.profitPercentage > existing.profitPercentage) {
-              const filtered = acc.filter(opp => 
-                !(opp.symbol === current.symbol && 
-                  opp.buyExchange === current.buyExchange && 
-                  opp.sellExchange === current.sellExchange)
-              );
+              const filtered = acc.filter(opp => {
+                const oppBlockchainKey = (opp.blockchain || 'null').toLowerCase();
+                return !(opp.symbol === current.symbol && 
+                        oppBlockchainKey === blockchainKey &&
+                        opp.buyExchange === current.buyExchange && 
+                        opp.sellExchange === current.sellExchange);
+              });
               filtered.push(current);
               return filtered;
             }

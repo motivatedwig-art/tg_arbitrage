@@ -792,33 +792,47 @@
                 loadingState.style.display = 'none';
             }
 
-            // Group opportunities by blockchain
+            // Group opportunities by symbol-blockchain to prevent duplicates
+            // CRITICAL: Don't default blockchain to 'ethereum' - use unique identifier
             const grouped = {};
             opportunities.forEach(opp => {
-                const blockchain = opp.blockchain || 'ethereum';
-                if (!grouped[blockchain]) {
-                    grouped[blockchain] = [];
+                // Use 'unknown' instead of 'ethereum' for null blockchain to prevent false grouping
+                const blockchain = opp.blockchain || 'unknown';
+                // Create unique key: symbol-blockchain to prevent cross-chain duplicates
+                const groupKey = `${opp.symbol}-${blockchain}`;
+                if (!grouped[groupKey]) {
+                    grouped[groupKey] = {
+                        symbol: opp.symbol,
+                        blockchain: blockchain,
+                        opportunities: []
+                    };
                 }
-                grouped[blockchain].push(opp);
+                grouped[groupKey].opportunities.push(opp);
             });
 
-            // Sort blockchains by average profitability
-            const sortedBlockchains = Object.entries(grouped)
-                .map(([blockchain, opps]) => ({
-                    blockchain,
-                    opportunities: opps.sort((a, b) => b.profitPercentage - a.profitPercentage),
-                    avgProfit: opps.reduce((sum, o) => sum + o.profitPercentage, 0) / opps.length,
-                    maxProfit: Math.max(...opps.map(o => o.profitPercentage))
-                }))
+            // Sort symbol-blockchain groups by average profitability
+            const sortedGroups = Object.entries(grouped)
+                .map(([groupKey, groupData]) => {
+                    const opps = groupData.opportunities.sort((a, b) => b.profitPercentage - a.profitPercentage);
+                    return {
+                        symbol: groupData.symbol,
+                        blockchain: groupData.blockchain,
+                        groupKey: groupKey,
+                        opportunities: opps,
+                        avgProfit: opps.reduce((sum, o) => sum + o.profitPercentage, 0) / opps.length,
+                        maxProfit: Math.max(...opps.map(o => o.profitPercentage))
+                    };
+                })
                 .sort((a, b) => b.avgProfit - a.avgProfit);
 
-            // Generate blockchain sections with expand/collapse
+            // Generate symbol-blockchain sections with expand/collapse
             let html = '';
-            sortedBlockchains.forEach(({ blockchain, opportunities: opps, avgProfit, maxProfit }, groupIndex) => {
-                const blockchainName = getBlockchainName(blockchain);
-                const blockchainIcon = getBlockchainIcon(blockchain);
-                const blockchainColor = getBlockchainColor(blockchain);
-                const groupId = `blockchain-${groupIndex}-${blockchain.replace(/[^a-z0-9]/gi, '')}`;
+            sortedGroups.forEach(({ symbol, blockchain, groupKey, opportunities: opps, avgProfit, maxProfit }, groupIndex) => {
+                const blockchainName = blockchain === 'unknown' ? 'Unknown Chain' : getBlockchainName(blockchain);
+                const blockchainIcon = blockchain === 'unknown' ? '❓' : getBlockchainIcon(blockchain);
+                const blockchainColor = blockchain === 'unknown' ? '#6b7280' : getBlockchainColor(blockchain);
+                const safeGroupKey = groupKey.replace(/[^a-z0-9]/gi, '-');
+                const groupId = `group-${groupIndex}-${safeGroupKey}`;
                 
                 html += `
                     <div style="margin-bottom: 24px;">
@@ -837,7 +851,7 @@
                                     <span style="font-size: 32px; color: ${blockchainColor};">${blockchainIcon}</span>
                                     <div>
                                         <h3 style="color: ${blockchainColor}; font-size: 1.2rem; font-weight: bold; margin: 0;">
-                                            ${blockchainName}
+                                            ${symbol}${blockchain !== 'unknown' ? ' (' + blockchainName + ')' : ''}
                                         </h3>
                                         <p style="font-size: 0.85rem; color: var(--text-secondary); margin: 4px 0 0 0;">
                                             ${opps.length} ${opps.length === 1 ? 'opportunity' : 'opportunities'} • Avg: ${avgProfit.toFixed(2)}% • Max: ${maxProfit.toFixed(2)}%

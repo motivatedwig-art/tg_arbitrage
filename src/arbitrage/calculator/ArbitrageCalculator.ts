@@ -5,6 +5,8 @@ import { getTokenBlockchain } from '../../services/TokenMetadataDatabase.js';
 import { BlockchainAggregator } from '../../services/BlockchainAggregator.js';
 import { CoinApiService } from '../../services/CoinApiService.js';
 import { IconResolver } from '../../services/IconResolver.js';
+import { normalizeChain, isSupportedChain } from '../../utils/chainNormalizer.js';
+import { TokenVerificationService } from '../../services/TokenVerificationService.js';
 
 export class ArbitrageCalculator {
   private minProfitThreshold: number;
@@ -18,6 +20,7 @@ export class ArbitrageCalculator {
   private excludedBlockchains: Set<string> = new Set([]); // DISABLED: Blockchain filtering disabled due to inaccurate blockchain detection
   private coinApiService = CoinApiService.getInstance();
   private iconResolver = IconResolver.getInstance();
+  private tokenVerificationService = TokenVerificationService.getInstance();
 
   constructor(minProfitThreshold: number = 0.5, maxProfitThreshold: number = 50, minVolumeThreshold: number = 100) {
     this.minProfitThreshold = minProfitThreshold;
@@ -865,12 +868,63 @@ export class ArbitrageCalculator {
     }
 
     // Determine blockchain - prioritize ticker blockchain over fallback
-    const determinedBlockchain = await this.determineBlockchain(buyTicker, sellTicker);
+    let determinedBlockchain = await this.determineBlockchain(buyTicker, sellTicker);
+    
+    // Normalize blockchain name
+    if (determinedBlockchain) {
+      determinedBlockchain = normalizeChain(determinedBlockchain) || determinedBlockchain;
+    }
     
     // Log the final blockchain for debugging
     if (determinedBlockchain !== buyChain && determinedBlockchain !== sellChain) {
       console.log(`   🔍 [BLOCKCHAIN] ${symbol}: Using ${determinedBlockchain} (tickers: ${buyChain}/${sellChain})`);
     }
+    
+    // Get contract address from tickers
+    const contractAddress = buyTicker.contractAddress || sellTicker.contractAddress;
+    
+    // Map blockchain to chainId
+    const chainIdMap: Record<string, string> = {
+      'ethereum': 'ethereum',
+      'bsc': 'bsc',
+      'polygon': 'polygon',
+      'arbitrum': 'arbitrum',
+      'optimism': 'optimism',
+      'base': 'base',
+      'solana': 'solana',
+      'avalanche': 'avalanche',
+      'tron': 'tron'
+    };
+    const chainId = determinedBlockchain ? chainIdMap[determinedBlockchain] : undefined;
+    
+    // Verify token if we have contract address and chainId
+    let liquidityUsd: number | undefined;
+    let confidenceScore = 85; // Default confidence
+    let risks: string[] = [];
+    let executable = true;
+    
+    if (contractAddress && chainId) {
+      try {
+        const verification = await this.tokenVerificationService.verifyToken(chainId, contractAddress, symbol);
+        liquidityUsd = verification.liquidityUsd;
+        confidenceScore = verification.confidenceScore || 85;
+        risks = verification.risks || [];
+        executable = verification.isValid !== false; // Only mark as non-executable if explicitly invalid
+        
+        if (!verification.isValid) {
+          console.log(`   ⚠️ [VERIFICATION] ${symbol} on ${chainId}: ${verification.reason}`);
+        }
+      } catch (error) {
+        console.warn(`   ⚠️ [VERIFICATION] Failed to verify ${symbol} on ${chainId}:`, error);
+        // Continue with default values if verification fails
+      }
+    }
+    
+    // Calculate net profit percentage (after fees and gas)
+    const gasCostUsd = transferCost; // Use transfer cost as gas estimate
+    const tradeSize = volume * buyPrice; // Estimated trade size
+    const gasCostPercentage = tradeSize > 0 ? (gasCostUsd / tradeSize) * 100 : 0;
+    const netProfitPercentage = profitPercentage - gasCostPercentage;
     
     return {
       symbol: symbol,
@@ -883,7 +937,15 @@ export class ArbitrageCalculator {
       volume: volume,
       volume_24h: buyTicker.volume_24h || sellTicker.volume_24h || volume,
       timestamp: Math.max(buyTicker.timestamp, sellTicker.timestamp),
-      blockchain: determinedBlockchain,
+      blockchain: determinedBlockchain || undefined,
+      contractAddress: contractAddress || undefined,
+      chainId: chainId || undefined,
+      liquidityUsd: liquidityUsd,
+      gasCostUsd: gasCostUsd,
+      netProfitPercentage: netProfitPercentage,
+      confidenceScore: confidenceScore,
+      risks: risks,
+      executable: executable,
       fees: {
         buyFee: buyFee,
         sellFee: sellFee,
@@ -892,7 +954,7 @@ export class ArbitrageCalculator {
       transferAvailability: {
         buyAvailable: undefined,  // Transfer check disabled
         sellAvailable: undefined,  // Transfer check disabled
-        commonNetworks: []  // Transfer check disabled
+        commonNetworks: determinedBlockchain ? [determinedBlockchain] : []  // Use determined blockchain
       }
     };
   }
@@ -967,15 +1029,21 @@ export class ArbitrageCalculator {
    * Determine the primary blockchain for an arbitrage opportunity
    * Uses comprehensive token database for accurate blockchain detection
    */
-  private async determineBlockchain(buyTicker: Ticker, sellTicker: Ticker): Promise<string> {
+  private async determineBlockchain(buyTicker: Ticker, sellTicker: Ticker): Promise<string | null> {
     // If both tickers have blockchain info and they match, use that
     if (buyTicker.blockchain && sellTicker.blockchain && buyTicker.blockchain === sellTicker.blockchain) {
-      return buyTicker.blockchain;
+      return normalizeChain(buyTicker.blockchain) || buyTicker.blockchain;
     }
 
     // If only one has blockchain info, use that
-    if (buyTicker.blockchain) return buyTicker.blockchain;
-    if (sellTicker.blockchain) return sellTicker.blockchain;
+    if (buyTicker.blockchain) {
+      const normalized = normalizeChain(buyTicker.blockchain);
+      return normalized || buyTicker.blockchain;
+    }
+    if (sellTicker.blockchain) {
+      const normalized = normalizeChain(sellTicker.blockchain);
+      return normalized || sellTicker.blockchain;
+    }
 
     // Try blockchain aggregator first (most accurate)
     const symbol = buyTicker.symbol || sellTicker.symbol || '';
@@ -983,7 +1051,7 @@ export class ArbitrageCalculator {
       try {
         const blockchain = await this.blockchainAggregator.getBlockchainForToken(symbol);
         if (blockchain) {
-          return blockchain;
+          return normalizeChain(blockchain) || blockchain;
         }
       } catch (error) {
         // Fall through to static database
@@ -994,7 +1062,7 @@ export class ArbitrageCalculator {
     const blockchainFromDb = getTokenBlockchain(symbol);
     
     if (blockchainFromDb) {
-      return blockchainFromDb;
+      return normalizeChain(blockchainFromDb) || blockchainFromDb;
     }
 
     // Fallback: Enhanced pattern-based detection
@@ -1004,33 +1072,39 @@ export class ArbitrageCalculator {
       .toUpperCase();
     
     // Native chain tokens (exact match first)
-    if (cleanSymbol === 'SOL' || cleanSymbol.includes('WSOL')) return 'solana';
-    if (cleanSymbol === 'TRX' || cleanSymbol.includes('TRON')) return 'tron';
-    if (cleanSymbol === 'BNB' || cleanSymbol.includes('WBNB')) return 'bsc';
-    if (cleanSymbol === 'MATIC' || cleanSymbol.includes('WMATIC')) return 'polygon';
-    if (cleanSymbol === 'ARB' || (cleanSymbol.includes('ARB') && !cleanSymbol.includes('BARB'))) return 'arbitrum';
-    if (cleanSymbol === 'OP' || (cleanSymbol.includes('OP') && cleanSymbol.length <= 8)) return 'optimism';
-    if (cleanSymbol === 'AVAX' || cleanSymbol.includes('WAVAX')) return 'avalanche';
-    if (cleanSymbol === 'TON') return 'ton';
-    if (cleanSymbol === 'APT') return 'aptos';
-    if (cleanSymbol === 'SUI') return 'sui';
-    if (cleanSymbol === 'NEAR') return 'near';
-    if (cleanSymbol === 'ATOM') return 'cosmos';
-    if (cleanSymbol === 'DOT') return 'polkadot';
-    if (cleanSymbol === 'ADA') return 'cardano';
-    if (cleanSymbol === 'BTC') return 'bitcoin';
-    if (cleanSymbol === 'XRP') return 'ripple';
-    if (cleanSymbol === 'XLM') return 'stellar';
-    if (cleanSymbol === 'DOGE') return 'dogecoin';
-    if (cleanSymbol === 'LTC') return 'litecoin';
+    let detectedChain: string | null = null;
+    if (cleanSymbol === 'SOL' || cleanSymbol.includes('WSOL')) detectedChain = 'solana';
+    else if (cleanSymbol === 'TRX' || cleanSymbol.includes('TRON')) detectedChain = 'tron';
+    else if (cleanSymbol === 'BNB' || cleanSymbol.includes('WBNB')) detectedChain = 'bsc';
+    else if (cleanSymbol === 'MATIC' || cleanSymbol.includes('WMATIC')) detectedChain = 'polygon';
+    else if (cleanSymbol === 'ARB' || (cleanSymbol.includes('ARB') && !cleanSymbol.includes('BARB'))) detectedChain = 'arbitrum';
+    else if (cleanSymbol === 'OP' || (cleanSymbol.includes('OP') && cleanSymbol.length <= 8)) detectedChain = 'optimism';
+    else if (cleanSymbol === 'AVAX' || cleanSymbol.includes('WAVAX')) detectedChain = 'avalanche';
+    else if (cleanSymbol === 'TON') detectedChain = 'ton';
+    else if (cleanSymbol === 'APT') detectedChain = 'aptos';
+    else if (cleanSymbol === 'SUI') detectedChain = 'sui';
+    else if (cleanSymbol === 'NEAR') detectedChain = 'near';
+    else if (cleanSymbol === 'ATOM') detectedChain = 'cosmos';
+    else if (cleanSymbol === 'DOT') detectedChain = 'polkadot';
+    else if (cleanSymbol === 'ADA') detectedChain = 'cardano';
+    else if (cleanSymbol === 'BTC') detectedChain = 'bitcoin';
+    else if (cleanSymbol === 'XRP') detectedChain = 'ripple';
+    else if (cleanSymbol === 'XLM') detectedChain = 'stellar';
+    else if (cleanSymbol === 'DOGE') detectedChain = 'dogecoin';
+    else if (cleanSymbol === 'LTC') detectedChain = 'litecoin';
     
     // Wrapped tokens
-    if (cleanSymbol.startsWith('W') && cleanSymbol.length > 4) {
+    if (!detectedChain && cleanSymbol.startsWith('W') && cleanSymbol.length > 4) {
       const unwrapped = cleanSymbol.substring(1);
-      if (unwrapped === 'BTC' || unwrapped === 'ETH') return 'ethereum';
-      if (unwrapped === 'SOL') return 'solana';
-      if (unwrapped === 'BNB') return 'bsc';
-      if (unwrapped === 'MATIC') return 'polygon';
+      if (unwrapped === 'BTC' || unwrapped === 'ETH') detectedChain = 'ethereum';
+      else if (unwrapped === 'SOL') detectedChain = 'solana';
+      else if (unwrapped === 'BNB') detectedChain = 'bsc';
+      else if (unwrapped === 'MATIC') detectedChain = 'polygon';
+    }
+
+    // Normalize detected chain
+    if (detectedChain) {
+      return normalizeChain(detectedChain) || detectedChain;
     }
 
     // Log unknown tokens for future analysis
@@ -1041,6 +1115,6 @@ export class ArbitrageCalculator {
     // CRITICAL: Don't default to ethereum - return null instead
     // This allows opportunities to be grouped separately if blockchain can't be determined
     // The grouping function will handle null as 'unknown'
-    return null as any; // Return null, not ethereum
+    return null;
   }
 }
