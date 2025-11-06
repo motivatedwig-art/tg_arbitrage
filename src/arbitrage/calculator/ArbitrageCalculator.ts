@@ -178,8 +178,23 @@ export class ArbitrageCalculator {
       }
     }
     
+    // Count opportunities by blockchain
+    const oppBlockchainCount = new Map<string, number>();
+    opportunities.forEach(opp => {
+      const chain = opp.blockchain || 'unknown';
+      oppBlockchainCount.set(chain, (oppBlockchainCount.get(chain) || 0) + 1);
+    });
+    
     console.log(`\n📊 Summary: Processed ${symbolsProcessed} symbols (${symbolsSkipped} skipped)`);
     console.log(`💎 Found ${opportunities.length} total opportunities before filtering`);
+    
+    if (oppBlockchainCount.size > 0) {
+      console.log(`   📊 Opportunities by blockchain:`);
+      const sorted = Array.from(oppBlockchainCount.entries()).sort((a, b) => b[1] - a[1]);
+      sorted.forEach(([blockchain, count]) => {
+        console.log(`      - ${blockchain}: ${count} opportunities`);
+      });
+    }
     
     console.log('\n' + '-'.repeat(80));
     console.log('🔍 [PHASE 5] FILTERING');
