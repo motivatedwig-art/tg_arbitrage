@@ -755,7 +755,9 @@ export class WebAppServer {
     
     // Group by blockchain
     opportunities.forEach(opp => {
-      const blockchain = opp.blockchain || 'unknown'; // Use actual blockchain, group unknown separately (don't default to ethereum)
+      // CRITICAL: Use actual blockchain from opportunity, don't default to ethereum
+      // If blockchain is null/undefined, group as 'unknown' to see what's missing
+      const blockchain = opp.blockchain || 'unknown';
       if (!blockchainGroups[blockchain]) {
         blockchainGroups[blockchain] = [];
       }

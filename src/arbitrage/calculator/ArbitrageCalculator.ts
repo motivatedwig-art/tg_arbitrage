@@ -1035,11 +1035,12 @@ export class ArbitrageCalculator {
 
     // Log unknown tokens for future analysis
     if (process.env.NODE_ENV === 'development') {
-      console.log(`⚠️ Unknown blockchain for ${symbol}, using Ethereum as fallback`);
+      console.log(`⚠️ Unknown blockchain for ${symbol}, using null (will be grouped as 'unknown')`);
     }
     
-    // Last resort: Default to ethereum for unknown tokens
-    // This should rarely happen if DexScreener enrichment is working properly
-    return 'ethereum';
+    // CRITICAL: Don't default to ethereum - return null instead
+    // This allows opportunities to be grouped separately if blockchain can't be determined
+    // The grouping function will handle null as 'unknown'
+    return null as any; // Return null, not ethereum
   }
 }
