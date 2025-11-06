@@ -502,16 +502,18 @@ export class ArbitrageCalculator {
           }
         }
 
+        const enrichedTicker = {
+          ...ticker,
+          blockchain: blockchain || undefined,
+          contractAddress: contractAddress || undefined
+        };
+        
         // Track if we enriched this ticker
         if (blockchain && blockchain !== ticker.blockchain) {
           enrichedCount++;
         }
-
-        enrichedTickers.push({
-          ...ticker,
-          blockchain: blockchain || undefined,
-          contractAddress: contractAddress || undefined
-        });
+        
+        enrichedTickers.push(enrichedTicker);
       }
 
       enriched.set(exchange, enrichedTickers);
@@ -829,6 +831,14 @@ export class ArbitrageCalculator {
       return null;
     }
 
+    // Determine blockchain - prioritize ticker blockchain over fallback
+    const determinedBlockchain = await this.determineBlockchain(buyTicker, sellTicker);
+    
+    // Log the final blockchain for debugging
+    if (determinedBlockchain !== buyChain && determinedBlockchain !== sellChain) {
+      console.log(`   🔍 [BLOCKCHAIN] ${symbol}: Using ${determinedBlockchain} (tickers: ${buyChain}/${sellChain})`);
+    }
+    
     return {
       symbol: symbol,
       buyExchange: buyTicker.exchange,
@@ -840,7 +850,7 @@ export class ArbitrageCalculator {
       volume: volume,
       volume_24h: buyTicker.volume_24h || sellTicker.volume_24h || volume,
       timestamp: Math.max(buyTicker.timestamp, sellTicker.timestamp),
-      blockchain: await this.determineBlockchain(buyTicker, sellTicker),
+      blockchain: determinedBlockchain,
       fees: {
         buyFee: buyFee,
         sellFee: sellFee,
