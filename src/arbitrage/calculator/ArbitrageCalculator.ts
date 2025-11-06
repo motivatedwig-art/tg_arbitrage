@@ -519,11 +519,29 @@ export class ArbitrageCalculator {
       enriched.set(exchange, enrichedTickers);
     }
 
-    // Summary
+    // Summary with blockchain distribution
+    const blockchainDistribution = new Map<string, number>();
+    for (const tickers of enriched.values()) {
+      for (const ticker of tickers) {
+        if (ticker.blockchain) {
+          blockchainDistribution.set(ticker.blockchain, (blockchainDistribution.get(ticker.blockchain) || 0) + 1);
+        }
+      }
+    }
+    
     console.log(`\n   ✅ Enrichment Summary:`);
     console.log(`      • Blockchain enriched: ${enrichedCount} tickers`);
     console.log(`      • Contract enriched: ${contractEnrichedCount} tickers`);
     console.log(`      • Already complete: ${unchangedCount} tickers`);
+    
+    if (blockchainDistribution.size > 0) {
+      console.log(`      • Blockchain distribution:`);
+      const sortedBlockchains = Array.from(blockchainDistribution.entries())
+        .sort((a, b) => b[1] - a[1]);
+      sortedBlockchains.forEach(([blockchain, count]) => {
+        console.log(`         - ${blockchain}: ${count} tickers`);
+      });
+    }
     
     if (enrichedCount === 0 && contractEnrichedCount === 0) {
       console.log(`      ⚠️  No enrichment performed (all tickers already had info or enrichment failed)`);
