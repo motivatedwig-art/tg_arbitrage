@@ -20,6 +20,14 @@ export declare class TokenMetadataService {
      */
     private initializeExchangeBlockchainMap;
     /**
+     * Get supported blockchains for an exchange
+     */
+    getSupportedBlockchains(exchangeId: string): string[];
+    /**
+     * Get all unique blockchains supported by all exchanges
+     */
+    getAllSupportedBlockchains(): string[];
+    /**
      * Initialize common token metadata for known cross-chain tokens
      */
     private initializeCommonTokenMetadata;

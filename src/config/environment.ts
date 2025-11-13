@@ -39,6 +39,12 @@ export interface EnvironmentConfig {
   
   // CoinAPI Key for Metadata Lookup
   coinapiKey: string;
+
+  // Claude AI Configuration
+  claudeApiKey: string;
+  claudeModel: string;
+  claudeMaxTokens: number;
+  claudeCacheTtl: number;
   
   // Public API Endpoints
   publicApiEndpoints: {
@@ -211,6 +217,12 @@ export const config: EnvironmentConfig = {
 
   // CoinAPI Key for Metadata Lookup
   coinapiKey: getEnvVar('COINAPI_KEY', getEnvVar('VITE_COINAPI_KEY', '')),
+
+  // Claude AI Configuration
+  claudeApiKey: getEnvVar('ANTHROPIC_API_KEY'),
+  claudeModel: getEnvVar('CLAUDE_MODEL', 'claude-3-5-haiku-20241022'),
+  claudeMaxTokens: getEnvNumber('CLAUDE_MAX_TOKENS', 100),
+  claudeCacheTtl: getEnvNumber('CLAUDE_CACHE_TTL', 300),
   
   // Public API Endpoints
   publicApiEndpoints: {

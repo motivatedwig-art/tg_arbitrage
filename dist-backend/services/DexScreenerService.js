@@ -6,7 +6,7 @@ export class DexScreenerService {
         // Rate limiting: 60 requests per minute = max 50 to be safe
         this.MAX_REQUESTS_PER_MINUTE = 50;
         this.MINUTE_MS = 60 * 1000;
-        this.MIN_REQUEST_INTERVAL = 1200; // 1.2 seconds between requests to stay under limit
+        this.MIN_REQUEST_INTERVAL = 1000; // 1 second between requests to stay under limit (60 req/min)
         this.rateLimiter = {
             lastRequestTime: 0,
             requestCount: 0,
@@ -157,14 +157,14 @@ export class DexScreenerService {
         const key = (symbol || '').toUpperCase();
         if (!key)
             return [];
-        // Try database cache first
+        // Try database cache first (avoids unnecessary API calls)
         if (this.db) {
             try {
                 const cacheModel = this.db.getDexScreenerCacheModel();
                 if (cacheModel) {
                     const cached = await cacheModel.getBySymbol(key);
                     if (cached && cached.length > 0) {
-                        console.log(`💾 [DEXSCREENER] Found ${cached.length} cached entries for ${key}`);
+                        // Return cached data - no API call needed
                         return cached;
                     }
                 }
@@ -249,6 +249,37 @@ export class DexScreenerService {
                 return null;
             }
             console.warn(`⚠️ Failed to fetch token profile for ${chainId}:${tokenAddress}: ${errorMsg}`);
+            return null;
+        }
+    }
+    /**
+     * Get token price data using the pairs endpoint (requires chainId and tokenAddress)
+     * Rate limit: 60 requests per minute
+     */
+    async getTokenPrice(chainId, tokenAddress) {
+        if (!chainId || !tokenAddress)
+            return null;
+        const cacheKey = `price:${chainId}:${tokenAddress.toLowerCase()}`;
+        // Check in-memory cache
+        // Note: We could add TTL cache here if needed
+        try {
+            const response = await this.makeRequest(`https://api.dexscreener.com/latest/dex/tokens/${tokenAddress}`);
+            // Filter pairs by chainId
+            const pairs = (response.pairs || []).filter((pair) => pair.chainId && pair.chainId.toLowerCase() === chainId.toLowerCase());
+            return {
+                pairs: pairs,
+                chainId: chainId,
+                tokenAddress: tokenAddress
+            };
+        }
+        catch (error) {
+            const errorMsg = error instanceof Error ? error.message : 'Unknown error';
+            const status = error instanceof AxiosError ? error.response?.status : null;
+            // Don't log 404s as errors (token might not exist)
+            if (status === 404) {
+                return null;
+            }
+            console.warn(`⚠️ Failed to fetch token price for ${chainId}:${tokenAddress}: ${errorMsg}`);
             return null;
         }
     }

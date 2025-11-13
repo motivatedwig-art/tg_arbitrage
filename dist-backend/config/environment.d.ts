@@ -43,6 +43,10 @@ export interface EnvironmentConfig {
         };
     };
     coinapiKey: string;
+    claudeApiKey: string;
+    claudeModel: string;
+    claudeMaxTokens: number;
+    claudeCacheTtl: number;
     publicApiEndpoints: {
         binance: {
             price: string;

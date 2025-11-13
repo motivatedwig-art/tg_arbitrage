@@ -8,6 +8,7 @@ export declare class WebAppServer {
     private setupMiddleware;
     private setupRoutes;
     private applyChainDiversityFilter;
+    private groupOpportunitiesByBlockchain;
     start(port: number): Promise<void>;
     stop(): Promise<void>;
 }

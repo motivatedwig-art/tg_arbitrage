@@ -4,6 +4,8 @@ import { getTokenBlockchain } from '../../services/TokenMetadataDatabase.js';
 import { BlockchainAggregator } from '../../services/BlockchainAggregator.js';
 import { CoinApiService } from '../../services/CoinApiService.js';
 import { IconResolver } from '../../services/IconResolver.js';
+import { normalizeChain } from '../../utils/chainNormalizer.js';
+import { TokenVerificationService } from '../../services/TokenVerificationService.js';
 export class ArbitrageCalculator {
     constructor(minProfitThreshold = 0.5, maxProfitThreshold = 50, minVolumeThreshold = 100) {
         this.tradingFees = new Map();
@@ -12,6 +14,7 @@ export class ArbitrageCalculator {
         this.excludedBlockchains = new Set([]); // DISABLED: Blockchain filtering disabled due to inaccurate blockchain detection
         this.coinApiService = CoinApiService.getInstance();
         this.iconResolver = IconResolver.getInstance();
+        this.tokenVerificationService = TokenVerificationService.getInstance();
         this.minProfitThreshold = minProfitThreshold;
         this.maxProfitThreshold = maxProfitThreshold;
         this.minVolumeThreshold = minVolumeThreshold;
@@ -147,8 +150,21 @@ export class ArbitrageCalculator {
                 console.log(`   ✅ ${baseSymbol}${chainInfo}: ${filteredOpportunities.length} opportunities across ${tickers.length} exchanges`);
             }
         }
+        // Count opportunities by blockchain
+        const oppBlockchainCount = new Map();
+        opportunities.forEach(opp => {
+            const chain = opp.blockchain || 'unknown';
+            oppBlockchainCount.set(chain, (oppBlockchainCount.get(chain) || 0) + 1);
+        });
         console.log(`\n📊 Summary: Processed ${symbolsProcessed} symbols (${symbolsSkipped} skipped)`);
         console.log(`💎 Found ${opportunities.length} total opportunities before filtering`);
+        if (oppBlockchainCount.size > 0) {
+            console.log(`   📊 Opportunities by blockchain:`);
+            const sorted = Array.from(oppBlockchainCount.entries()).sort((a, b) => b[1] - a[1]);
+            sorted.forEach(([blockchain, count]) => {
+                console.log(`      - ${blockchain}: ${count} opportunities`);
+            });
+        }
         console.log('\n' + '-'.repeat(80));
         console.log('🔍 [PHASE 5] FILTERING');
         console.log('-'.repeat(80));
@@ -276,8 +292,8 @@ export class ArbitrageCalculator {
                             blockchain = 'bitcoin';
                         else if (cleanSymbol === 'ETH')
                             blockchain = 'ethereum';
-                        else
-                            blockchain = 'ethereum'; // Default for ERC-20 tokens
+                        // Don't default to ethereum - let DexScreener or other sources provide blockchain info
+                        // If no blockchain is found, it will remain undefined and be handled later
                     }
                     if (blockchain) {
                         symbolBlockchainMap.set(baseSymbol, blockchain);
@@ -297,34 +313,89 @@ export class ArbitrageCalculator {
         const symbolContractMap = new Map(); // symbol -> Map<chainId, contractAddress>
         const symbolsArray = Array.from(symbolsNeedingContract);
         if (symbolsArray.length > 0) {
-            console.log(`\n   [STEP 2.2] DexScreener API calls (${symbolsArray.length} symbols, limit: 200)`);
-            console.log(`   ⏳ Calling DexScreener API for contract addresses...`);
+            console.log(`\n   [STEP 2.2] DexScreener API calls (${symbolsArray.length} symbols, no limit - database cache enabled)`);
+            console.log(`   ⏳ Calling DexScreener API for contract addresses (will use database cache when available)...`);
             try {
                 const { DexScreenerService } = await import('../../services/DexScreenerService.js');
                 const dexService = DexScreenerService.getInstance();
-                // Process symbols in batches to avoid overwhelming the API
+                // Initialize database for caching if available
+                try {
+                    const { DatabaseManager } = await import('../../database/Database.js');
+                    const db = DatabaseManager.getInstance();
+                    dexService.setDatabase(db);
+                }
+                catch (error) {
+                    console.warn('⚠️ Could not initialize database for DexScreener cache:', error);
+                }
+                // Process ALL symbols (no limit) - database cache will reduce API calls
                 const batchSize = 10;
                 let processed = 0;
                 let successful = 0;
                 let failed = 0;
-                for (let i = 0; i < symbolsArray.length && i < 200; i++) { // Limit to 200 symbols max
+                let cached = 0;
+                for (let i = 0; i < symbolsArray.length; i++) { // Process ALL symbols
                     const baseSymbol = symbolsArray[i];
                     try {
-                        console.log(`      🔍 [${i + 1}/${Math.min(symbolsArray.length, 200)}] Fetching contracts for ${baseSymbol}...`);
-                        // Get all contract candidates for this symbol
+                        console.log(`      🔍 [${i + 1}/${symbolsArray.length}] Fetching contracts for ${baseSymbol}...`);
+                        // Get all contract candidates for this symbol (checks database cache first)
                         const candidates = await dexService.resolveAllBySymbol(baseSymbol);
+                        // Check if this was from cache (already logged in DexScreenerService)
                         if (candidates && candidates.length > 0) {
                             const contractMap = new Map();
+                            let primaryBlockchain = null;
                             for (const candidate of candidates) {
                                 if (candidate.chainId && candidate.tokenAddress) {
                                     contractMap.set(candidate.chainId.toLowerCase(), candidate.tokenAddress);
+                                    // Extract blockchain from DexScreener chainId (e.g., 'ethereum', 'arbitrum', 'solana')
+                                    // Use the first chain found as primary, or prefer known chains
+                                    if (!primaryBlockchain ||
+                                        (candidate.chainId.toLowerCase() === 'arbitrum' ||
+                                            candidate.chainId.toLowerCase() === 'solana' ||
+                                            candidate.chainId.toLowerCase() === 'base' ||
+                                            candidate.chainId.toLowerCase() === 'optimism' ||
+                                            candidate.chainId.toLowerCase() === 'polygon')) {
+                                        // Map DexScreener chainId to our blockchain name format
+                                        const chainId = candidate.chainId.toLowerCase();
+                                        const blockchainMapping = {
+                                            'ethereum': 'ethereum',
+                                            'bsc': 'bsc',
+                                            'polygon': 'polygon',
+                                            'arbitrum': 'arbitrum',
+                                            'optimism': 'optimism',
+                                            'base': 'base',
+                                            'solana': 'solana',
+                                            'avalanche': 'avalanche',
+                                            'fantom': 'fantom',
+                                            'tron': 'tron',
+                                            'aptos': 'aptos',
+                                            'sui': 'sui',
+                                            'near': 'near',
+                                            'cosmos': 'cosmos',
+                                            'polkadot': 'polkadot',
+                                            'cardano': 'cardano',
+                                            'bitcoin': 'bitcoin',
+                                            'ripple': 'ripple',
+                                            'stellar': 'stellar',
+                                            'dogecoin': 'dogecoin',
+                                            'litecoin': 'litecoin',
+                                            'ton': 'ton'
+                                        };
+                                        primaryBlockchain = blockchainMapping[chainId] || chainId;
+                                    }
                                 }
                             }
                             if (contractMap.size > 0) {
                                 symbolContractMap.set(baseSymbol, contractMap);
+                                // CRITICAL: Update symbolBlockchainMap with blockchain from DexScreener
+                                // This overrides the default Ethereum assignment from pattern matching
+                                if (primaryBlockchain) {
+                                    symbolBlockchainMap.set(baseSymbol, primaryBlockchain);
+                                    console.log(`      ✅ ${baseSymbol}: Found ${contractMap.size} chain(s) [${Array.from(contractMap.keys()).join(', ')}] - Primary: ${primaryBlockchain}`);
+                                }
+                                else {
+                                    console.log(`      ✅ ${baseSymbol}: Found ${contractMap.size} chain(s) [${Array.from(contractMap.keys()).join(', ')}]`);
+                                }
                                 successful++;
-                                const chains = Array.from(contractMap.keys()).join(', ');
-                                console.log(`      ✅ ${baseSymbol}: Found ${contractMap.size} chain(s) [${chains}]`);
                             }
                             else {
                                 failed++;
@@ -337,7 +408,7 @@ export class ArbitrageCalculator {
                         }
                         processed++;
                         if (processed % batchSize === 0) {
-                            console.log(`      📊 Progress: ${processed}/${Math.min(symbolsArray.length, 200)} (${successful} success, ${failed} failed)`);
+                            console.log(`      📊 Progress: ${processed}/${symbolsArray.length} (${successful} success, ${cached} cached, ${failed} failed)`);
                         }
                     }
                     catch (error) {
@@ -347,7 +418,7 @@ export class ArbitrageCalculator {
                         // Continue with next symbol if this one fails
                     }
                 }
-                console.log(`\n   ✅ DexScreener API complete: ${successful} symbols found, ${failed} failed`);
+                console.log(`\n   ✅ DexScreener API complete: ${successful} symbols found (with database cache), ${failed} failed`);
                 console.log(`   📊 Contract addresses fetched for ${symbolContractMap.size} symbols`);
             }
             catch (error) {
@@ -369,7 +440,9 @@ export class ArbitrageCalculator {
                     continue;
                 }
                 const baseSymbol = ticker.symbol.split('/')[0].toUpperCase();
-                let blockchain = ticker.blockchain || symbolBlockchainMap.get(baseSymbol);
+                // CRITICAL: Prioritize DexScreener results (in symbolBlockchainMap) over ticker's existing blockchain
+                // This ensures DexScreener's correct blockchain detection overrides any defaults
+                let blockchain = symbolBlockchainMap.get(baseSymbol) || ticker.blockchain;
                 let contractAddress = ticker.contractAddress;
                 // If we have blockchain but no contract, try to get it from DexScreener results
                 if (blockchain && !contractAddress) {
@@ -391,23 +464,40 @@ export class ArbitrageCalculator {
                         }
                     }
                 }
+                const enrichedTicker = {
+                    ...ticker,
+                    blockchain: blockchain || undefined,
+                    contractAddress: contractAddress || undefined
+                };
                 // Track if we enriched this ticker
                 if (blockchain && blockchain !== ticker.blockchain) {
                     enrichedCount++;
                 }
-                enrichedTickers.push({
-                    ...ticker,
-                    blockchain: blockchain || undefined,
-                    contractAddress: contractAddress || undefined
-                });
+                enrichedTickers.push(enrichedTicker);
             }
             enriched.set(exchange, enrichedTickers);
         }
-        // Summary
+        // Summary with blockchain distribution
+        const blockchainDistribution = new Map();
+        for (const tickers of enriched.values()) {
+            for (const ticker of tickers) {
+                if (ticker.blockchain) {
+                    blockchainDistribution.set(ticker.blockchain, (blockchainDistribution.get(ticker.blockchain) || 0) + 1);
+                }
+            }
+        }
         console.log(`\n   ✅ Enrichment Summary:`);
         console.log(`      • Blockchain enriched: ${enrichedCount} tickers`);
         console.log(`      • Contract enriched: ${contractEnrichedCount} tickers`);
         console.log(`      • Already complete: ${unchangedCount} tickers`);
+        if (blockchainDistribution.size > 0) {
+            console.log(`      • Blockchain distribution:`);
+            const sortedBlockchains = Array.from(blockchainDistribution.entries())
+                .sort((a, b) => b[1] - a[1]);
+            sortedBlockchains.forEach(([blockchain, count]) => {
+                console.log(`         - ${blockchain}: ${count} tickers`);
+            });
+        }
         if (enrichedCount === 0 && contractEnrichedCount === 0) {
             console.log(`      ⚠️  No enrichment performed (all tickers already had info or enrichment failed)`);
         }
@@ -594,14 +684,16 @@ export class ArbitrageCalculator {
             // Same blockchain + symbol = likely same asset (if both native tokens or both have no contract)
             return true;
         }
-        // If one has contract/blockchain and other doesn't, be conservative - assume different
+        // If one has contract/blockchain and other doesn't, allow the match if symbols match
+        // This is more lenient to allow opportunities when enrichment is inconsistent across exchanges
+        // The blockchain will be determined later from the ticker that has it
         if ((blockchain1 || contract1) && !(blockchain2 || contract2)) {
-            console.log(`   ⚠️ [INFO_MISMATCH] ${baseSymbol1}: ${ticker1.exchange} has blockchain info but ${ticker2.exchange} doesn't - skipping for safety`);
-            return false;
+            // Allow match - use ticker1's blockchain info
+            return true;
         }
         if ((blockchain2 || contract2) && !(blockchain1 || contract1)) {
-            console.log(`   ⚠️ [INFO_MISMATCH] ${baseSymbol2}: ${ticker2.exchange} has blockchain info but ${ticker1.exchange} doesn't - skipping for safety`);
-            return false;
+            // Allow match - use ticker2's blockchain info
+            return true;
         }
         // Both lack blockchain/contract info - assume same if symbol matches (legacy behavior)
         // This is less safe but maintains backward compatibility
@@ -659,6 +751,57 @@ export class ArbitrageCalculator {
         if (volume < this.minVolumeThreshold) {
             return null;
         }
+        // Determine blockchain - prioritize ticker blockchain over fallback
+        let determinedBlockchain = await this.determineBlockchain(buyTicker, sellTicker);
+        // Normalize blockchain name
+        if (determinedBlockchain) {
+            determinedBlockchain = normalizeChain(determinedBlockchain) || determinedBlockchain;
+        }
+        // Log the final blockchain for debugging
+        if (determinedBlockchain !== buyChain && determinedBlockchain !== sellChain) {
+            console.log(`   🔍 [BLOCKCHAIN] ${symbol}: Using ${determinedBlockchain} (tickers: ${buyChain}/${sellChain})`);
+        }
+        // Get contract address from tickers
+        const contractAddress = buyTicker.contractAddress || sellTicker.contractAddress;
+        // Map blockchain to chainId
+        const chainIdMap = {
+            'ethereum': 'ethereum',
+            'bsc': 'bsc',
+            'polygon': 'polygon',
+            'arbitrum': 'arbitrum',
+            'optimism': 'optimism',
+            'base': 'base',
+            'solana': 'solana',
+            'avalanche': 'avalanche',
+            'tron': 'tron'
+        };
+        const chainId = determinedBlockchain ? chainIdMap[determinedBlockchain] : undefined;
+        // Verify token if we have contract address and chainId
+        let liquidityUsd;
+        let confidenceScore = 85; // Default confidence
+        let risks = [];
+        let executable = true;
+        if (contractAddress && chainId) {
+            try {
+                const verification = await this.tokenVerificationService.verifyToken(chainId, contractAddress, symbol);
+                liquidityUsd = verification.liquidityUsd;
+                confidenceScore = verification.confidenceScore || 85;
+                risks = verification.risks || [];
+                executable = verification.isValid !== false; // Only mark as non-executable if explicitly invalid
+                if (!verification.isValid) {
+                    console.log(`   ⚠️ [VERIFICATION] ${symbol} on ${chainId}: ${verification.reason}`);
+                }
+            }
+            catch (error) {
+                console.warn(`   ⚠️ [VERIFICATION] Failed to verify ${symbol} on ${chainId}:`, error);
+                // Continue with default values if verification fails
+            }
+        }
+        // Calculate net profit percentage (after fees and gas)
+        const gasCostUsd = transferCost; // Use transfer cost as gas estimate
+        const tradeSize = volume * buyPrice; // Estimated trade size
+        const gasCostPercentage = tradeSize > 0 ? (gasCostUsd / tradeSize) * 100 : 0;
+        const netProfitPercentage = profitPercentage - gasCostPercentage;
         return {
             symbol: symbol,
             buyExchange: buyTicker.exchange,
@@ -670,7 +813,15 @@ export class ArbitrageCalculator {
             volume: volume,
             volume_24h: buyTicker.volume_24h || sellTicker.volume_24h || volume,
             timestamp: Math.max(buyTicker.timestamp, sellTicker.timestamp),
-            blockchain: await this.determineBlockchain(buyTicker, sellTicker),
+            blockchain: determinedBlockchain || undefined,
+            contractAddress: contractAddress || undefined,
+            chainId: chainId || undefined,
+            liquidityUsd: liquidityUsd,
+            gasCostUsd: gasCostUsd,
+            netProfitPercentage: netProfitPercentage,
+            confidenceScore: confidenceScore,
+            risks: risks,
+            executable: executable,
             fees: {
                 buyFee: buyFee,
                 sellFee: sellFee,
@@ -679,7 +830,7 @@ export class ArbitrageCalculator {
             transferAvailability: {
                 buyAvailable: undefined, // Transfer check disabled
                 sellAvailable: undefined, // Transfer check disabled
-                commonNetworks: [] // Transfer check disabled
+                commonNetworks: determinedBlockchain ? [determinedBlockchain] : [] // Use determined blockchain
             }
         };
     }
@@ -741,20 +892,24 @@ export class ArbitrageCalculator {
     async determineBlockchain(buyTicker, sellTicker) {
         // If both tickers have blockchain info and they match, use that
         if (buyTicker.blockchain && sellTicker.blockchain && buyTicker.blockchain === sellTicker.blockchain) {
-            return buyTicker.blockchain;
+            return normalizeChain(buyTicker.blockchain) || buyTicker.blockchain;
         }
         // If only one has blockchain info, use that
-        if (buyTicker.blockchain)
-            return buyTicker.blockchain;
-        if (sellTicker.blockchain)
-            return sellTicker.blockchain;
+        if (buyTicker.blockchain) {
+            const normalized = normalizeChain(buyTicker.blockchain);
+            return normalized || buyTicker.blockchain;
+        }
+        if (sellTicker.blockchain) {
+            const normalized = normalizeChain(sellTicker.blockchain);
+            return normalized || sellTicker.blockchain;
+        }
         // Try blockchain aggregator first (most accurate)
         const symbol = buyTicker.symbol || sellTicker.symbol || '';
         if (this.blockchainAggregator) {
             try {
                 const blockchain = await this.blockchainAggregator.getBlockchainForToken(symbol);
                 if (blockchain) {
-                    return blockchain;
+                    return normalizeChain(blockchain) || blockchain;
                 }
             }
             catch (error) {
@@ -764,7 +919,7 @@ export class ArbitrageCalculator {
         // Use comprehensive token database (Jacob)
         const blockchainFromDb = getTokenBlockchain(symbol);
         if (blockchainFromDb) {
-            return blockchainFromDb;
+            return normalizeChain(blockchainFromDb) || blockchainFromDb;
         }
         // Fallback: Enhanced pattern-based detection
         const cleanSymbol = symbol
@@ -772,62 +927,69 @@ export class ArbitrageCalculator {
             .replace(/USDT$|USDC$|BTC$|ETH$|BNB$|USD$|EUR$/i, '')
             .toUpperCase();
         // Native chain tokens (exact match first)
+        let detectedChain = null;
         if (cleanSymbol === 'SOL' || cleanSymbol.includes('WSOL'))
-            return 'solana';
-        if (cleanSymbol === 'TRX' || cleanSymbol.includes('TRON'))
-            return 'tron';
-        if (cleanSymbol === 'BNB' || cleanSymbol.includes('WBNB'))
-            return 'bsc';
-        if (cleanSymbol === 'MATIC' || cleanSymbol.includes('WMATIC'))
-            return 'polygon';
-        if (cleanSymbol === 'ARB' || (cleanSymbol.includes('ARB') && !cleanSymbol.includes('BARB')))
-            return 'arbitrum';
-        if (cleanSymbol === 'OP' || (cleanSymbol.includes('OP') && cleanSymbol.length <= 8))
-            return 'optimism';
-        if (cleanSymbol === 'AVAX' || cleanSymbol.includes('WAVAX'))
-            return 'avalanche';
-        if (cleanSymbol === 'TON')
-            return 'ton';
-        if (cleanSymbol === 'APT')
-            return 'aptos';
-        if (cleanSymbol === 'SUI')
-            return 'sui';
-        if (cleanSymbol === 'NEAR')
-            return 'near';
-        if (cleanSymbol === 'ATOM')
-            return 'cosmos';
-        if (cleanSymbol === 'DOT')
-            return 'polkadot';
-        if (cleanSymbol === 'ADA')
-            return 'cardano';
-        if (cleanSymbol === 'BTC')
-            return 'bitcoin';
-        if (cleanSymbol === 'XRP')
-            return 'ripple';
-        if (cleanSymbol === 'XLM')
-            return 'stellar';
-        if (cleanSymbol === 'DOGE')
-            return 'dogecoin';
-        if (cleanSymbol === 'LTC')
-            return 'litecoin';
+            detectedChain = 'solana';
+        else if (cleanSymbol === 'TRX' || cleanSymbol.includes('TRON'))
+            detectedChain = 'tron';
+        else if (cleanSymbol === 'BNB' || cleanSymbol.includes('WBNB'))
+            detectedChain = 'bsc';
+        else if (cleanSymbol === 'MATIC' || cleanSymbol.includes('WMATIC'))
+            detectedChain = 'polygon';
+        else if (cleanSymbol === 'ARB' || (cleanSymbol.includes('ARB') && !cleanSymbol.includes('BARB')))
+            detectedChain = 'arbitrum';
+        else if (cleanSymbol === 'OP' || (cleanSymbol.includes('OP') && cleanSymbol.length <= 8))
+            detectedChain = 'optimism';
+        else if (cleanSymbol === 'AVAX' || cleanSymbol.includes('WAVAX'))
+            detectedChain = 'avalanche';
+        else if (cleanSymbol === 'TON')
+            detectedChain = 'ton';
+        else if (cleanSymbol === 'APT')
+            detectedChain = 'aptos';
+        else if (cleanSymbol === 'SUI')
+            detectedChain = 'sui';
+        else if (cleanSymbol === 'NEAR')
+            detectedChain = 'near';
+        else if (cleanSymbol === 'ATOM')
+            detectedChain = 'cosmos';
+        else if (cleanSymbol === 'DOT')
+            detectedChain = 'polkadot';
+        else if (cleanSymbol === 'ADA')
+            detectedChain = 'cardano';
+        else if (cleanSymbol === 'BTC')
+            detectedChain = 'bitcoin';
+        else if (cleanSymbol === 'XRP')
+            detectedChain = 'ripple';
+        else if (cleanSymbol === 'XLM')
+            detectedChain = 'stellar';
+        else if (cleanSymbol === 'DOGE')
+            detectedChain = 'dogecoin';
+        else if (cleanSymbol === 'LTC')
+            detectedChain = 'litecoin';
         // Wrapped tokens
-        if (cleanSymbol.startsWith('W') && cleanSymbol.length > 4) {
+        if (!detectedChain && cleanSymbol.startsWith('W') && cleanSymbol.length > 4) {
             const unwrapped = cleanSymbol.substring(1);
             if (unwrapped === 'BTC' || unwrapped === 'ETH')
-                return 'ethereum';
-            if (unwrapped === 'SOL')
-                return 'solana';
-            if (unwrapped === 'BNB')
-                return 'bsc';
-            if (unwrapped === 'MATIC')
-                return 'polygon';
+                detectedChain = 'ethereum';
+            else if (unwrapped === 'SOL')
+                detectedChain = 'solana';
+            else if (unwrapped === 'BNB')
+                detectedChain = 'bsc';
+            else if (unwrapped === 'MATIC')
+                detectedChain = 'polygon';
         }
-        // Log unknown tokens for future analysis instead of silently defaulting
+        // Normalize detected chain
+        if (detectedChain) {
+            return normalizeChain(detectedChain) || detectedChain;
+        }
+        // Log unknown tokens for future analysis
         if (process.env.NODE_ENV === 'development') {
-            console.log(`⚠️ Unknown blockchain for ${symbol}, defaulting to Ethereum`);
+            console.log(`⚠️ Unknown blockchain for ${symbol}, using null (will be grouped as 'unknown')`);
         }
-        // Default to ethereum for unknown ERC-20 tokens
-        return 'ethereum';
+        // CRITICAL: Don't default to ethereum - return null instead
+        // This allows opportunities to be grouped separately if blockchain can't be determined
+        // The grouping function will handle null as 'unknown'
+        return null;
     }
 }
 //# sourceMappingURL=ArbitrageCalculator.js.map

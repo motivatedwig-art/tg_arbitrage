@@ -2,6 +2,7 @@ import TelegramBot from 'node-telegram-bot-api';
 import { DatabaseManager } from '../database/Database.js';
 import { CommandHandler } from './handlers/CommandHandler.js';
 import { CallbackHandler } from './handlers/CallbackHandler.js';
+import { ClaudeCommandHandler } from './handlers/ClaudeCommandHandler.js';
 import { i18n } from '../utils/i18n.js';
 import { ArbitrageOpportunity } from '../exchanges/types/index.js';
 import { config } from '../config/environment.js';
@@ -11,6 +12,7 @@ export class CryptoArbitrageBot {
   private db: DatabaseManager;
   private commandHandler: CommandHandler;
   private callbackHandler: CallbackHandler;
+  private claudeHandler: ClaudeCommandHandler;
   private isRunning: boolean = false;
   private summaryInterval: NodeJS.Timeout | null = null;
   private highProfitDeals: ArbitrageOpportunity[] = [];
@@ -22,7 +24,8 @@ export class CryptoArbitrageBot {
     this.db = DatabaseManager.getInstance();
     this.commandHandler = new CommandHandler(this.bot);
     this.callbackHandler = new CallbackHandler(this.bot);
-    
+    this.claudeHandler = new ClaudeCommandHandler(this.bot);
+
     this.setupErrorHandling();
   }
 
@@ -55,6 +58,7 @@ export class CryptoArbitrageBot {
       // Register command and callback handlers
       this.commandHandler.registerCommands();
       this.callbackHandler.registerCallbacks();
+      this.claudeHandler.registerCommands();
 
       // Set up bot commands menu
       await this.setupBotCommands();
@@ -160,6 +164,8 @@ export class CryptoArbitrageBot {
       { command: 'start', description: 'Start the bot / Запустить бота' },
       { command: 'help', description: 'Show help / Показать справку' },
       { command: 'status', description: 'System status / Статус системы' },
+      { command: 'analyze', description: 'AI analysis / AI анализ' },
+      { command: 'ai', description: 'AI top opportunities / AI возможности' },
       { command: 'settings', description: 'Configure settings / Настройки' },
       { command: 'language', description: 'Change language / Сменить язык' },
       { command: 'top', description: 'Top opportunities / Лучшие возможности' },

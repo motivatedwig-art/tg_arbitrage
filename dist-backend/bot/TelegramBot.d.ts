@@ -5,6 +5,7 @@ export declare class CryptoArbitrageBot {
     private db;
     private commandHandler;
     private callbackHandler;
+    private claudeHandler;
     private isRunning;
     private summaryInterval;
     private highProfitDeals;

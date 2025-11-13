@@ -36,7 +36,15 @@ export interface ArbitrageOpportunity {
     volume_24h?: number;
     timestamp: number;
     blockchain?: string;
+    contractAddress?: string;
+    chainId?: string;
     logoUrl?: string;
+    liquidityUsd?: number;
+    gasCostUsd?: number;
+    netProfitPercentage?: number;
+    confidenceScore?: number;
+    risks?: string[];
+    executable?: boolean;
     fees?: {
         buyFee: number;
         sellFee: number;

@@ -6,3 +6,13 @@ ccxt>=4.0.0
 # Optional but recommended
 python-dotenv>=1.0.0
 
+# Additional dependencies for enhanced functionality
+anthropic>=0.25.0  # For Claude AI integration
+requests>=2.31.0   # For additional API calls
+websockets>=12.0   # For real-time updates
+pydantic>=2.5.0    # For data validation
+uvicorn>=0.24.0    # For API server
+fastapi>=0.104.0   # For REST API endpoints
+
+
+

@@ -53,6 +53,11 @@ export declare class DexScreenerService {
      */
     getTokenProfile(chainId: string, tokenAddress: string): Promise<any | null>;
     /**
+     * Get token price data using the pairs endpoint (requires chainId and tokenAddress)
+     * Rate limit: 60 requests per minute
+     */
+    getTokenPrice(chainId: string, tokenAddress: string): Promise<any | null>;
+    /**
      * Clear the cache (useful for testing or memory management)
      */
     clearCache(): void;

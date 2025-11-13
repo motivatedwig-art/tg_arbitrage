@@ -2,7 +2,9 @@ import TelegramBot from 'node-telegram-bot-api';
 import { DatabaseManager } from '../database/Database.js';
 import { CommandHandler } from './handlers/CommandHandler.js';
 import { CallbackHandler } from './handlers/CallbackHandler.js';
+import { ClaudeCommandHandler } from './handlers/ClaudeCommandHandler.js';
 import { i18n } from '../utils/i18n.js';
+import { config } from '../config/environment.js';
 export class CryptoArbitrageBot {
     constructor(token) {
         this.isRunning = false;
@@ -14,13 +16,14 @@ export class CryptoArbitrageBot {
         this.db = DatabaseManager.getInstance();
         this.commandHandler = new CommandHandler(this.bot);
         this.callbackHandler = new CallbackHandler(this.bot);
+        this.claudeHandler = new ClaudeCommandHandler(this.bot);
         this.setupErrorHandling();
     }
     setupEnvironmentLogging() {
         console.log('=== BOT INITIALIZATION ===');
         console.log('Environment:', process.env.NODE_ENV);
         console.log('Mock Data Enabled:', process.env.USE_MOCK_DATA === 'true');
-        console.log('Webapp URL:', process.env.WEBAPP_URL);
+        console.log('Webapp URL:', config.webappUrl);
         console.log('Exchange APIs configured:', {
             binance: !!process.env.BINANCE_API_KEY,
             okx: !!process.env.OKX_API_KEY,
@@ -42,6 +45,7 @@ export class CryptoArbitrageBot {
             // Register command and callback handlers
             this.commandHandler.registerCommands();
             this.callbackHandler.registerCallbacks();
+            this.claudeHandler.registerCommands();
             // Set up bot commands menu
             await this.setupBotCommands();
             // Start polling with conflict handling
@@ -133,6 +137,8 @@ export class CryptoArbitrageBot {
             { command: 'start', description: 'Start the bot / Запустить бота' },
             { command: 'help', description: 'Show help / Показать справку' },
             { command: 'status', description: 'System status / Статус системы' },
+            { command: 'analyze', description: 'AI analysis / AI анализ' },
+            { command: 'ai', description: 'AI top opportunities / AI возможности' },
             { command: 'settings', description: 'Configure settings / Настройки' },
             { command: 'language', description: 'Change language / Сменить язык' },
             { command: 'top', description: 'Top opportunities / Лучшие возможности' },

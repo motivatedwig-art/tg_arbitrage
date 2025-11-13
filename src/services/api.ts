@@ -203,7 +203,7 @@ export const apiService = {
         spreadPercentage: opp.profitPercentage || opp.spreadPercentage || 0,
         spreadAmount: opp.profitAmount || opp.spreadAmount || 0,
         profitability: this.getProfitability(opp.profitPercentage || opp.spreadPercentage || 0),
-        blockchain: opp.blockchain || 'ethereum' // Include blockchain field with fallback
+        blockchain: opp.blockchain || null // Use actual blockchain data or null if missing
       };
     } catch (error) {
       console.error('Error transforming opportunity:', error, opp);

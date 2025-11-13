@@ -11,6 +11,7 @@ export declare class ArbitrageCalculator {
     private excludedBlockchains;
     private coinApiService;
     private iconResolver;
+    private tokenVerificationService;
     constructor(minProfitThreshold?: number, maxProfitThreshold?: number, minVolumeThreshold?: number);
     private initializeTradingFees;
     private initializeChainTransferCosts;

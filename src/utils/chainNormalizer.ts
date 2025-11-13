@@ -89,3 +89,5 @@ export function getChainDisplayName(chain: string | null | undefined): string {
   return displayNames[normalized] || normalized.charAt(0).toUpperCase() + normalized.slice(1);
 }
 
+
+

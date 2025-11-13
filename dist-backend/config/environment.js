@@ -10,6 +10,46 @@ const getEnvVar = (key, defaultValue) => {
     }
     return value;
 };
+// Get webapp URL with Railway auto-detection
+const getWebappUrl = () => {
+    const isBrowser = typeof window !== 'undefined';
+    const envValue = isBrowser
+        ? import.meta.env?.WEBAPP_URL || process.env.WEBAPP_URL
+        : process.env.WEBAPP_URL;
+    // If WEBAPP_URL is explicitly set and doesn't point to Vercel, use it
+    if (envValue && !envValue.includes('vercel.app')) {
+        return envValue;
+    }
+    // Check if we're on Railway
+    // Railway typically sets these environment variables or we can detect by:
+    // - RAILWAY_ENVIRONMENT, RAILWAY_SERVICE_NAME (Railway-specific)
+    // - PORT is set (typical for Railway)
+    // - NODE_ENV is production (typical for Railway)
+    const isRailway = process.env.RAILWAY_ENVIRONMENT ||
+        process.env.RAILWAY_SERVICE_NAME ||
+        process.env.RAILWAY_PUBLIC_DOMAIN ||
+        (process.env.NODE_ENV === 'production' && process.env.PORT);
+    if (isRailway) {
+        // Try to get Railway public domain
+        const railwayDomain = process.env.RAILWAY_PUBLIC_DOMAIN ||
+            process.env.RAILWAY_STATIC_URL ||
+            process.env.RAILWAY_URL;
+        if (railwayDomain) {
+            // Ensure it starts with https://
+            const url = railwayDomain.startsWith('http') ? railwayDomain : `https://${railwayDomain}`;
+            return url;
+        }
+        // If WEBAPP_URL points to Vercel but we're on Railway, use Railway default
+        if (envValue && envValue.includes('vercel.app')) {
+            console.log('⚠️ WEBAPP_URL points to Vercel but running on Railway. Using Railway URL instead.');
+            return 'https://webapp-production-c779.up.railway.app';
+        }
+        // Fallback to default Railway URL
+        return 'https://webapp-production-c779.up.railway.app';
+    }
+    // Use provided value or default
+    return envValue || 'https://webapp-production-c779.up.railway.app';
+};
 // Get environment variable as number
 const getEnvNumber = (key, defaultValue) => {
     const isBrowser = typeof window !== 'undefined';
@@ -30,7 +70,7 @@ const getEnvBoolean = (key, defaultValue) => {
 export const config = {
     // Telegram Bot
     telegramBotToken: getEnvVar('TELEGRAM_BOT_TOKEN'),
-    webappUrl: getEnvVar('WEBAPP_URL', 'https://webapp-production-c779.up.railway.app'),
+    webappUrl: getWebappUrl(),
     // API Configuration
     apiBaseUrl: getEnvVar('VITE_API_BASE_URL', 'https://web.telegram.org'),
     apiUrl: getEnvVar('VITE_API_URL', 'https://web.telegram.org'),
@@ -80,6 +120,11 @@ export const config = {
     },
     // CoinAPI Key for Metadata Lookup
     coinapiKey: getEnvVar('COINAPI_KEY', getEnvVar('VITE_COINAPI_KEY', '')),
+    // Claude AI Configuration
+    claudeApiKey: getEnvVar('ANTHROPIC_API_KEY'),
+    claudeModel: getEnvVar('CLAUDE_MODEL', 'claude-3-5-haiku-20241022'),
+    claudeMaxTokens: getEnvNumber('CLAUDE_MAX_TOKENS', 100),
+    claudeCacheTtl: getEnvNumber('CLAUDE_CACHE_TTL', 300),
     // Public API Endpoints
     publicApiEndpoints: {
         binance: {
