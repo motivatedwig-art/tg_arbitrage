@@ -288,15 +288,9 @@ web: npm start
 
 ---
 
-## Task 5: Create Vercel Configuration
+## Task 5: Railway Deployment Configuration
 
-### File: `vercel.json`
-```json
-{
-  "version": 2,
-  "buildCommand": "npm run build",
-  "outputDirectory": "dist",
-  "framework": "vite",
+Railway automatically detects the build configuration from `package.json` and `railway.json`:
   "rewrites": [
     {
       "source": "/(.*)",
@@ -328,7 +322,7 @@ DATABASE_URL=postgresql://postgres:password@host:5432/database
 
 # Telegram Bot
 TELEGRAM_BOT_TOKEN=your_bot_token_here
-WEBAPP_URL=https://your-frontend.vercel.app
+WEBAPP_URL=https://webapp-production-c779.up.railway.app
 
 # API Configuration
 PORT=3000
@@ -336,8 +330,8 @@ NODE_ENV=production
 UPDATE_INTERVAL=600000
 MIN_PROFIT_THRESHOLD=0.5
 
-# Frontend API URL (for Vercel)
-VITE_API_BASE_URL=https://your-backend.up.railway.app/api
+# Frontend API URL (Railway deployment)
+VITE_API_BASE_URL=https://webapp-production-c779.up.railway.app/api
 
 # Exchange APIs (optional)
 BINANCE_API_KEY=
@@ -512,25 +506,24 @@ Add the Telegram WebApp SDK script in the `<head>`:
 
 5. **Get your Railway URL from dashboard** (e.g., `https://your-app.up.railway.app`)
 
-### Step 2: Deploy to Vercel (Frontend)
+### Step 2: Deploy to Railway (Full Stack)
 
-1. **Connect GitHub repo to Vercel**
-   - Go to vercel.com → New Project
+1. **Connect GitHub repo to Railway**
+   - Go to railway.com → New Project
    - Import your repository
 
-2. **Configure Build Settings:**
-   - Framework: `Vite`
-   - Build Command: `npm run build`
-   - Output Directory: `dist`
+2. **Railway Auto-Detects Build Settings:**
+   - Automatically detects Node.js + Vite configuration
+   - Uses `railway.json` for deployment configuration
+   - Builds with: `npm install && npm run build`
 
-3. **Add Environment Variable:**
-   ```
-   VITE_API_BASE_URL=https://your-app.up.railway.app/api
-   ```
+3. **Environment Variables are set automatically:**
+   - Railway variables are configured via CLI or dashboard
+   - `VITE_API_BASE_URL` points to Railway app URL
 
-4. **Deploy** and get your Vercel URL
+4. **Railway automatically provides the webapp URL**
 
-5. **Update Railway `WEBAPP_URL`** with your Vercel URL
+5. **The WEBAPP_URL is already configured** in Railway environment variables
 
 ### Step 3: Test the Setup
 
@@ -567,7 +560,7 @@ Please implement all the above changes and verify:
 - [ ] Telegram WebApp SDK script added to index.html
 - [ ] Database migration script created
 - [ ] Backend deployed to Railway successfully
-- [ ] Frontend deployed to Vercel successfully
+- [ ] Full stack deployed to Railway successfully
 - [ ] Web app opens correctly from Telegram bot
 
 ---

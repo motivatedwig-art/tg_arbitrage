@@ -45,7 +45,7 @@ railway variables set MAX_OPPORTUNITIES="50"
 
 # Telegram Bot
 railway variables set TELEGRAM_BOT_TOKEN="8467603449:AAFvY-Qy5aT4mYDwogA7tQnKirhBDyJ2Ios"
-railway variables set WEBAPP_URL="https://tg-arbitrage.vercel.app"
+railway variables set WEBAPP_URL="https://webapp-production-c779.up.railway.app"
 
 Write-Host ""
 Write-Host "Setting Public API Endpoints..." -ForegroundColor Yellow

@@ -26,7 +26,7 @@ railway variables `
   --set "MIN_PROFIT_THRESHOLD=0.5" `
   --set "MAX_OPPORTUNITIES=50" `
   --set "TELEGRAM_BOT_TOKEN=8467603449:AAFvY-Qy5aT4mYDwogA7tQnKirhBDyJ2Ios" `
-  --set "WEBAPP_URL=https://tg-arbitrage.vercel.app" `
+  --set "WEBAPP_URL=https://webapp-production-c779.up.railway.app" `
   --set "BINANCE_ALL_PRICES_API=https://api.binance.com/api/v3/ticker/price" `
   --set "OKX_ALL_TICKERS_API=https://www.okx.com/api/v5/market/tickers?instType=SPOT" `
   --set "BYBIT_ALL_SPOT_API=https://api.bybit.com/v5/market/tickers?category=spot" `
