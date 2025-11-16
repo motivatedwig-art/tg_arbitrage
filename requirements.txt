@@ -14,5 +14,10 @@ pydantic>=2.5.0    # For data validation
 uvicorn>=0.24.0    # For API server
 fastapi>=0.104.0   # For REST API endpoints
 
+# Database dependencies for contract resolver
+sqlalchemy>=2.0.0  # SQL toolkit and ORM
+psycopg2-binary>=2.9.0  # PostgreSQL adapter
+asyncpg>=0.29.0  # Async PostgreSQL driver (optional, for async operations)
+
 
 
