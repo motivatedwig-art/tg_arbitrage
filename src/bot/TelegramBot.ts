@@ -6,7 +6,15 @@ import { ClaudeCommandHandler } from './handlers/ClaudeCommandHandler.js';
 import { i18n } from '../utils/i18n.js';
 import { ArbitrageOpportunity } from '../exchanges/types/index.js';
 import { config } from '../config/environment.js';
-import { SummaryService } from '../services/SummaryService.js';
+
+// Optional: SummaryService (may not be available in all deployments)
+let SummaryService: any = null;
+try {
+  const summaryModule = require('../services/SummaryService.js');
+  SummaryService = summaryModule.SummaryService;
+} catch (error) {
+  console.log('⚠️  SummaryService not available (optional feature)');
+}
 
 // Optional: Contracts command handler (requires Python)
 let ContractsCommandHandler: any = null;
@@ -239,6 +247,11 @@ export class CryptoArbitrageBot {
   // Method to send 4-hour summary to subscribed users
   private async send4HourSummary(): Promise<void> {
     try {
+      if (!SummaryService) {
+        console.log('⚠️  SummaryService not available, skipping summary');
+        return;
+      }
+
       const users = await this.db.getUserModel().getAllActiveUsers();
       const subscribedUsers = users.filter(user => user.preferences.notifications);
 
