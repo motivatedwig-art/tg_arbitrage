@@ -6,6 +6,7 @@ export declare class WebAppServer {
     private tokenMetadataService;
     constructor();
     private setupMiddleware;
+    private requireAuth;
     private setupRoutes;
     private applyChainDiversityFilter;
     private groupOpportunitiesByBlockchain;

@@ -7,7 +7,7 @@ import { IconResolver } from '../../services/IconResolver.js';
 import { normalizeChain } from '../../utils/chainNormalizer.js';
 import { TokenVerificationService } from '../../services/TokenVerificationService.js';
 export class ArbitrageCalculator {
-    constructor(minProfitThreshold = 0.5, maxProfitThreshold = 50, minVolumeThreshold = 100) {
+    constructor(minProfitThreshold = 0.5, maxProfitThreshold = 100, minVolumeThreshold = 100) {
         this.tradingFees = new Map();
         this.chainTransferCosts = new Map();
         this.blockchainAggregator = null;

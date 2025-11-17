@@ -115,6 +115,8 @@ export const config = {
     },
     // CoinAPI Key for Metadata Lookup
     coinapiKey: getEnvVar('COINAPI_KEY', getEnvVar('VITE_COINAPI_KEY', '')),
+    // Security
+    adminApiKey: getEnvVar('ADMIN_API_KEY', ''),
     // Claude AI Configuration
     claudeApiKey: getEnvVar('ANTHROPIC_API_KEY'),
     claudeModel: getEnvVar('CLAUDE_MODEL', 'claude-3-5-haiku-20241022'),

@@ -40,7 +40,7 @@
     "lucide-react": "^0.263.0",
     "multicoin-address-validator": "^0.5.26",
     "node-cron": "^3.0.0",
-    "node-telegram-bot-api": "^0.64.0",
+    "node-telegram-bot-api": "^0.63.0",
     "pg": "^8.16.3",
     "pg-hstore": "^2.3.4",
     "psql": "^0.0.1",
@@ -72,7 +72,7 @@
     "eslint-plugin-react-refresh": "^0.4.3",
     "ts-node": "^10.9.0",
     "tsx": "^4.20.6",
-    "vite": "^4.4.0",
+    "vite": "^7.2.2",
     "vite-plugin-pwa": "^0.16.0"
   }
 }
