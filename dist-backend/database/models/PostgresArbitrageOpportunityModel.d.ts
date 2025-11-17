@@ -1,5 +1,6 @@
 import { DatabaseManagerPostgres } from '../DatabasePostgres.js';
 import { ArbitrageOpportunity } from '../../exchanges/types/index.js';
+import { ContractDataRecord } from '../types.js';
 export declare class PostgresArbitrageOpportunityModel {
     private db;
     constructor(db: DatabaseManagerPostgres);
@@ -15,8 +16,11 @@ export declare class PostgresArbitrageOpportunityModel {
         maxProfit: number;
     }>;
     getVolumeBasedOpportunities(minVolume?: number, limit?: number): Promise<ArbitrageOpportunity[]>;
+    updateContractData(symbol: string, timestamp: number, data: ContractDataRecord): Promise<void>;
+    getLatestOpportunityBySymbol(symbol: string): Promise<ArbitrageOpportunity | null>;
     getUserFilteredOpportunities(userId: string, exchanges?: string[], minProfit?: number, maxVolume?: number): Promise<ArbitrageOpportunity[]>;
     private sanitizeOpportunity;
+    private mapRowToOpportunity;
     private sanitizePercentage;
     private isValidOpportunity;
 }

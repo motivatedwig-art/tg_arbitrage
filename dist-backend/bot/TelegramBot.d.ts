@@ -6,6 +6,7 @@ export declare class CryptoArbitrageBot {
     private commandHandler;
     private callbackHandler;
     private claudeHandler;
+    private contractsHandler;
     private isRunning;
     private summaryInterval;
     private highProfitDeals;
@@ -19,7 +20,7 @@ export declare class CryptoArbitrageBot {
     private setupBotCommands;
     collectHighProfitDeal(opportunity: ArbitrageOpportunity): void;
     private startSummaryInterval;
-    private sendDailySummary;
+    private send4HourSummary;
     sendSystemNotification(message: string, isError?: boolean): Promise<void>;
     getBot(): TelegramBot;
     isRunningBot(): boolean;

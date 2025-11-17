@@ -17,8 +17,8 @@ export class ClaudeAnalyzer {
         this.client = new Anthropic({
             apiKey: apiKey,
         });
-        // Russian system prompt with cost optimization
-        this.systemPrompt = `Ты - эксперт по криптовалютному арбитражу. Анализируешь возможности и объясняешь рыночные неэффективности.
+        // Prompt for legacy opportunity analysis
+        this.analysisPrompt = `Ты - эксперт по криптовалютному арбитражу. Анализируешь возможности и объясняешь рыночные неэффективности.
 
 ПРАВИЛА:
 1. Отвечай ТОЛЬКО на русском языке
@@ -33,11 +33,26 @@ export class ClaudeAnalyzer {
 - Почему существует спред (ликвидность/новости/технические причины)
 - Главный риск исполнения
 - Реалистичность opportunity (да/нет + причина)`;
-        // Cost optimization settings
+        // Prompt for contract metadata extraction
+        this.contractPrompt = `Ты - эксперт по блокчейн данным. Твоя задача - извлекать точные данные о контрактах и сетях из описания токенов.
+
+ПРАВИЛА:
+1. Отвечай ТОЛЬКО в формате JSON
+2. Извлекай ТОЛЬКО следующие данные:
+   - contract_address: адрес контракта (0x...)
+   - chain_id: ID сети (1 для Ethereum, 56 для BSC, 137 для Polygon и т.д.)
+   - chain_name: название сети (Ethereum, Binance Smart Chain, Polygon)
+   - is_verified: boolean, проверен ли контракт
+   - decimals: количество decimals токена
+
+3. Если данные не найдены, возвращай null для каждого поля
+4. НИКАКОГО анализа или комментариев - только данные
+5. Используй официальные источники: Etherscan, BscScan, Polygonscan`;
+        // Cost optimization settings shared across prompts
         this.config = {
-            model: "claude-3-5-haiku-20241022", // $0.25 per 1M input tokens vs $3 for Sonnet
-            max_tokens: 100, // Enough for 3-4 sentences
-            temperature: 0, // Stable responses
+            model: "claude-3-5-haiku-20241022",
+            max_tokens: 200, // More tokens for JSON response
+            temperature: 0, // Deterministic responses
         };
     }
     createAnalysisPrompt(opportunity) {
@@ -77,7 +92,7 @@ Gas: $${opportunity.gas_cost_usd.toFixed(2)}`;
                 model: this.config.model,
                 max_tokens: this.config.max_tokens,
                 temperature: this.config.temperature,
-                system: this.systemPrompt,
+                system: this.analysisPrompt,
                 messages: [{ role: "user", content: prompt }]
             });
             const analysis = response.content[0].type === 'text' ? response.content[0].text : 'Ошибка анализа';
@@ -123,6 +138,77 @@ Gas: $${opportunity.gas_cost_usd.toFixed(2)}`;
     }
     clearCache() {
         this.analysisCache.clear();
+    }
+    async extractContractData(tokenSymbol, tokenDescription) {
+        const cacheKey = `contract:${tokenSymbol.toUpperCase()}`;
+        const cached = this.analysisCache.get(cacheKey);
+        if (cached && (Date.now() - cached.timestamp) < (this.cacheTtl * 1000)) {
+            this.costMetrics.cached_requests++;
+            return JSON.parse(cached.analysis);
+        }
+        const prompt = `Извлеки данные контракта для токена: ${tokenSymbol}
+Описание: ${tokenDescription}
+
+Верни ТОЛЬКО JSON в формате:
+{
+  "contract_address": "string|null",
+  "chain_id": "number|null",
+  "chain_name": "string|null",
+  "is_verified": "boolean|null",
+  "decimals": "number|null"
+}`;
+        try {
+            const response = await this.client.messages.create({
+                model: this.config.model,
+                max_tokens: this.config.max_tokens,
+                temperature: this.config.temperature,
+                system: this.contractPrompt,
+                messages: [{ role: "user", content: prompt }]
+            });
+            const raw = response.content[0]?.type === 'text' ? response.content[0].text : '{}';
+            const parsed = this.parseContractData(raw);
+            this.analysisCache.set(cacheKey, {
+                analysis: JSON.stringify(parsed),
+                timestamp: Date.now()
+            });
+            this.costMetrics.total_requests++;
+            const inputCost = (200 / 1000000) * 0.25;
+            const outputCost = (80 / 1000000) * 1.25;
+            this.costMetrics.estimated_cost += inputCost + outputCost;
+            return parsed;
+        }
+        catch (error) {
+            console.error('Claude contract extraction error:', error);
+            return {
+                contract_address: null,
+                chain_id: null,
+                chain_name: null,
+                is_verified: null,
+                decimals: null
+            };
+        }
+    }
+    parseContractData(raw) {
+        try {
+            const parsed = JSON.parse(raw);
+            return {
+                contract_address: parsed.contract_address ?? null,
+                chain_id: parsed.chain_id ?? null,
+                chain_name: parsed.chain_name ?? null,
+                is_verified: parsed.is_verified ?? null,
+                decimals: parsed.decimals ?? null
+            };
+        }
+        catch (error) {
+            console.warn('Failed to parse Claude contract data response:', raw);
+            return {
+                contract_address: null,
+                chain_id: null,
+                chain_name: null,
+                is_verified: null,
+                decimals: null
+            };
+        }
     }
 }
 // Export singleton instance

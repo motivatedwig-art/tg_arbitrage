@@ -47,6 +47,11 @@ export interface EnvironmentConfig {
     claudeModel: string;
     claudeMaxTokens: number;
     claudeCacheTtl: number;
+    contractData: {
+        enabled: boolean;
+        batchSize: number;
+        rateLimitDelay: number;
+    };
     publicApiEndpoints: {
         binance: {
             price: string;

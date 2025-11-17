@@ -38,6 +38,10 @@ export interface ArbitrageOpportunity {
     blockchain?: string;
     contractAddress?: string;
     chainId?: string;
+    chainName?: string;
+    contractDataExtracted?: boolean;
+    isContractVerified?: boolean;
+    decimals?: number;
     logoUrl?: string;
     liquidityUsd?: number;
     gasCostUsd?: number;

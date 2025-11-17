@@ -1,5 +1,6 @@
 import { Database } from 'sqlite3';
-import { ArbitrageOpportunity } from '../../exchanges/types';
+import { ArbitrageOpportunity } from '../../exchanges/types/index.js';
+import { ContractDataRecord } from '../types.js';
 export declare class ArbitrageOpportunityModel {
     private db;
     constructor(db: Database);
@@ -14,5 +15,10 @@ export declare class ArbitrageOpportunityModel {
         avgProfit: number;
         maxProfit: number;
     }>;
+    private runStatement;
+    private ensureExtendedColumns;
+    private mapRowToOpportunity;
+    updateContractData(symbol: string, timestamp: number, data: ContractDataRecord): Promise<void>;
+    getLatestOpportunityBySymbol(symbol: string): Promise<ArbitrageOpportunity | null>;
 }
 //# sourceMappingURL=ArbitrageOpportunity.d.ts.map
