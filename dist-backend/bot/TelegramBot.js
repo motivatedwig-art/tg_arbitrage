@@ -5,8 +5,27 @@ import { CallbackHandler } from './handlers/CallbackHandler.js';
 import { ClaudeCommandHandler } from './handlers/ClaudeCommandHandler.js';
 import { i18n } from '../utils/i18n.js';
 import { config } from '../config/environment.js';
+// Optional: SummaryService (may not be available in all deployments)
+let SummaryService = null;
+try {
+    const summaryModule = require('../services/SummaryService.js');
+    SummaryService = summaryModule.SummaryService;
+}
+catch (error) {
+    console.log('⚠️  SummaryService not available (optional feature)');
+}
+// Optional: Contracts command handler (requires Python)
+let ContractsCommandHandler = null;
+try {
+    const contractsModule = require('./handlers/ContractsCommandHandler.js');
+    ContractsCommandHandler = contractsModule.ContractsCommandHandler;
+}
+catch (error) {
+    console.log('⚠️  ContractsCommandHandler not available (Python integration optional)');
+}
 export class CryptoArbitrageBot {
     constructor(token) {
+        this.contractsHandler = null; // Optional Python integration
         this.isRunning = false;
         this.summaryInterval = null;
         this.highProfitDeals = [];
@@ -17,6 +36,16 @@ export class CryptoArbitrageBot {
         this.commandHandler = new CommandHandler(this.bot);
         this.callbackHandler = new CallbackHandler(this.bot);
         this.claudeHandler = new ClaudeCommandHandler(this.bot);
+        // Initialize contracts handler if available
+        if (ContractsCommandHandler) {
+            try {
+                this.contractsHandler = new ContractsCommandHandler(this.bot);
+                console.log('✅ Contracts command handler initialized');
+            }
+            catch (error) {
+                console.warn('⚠️  Failed to initialize contracts handler:', error);
+            }
+        }
         this.setupErrorHandling();
     }
     setupEnvironmentLogging() {
@@ -46,6 +75,15 @@ export class CryptoArbitrageBot {
             this.commandHandler.registerCommands();
             this.callbackHandler.registerCallbacks();
             this.claudeHandler.registerCommands();
+            // Register contracts commands if available
+            if (this.contractsHandler) {
+                try {
+                    this.contractsHandler.registerCommands();
+                }
+                catch (error) {
+                    console.warn('⚠️  Failed to register contracts commands:', error);
+                }
+            }
             // Set up bot commands menu
             await this.setupBotCommands();
             // Start polling with conflict handling
@@ -132,19 +170,15 @@ export class CryptoArbitrageBot {
         }
     }
     async setupBotCommands() {
-        // Set up commands in both languages
+        // Set up commands in both languages - simplified version
         const commands = [
             { command: 'start', description: 'Start the bot / Запустить бота' },
             { command: 'help', description: 'Show help / Показать справку' },
-            { command: 'status', description: 'System status / Статус системы' },
-            { command: 'analyze', description: 'AI analysis / AI анализ' },
-            { command: 'ai', description: 'AI top opportunities / AI возможности' },
-            { command: 'settings', description: 'Configure settings / Настройки' },
-            { command: 'language', description: 'Change language / Сменить язык' },
-            { command: 'top', description: 'Top opportunities / Лучшие возможности' },
-            { command: 'subscribe', description: 'Toggle notifications / Уведомления' },
             { command: 'webapp', description: 'Open web app / Открыть веб-приложение' },
-            { command: 'stats', description: 'Show statistics / Статистика' }
+            { command: 'subscribe', description: 'Toggle notifications / Уведомления' },
+            { command: 'summary', description: '4-hour summary / 4-часовой отчет' },
+            { command: 'contracts', description: 'Get contract addresses / Адреса контрактов' },
+            { command: 'api_stats', description: 'API statistics / Статистика API' }
         ];
         try {
             await this.bot.setMyCommands(commands);
@@ -165,68 +199,48 @@ export class CryptoArbitrageBot {
         this.highProfitDeals.push(opportunity);
         console.log(`Collected high profit deal: ${opportunity.symbol} - ${opportunity.profitPercentage.toFixed(2)}%`);
     }
-    // Start the daily summary at 12:00 GMT+5
+    // Start the 4-hour summary interval
     startSummaryInterval() {
-        // Calculate time until next 12:00 GMT+5
-        const now = new Date();
-        const gmtPlus5 = new Date(now.getTime() + (5 * 60 * 60 * 1000)); // Convert to GMT+5
-        const next12PM = new Date(gmtPlus5);
-        next12PM.setHours(12, 0, 0, 0); // Set to 12:00
-        // If it's already past 12:00 today, schedule for tomorrow
-        if (gmtPlus5.getHours() >= 12) {
-            next12PM.setDate(next12PM.getDate() + 1);
-        }
-        const timeUntilNext = next12PM.getTime() - gmtPlus5.getTime();
-        console.log(`Next daily summary scheduled for: ${next12PM.toISOString()} (GMT+5: 12:00)`);
-        // Set initial timeout
-        setTimeout(() => {
-            this.sendDailySummary();
-            // Then set interval for every 24 hours
-            this.summaryInterval = setInterval(async () => {
-                await this.sendDailySummary();
-            }, 24 * 60 * 60 * 1000); // 24 hours
-        }, timeUntilNext);
-        console.log('Daily summary interval started - summaries will be sent daily at 12:00 GMT+5');
+        const summaryIntervalHours = parseInt(process.env.SUMMARY_INTERVAL_HOURS || '4');
+        const intervalMs = summaryIntervalHours * 60 * 60 * 1000;
+        // Send initial summary immediately
+        this.send4HourSummary();
+        // Then set interval for regular summaries
+        this.summaryInterval = setInterval(async () => {
+            await this.send4HourSummary();
+        }, intervalMs);
+        console.log(`4-hour summary interval started - summaries will be sent every ${summaryIntervalHours} hours`);
     }
-    // Method to send daily summary to subscribed users
-    async sendDailySummary() {
+    // Method to send 4-hour summary to subscribed users
+    async send4HourSummary() {
         try {
+            if (!SummaryService) {
+                console.log('⚠️  SummaryService not available, skipping summary');
+                return;
+            }
             const users = await this.db.getUserModel().getAllActiveUsers();
             const subscribedUsers = users.filter(user => user.preferences.notifications);
             if (subscribedUsers.length === 0) {
-                this.highProfitDeals = []; // Clear the deals array
                 return;
             }
-            // Get opportunities from the last 24 hours
-            const opportunities = await this.db.getArbitrageModel().getRecentOpportunities(24 * 60); // 24 hours in minutes
-            const highProfitOpportunities = opportunities.filter(opp => opp.profitPercentage > 2);
+            // Generate summary using SummaryService
+            const summaryService = SummaryService.getInstance();
+            const summary = await summaryService.generate4HourSummary();
             for (const user of subscribedUsers) {
                 try {
-                    let message;
-                    if (highProfitOpportunities.length === 0) {
-                        message = i18n.t('notifications.no_high_profit_deals_daily', user.preferences.language);
-                    }
-                    else {
-                        const avgProfit = highProfitOpportunities.reduce((sum, deal) => sum + deal.profitPercentage, 0) / highProfitOpportunities.length;
-                        const maxProfit = Math.max(...highProfitOpportunities.map(deal => deal.profitPercentage));
-                        message = i18n.formatMessage(i18n.t('notifications.daily_profit_summary', user.preferences.language), {
-                            count: highProfitOpportunities.length.toString(),
-                            avgProfit: avgProfit.toFixed(2),
-                            maxProfit: maxProfit.toFixed(2)
-                        });
-                    }
-                    await this.bot.sendMessage(user.telegramId, message, {
-                        parse_mode: 'HTML'
+                    await this.bot.sendMessage(user.telegramId, summary, {
+                        parse_mode: 'Markdown',
+                        disable_web_page_preview: true
                     });
                 }
                 catch (error) {
-                    console.error(`Failed to send daily summary to user ${user.telegramId}:`, error);
+                    console.error(`Failed to send 4-hour summary to user ${user.telegramId}:`, error);
                 }
             }
-            console.log(`Sent daily summary to ${subscribedUsers.length} users. High profit opportunities: ${highProfitOpportunities.length}`);
+            console.log(`Sent 4-hour summary to ${subscribedUsers.length} users`);
         }
         catch (error) {
-            console.error('Error sending daily summary:', error);
+            console.error('Error sending 4-hour summary:', error);
         }
     }
     // Method to send system notifications

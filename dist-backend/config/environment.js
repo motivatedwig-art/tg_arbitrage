@@ -16,8 +16,8 @@ const getWebappUrl = () => {
     const envValue = isBrowser
         ? import.meta.env?.WEBAPP_URL || process.env.WEBAPP_URL
         : process.env.WEBAPP_URL;
-    // If WEBAPP_URL is explicitly set and doesn't point to Vercel, use it
-    if (envValue && !envValue.includes('vercel.app')) {
+    // If WEBAPP_URL is explicitly set, use it
+    if (envValue) {
         return envValue;
     }
     // Check if we're on Railway
@@ -39,16 +39,11 @@ const getWebappUrl = () => {
             const url = railwayDomain.startsWith('http') ? railwayDomain : `https://${railwayDomain}`;
             return url;
         }
-        // If WEBAPP_URL points to Vercel but we're on Railway, use Railway default
-        if (envValue && envValue.includes('vercel.app')) {
-            console.log('⚠️ WEBAPP_URL points to Vercel but running on Railway. Using Railway URL instead.');
-            return 'https://webapp-production-c779.up.railway.app';
-        }
         // Fallback to default Railway URL
         return 'https://webapp-production-c779.up.railway.app';
     }
-    // Use provided value or default
-    return envValue || 'https://webapp-production-c779.up.railway.app';
+    // Default Railway URL
+    return 'https://webapp-production-c779.up.railway.app';
 };
 // Get environment variable as number
 const getEnvNumber = (key, defaultValue) => {
@@ -125,6 +120,12 @@ export const config = {
     claudeModel: getEnvVar('CLAUDE_MODEL', 'claude-3-5-haiku-20241022'),
     claudeMaxTokens: getEnvNumber('CLAUDE_MAX_TOKENS', 100),
     claudeCacheTtl: getEnvNumber('CLAUDE_CACHE_TTL', 300),
+    // Contract Data Configuration
+    contractData: {
+        enabled: getEnvBoolean('CONTRACT_DATA_ENABLED', true),
+        batchSize: getEnvNumber('CONTRACT_DATA_BATCH_SIZE', 5),
+        rateLimitDelay: getEnvNumber('CONTRACT_DATA_DELAY_MS', 1000),
+    },
     // Public API Endpoints
     publicApiEndpoints: {
         binance: {

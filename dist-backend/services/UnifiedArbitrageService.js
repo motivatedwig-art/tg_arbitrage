@@ -1,6 +1,7 @@
 import { DatabaseManager } from '../database/Database.js';
 import { ExchangeManager } from '../exchanges/ExchangeManager.js';
 import { ArbitrageCalculator } from '../arbitrage/calculator/ArbitrageCalculator.js';
+import { ContractDataService } from './ContractDataService.js';
 export class UnifiedArbitrageService {
     constructor() {
         this.isRunning = false;
@@ -9,6 +10,7 @@ export class UnifiedArbitrageService {
         this.exchangeManager = ExchangeManager.getInstance();
         this.arbitrageCalculator = new ArbitrageCalculator(parseFloat(process.env.MIN_PROFIT_THRESHOLD || '0.5'), parseFloat(process.env.MAX_PROFIT_THRESHOLD || '110'), parseFloat(process.env.MIN_VOLUME_THRESHOLD || '100') // Lower threshold to find more opportunities
         );
+        this.contractDataService = ContractDataService.getInstance();
     }
     // Helper function to get 3-letter blockchain identifier
     getBlockchainTag(blockchain) {
@@ -180,6 +182,7 @@ export class UnifiedArbitrageService {
             }
             await this.db.getArbitrageModel().insert(filtered);
             console.log(`💾 Stored ${filtered.length}/${opportunities.length} opportunities in database with blockchain data`);
+            await this.contractDataService.processBatch(filtered);
         }
         catch (error) {
             console.error('❌ Failed to store opportunities:', error);

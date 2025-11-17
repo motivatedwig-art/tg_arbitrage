@@ -6,6 +6,7 @@ export declare class UnifiedArbitrageService {
     private db;
     private exchangeManager;
     private arbitrageCalculator;
+    private contractDataService;
     private isRunning;
     private scanInterval;
     private constructor();

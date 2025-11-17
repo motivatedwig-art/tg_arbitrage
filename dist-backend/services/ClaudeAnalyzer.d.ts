@@ -10,6 +10,13 @@ interface ArbitrageOpportunity {
     volume_24h: number;
     gas_cost_usd: number;
 }
+interface ContractDataResponse {
+    contract_address: string | null;
+    chain_id: number | null;
+    chain_name: string | null;
+    is_verified: boolean | null;
+    decimals: number | null;
+}
 interface CostMetrics {
     total_requests: number;
     cached_requests: number;
@@ -18,7 +25,8 @@ interface CostMetrics {
 }
 export declare class ClaudeAnalyzer {
     private client;
-    private systemPrompt;
+    private analysisPrompt;
+    private contractPrompt;
     private config;
     private analysisCache;
     private cacheTtl;
@@ -31,6 +39,8 @@ export declare class ClaudeAnalyzer {
     getCostMetrics(): CostMetrics;
     resetCostMetrics(): void;
     clearCache(): void;
+    extractContractData(tokenSymbol: string, tokenDescription: string): Promise<ContractDataResponse>;
+    private parseContractData;
 }
 export declare const claudeAnalyzer: ClaudeAnalyzer;
 export {};
