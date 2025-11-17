@@ -1,5 +1,6 @@
 import { DatabaseManagerPostgres } from '../DatabasePostgres.js';
 import { ArbitrageOpportunity } from '../../exchanges/types/index.js';
+import { ContractDataRecord } from '../types.js';
 
 export class PostgresArbitrageOpportunityModel {
   private db: DatabaseManagerPostgres;
@@ -23,7 +24,12 @@ export class PostgresArbitrageOpportunityModel {
         volume_24h NUMERIC(38,18),
         blockchain VARCHAR(50),
         chain_id VARCHAR(50),
+        chain_name VARCHAR(100),
         token_address VARCHAR(120),
+        contract_address TEXT,
+        is_verified BOOLEAN DEFAULT FALSE,
+        decimals INTEGER,
+        contract_data_extracted BOOLEAN DEFAULT FALSE,
         logo_url TEXT,
         timestamp BIGINT NOT NULL,
         created_at TIMESTAMP DEFAULT NOW()
@@ -49,7 +55,12 @@ export class PostgresArbitrageOpportunityModel {
           BEGIN ALTER TABLE arbitrage_opportunities ALTER COLUMN profit_percentage TYPE NUMERIC(18,8) USING profit_percentage::NUMERIC; EXCEPTION WHEN others THEN END;
           -- Add new metadata columns if they don't exist
           BEGIN ALTER TABLE arbitrage_opportunities ADD COLUMN IF NOT EXISTS chain_id VARCHAR(50); EXCEPTION WHEN others THEN END;
+          BEGIN ALTER TABLE arbitrage_opportunities ADD COLUMN IF NOT EXISTS chain_name VARCHAR(100); EXCEPTION WHEN others THEN END;
           BEGIN ALTER TABLE arbitrage_opportunities ADD COLUMN IF NOT EXISTS token_address VARCHAR(120); EXCEPTION WHEN others THEN END;
+          BEGIN ALTER TABLE arbitrage_opportunities ADD COLUMN IF NOT EXISTS contract_address TEXT; EXCEPTION WHEN others THEN END;
+          BEGIN ALTER TABLE arbitrage_opportunities ADD COLUMN IF NOT EXISTS is_verified BOOLEAN DEFAULT FALSE; EXCEPTION WHEN others THEN END;
+          BEGIN ALTER TABLE arbitrage_opportunities ADD COLUMN IF NOT EXISTS decimals INTEGER; EXCEPTION WHEN others THEN END;
+          BEGIN ALTER TABLE arbitrage_opportunities ADD COLUMN IF NOT EXISTS contract_data_extracted BOOLEAN DEFAULT FALSE; EXCEPTION WHEN others THEN END;
           BEGIN ALTER TABLE arbitrage_opportunities ADD COLUMN IF NOT EXISTS logo_url TEXT; EXCEPTION WHEN others THEN END;
         END $$;
       `);
@@ -69,8 +80,8 @@ export class PostgresArbitrageOpportunityModel {
       
       const sql = `
         INSERT INTO arbitrage_opportunities 
-        (symbol, buy_exchange, sell_exchange, buy_price, sell_price, profit_percentage, profit_amount, volume, volume_24h, blockchain, chain_id, token_address, logo_url, timestamp)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+        (symbol, buy_exchange, sell_exchange, buy_price, sell_price, profit_percentage, profit_amount, volume, volume_24h, blockchain, chain_id, chain_name, token_address, contract_address, is_verified, decimals, contract_data_extracted, logo_url, timestamp)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)
       `;
       
       let insertedCount = 0;
@@ -99,8 +110,13 @@ export class PostgresArbitrageOpportunityModel {
             sanitizedOpportunity.volume,
             sanitizedOpportunity.volume_24h || sanitizedOpportunity.volume,
             sanitizedOpportunity.blockchain || null, // Don't default to ethereum - use actual blockchain or null
-            (sanitizedOpportunity as any).chainId || null,
-            (sanitizedOpportunity as any).tokenAddress || null,
+            sanitizedOpportunity.chainId || null,
+            sanitizedOpportunity.chainName || null,
+            (sanitizedOpportunity as any).tokenAddress || sanitizedOpportunity.contractAddress || null,
+            sanitizedOpportunity.contractAddress || null,
+            sanitizedOpportunity.isContractVerified ?? null,
+            sanitizedOpportunity.decimals ?? null,
+            sanitizedOpportunity.contractDataExtracted ?? false,
             sanitizedOpportunity.logoUrl || null,
             sanitizedOpportunity.timestamp
           ]);
@@ -153,19 +169,7 @@ export class PostgresArbitrageOpportunityModel {
     try {
       const result = await this.db.query(sql, [oneHourAgo, limit]);
       
-      return result.rows.map(row => ({
-        symbol: row.symbol,
-        buyExchange: row.buy_exchange,
-        sellExchange: row.sell_exchange,
-        buyPrice: parseFloat(row.buy_price),
-        sellPrice: parseFloat(row.sell_price),
-        profitPercentage: parseFloat(row.profit_percentage),
-        profitAmount: parseFloat(row.profit_amount),
-        volume: parseFloat(row.volume),
-        volume_24h: row.volume_24h ? parseFloat(row.volume_24h) : undefined,
-        blockchain: row.blockchain || null, // Use actual blockchain from database, don't default to ethereum
-        timestamp: parseInt(row.timestamp)
-      }));
+      return result.rows.map(row => this.mapRowToOpportunity(row));
     } catch (error) {
       console.error('Error getting top opportunities:', error);
       return [];
@@ -185,19 +189,7 @@ export class PostgresArbitrageOpportunityModel {
     try {
       const result = await this.db.query(sql, [cutoffTime]);
       
-      return result.rows.map(row => ({
-        symbol: row.symbol,
-        buyExchange: row.buy_exchange,
-        sellExchange: row.sell_exchange,
-        buyPrice: parseFloat(row.buy_price),
-        sellPrice: parseFloat(row.sell_price),
-        profitPercentage: parseFloat(row.profit_percentage),
-        profitAmount: parseFloat(row.profit_amount),
-        volume: parseFloat(row.volume),
-        volume_24h: row.volume_24h ? parseFloat(row.volume_24h) : undefined,
-        blockchain: row.blockchain || null, // Use actual blockchain from database, don't default to ethereum
-        timestamp: parseInt(row.timestamp)
-      }));
+      return result.rows.map(row => this.mapRowToOpportunity(row));
     } catch (error) {
       console.error('Error getting recent opportunities:', error);
       return [];
@@ -279,23 +271,50 @@ export class PostgresArbitrageOpportunityModel {
     try {
       const result = await this.db.query(sql, [minVolume, oneHourAgo, limit]);
       
-      return result.rows.map(row => ({
-        symbol: row.symbol,
-        buyExchange: row.buy_exchange,
-        sellExchange: row.sell_exchange,
-        buyPrice: parseFloat(row.buy_price),
-        sellPrice: parseFloat(row.sell_price),
-        profitPercentage: parseFloat(row.profit_percentage),
-        profitAmount: parseFloat(row.profit_amount),
-        volume: parseFloat(row.volume),
-        volume_24h: row.volume_24h ? parseFloat(row.volume_24h) : undefined,
-        blockchain: row.blockchain || null, // Use actual blockchain from database, don't default to ethereum
-        timestamp: parseInt(row.timestamp)
-      }));
+      return result.rows.map(row => this.mapRowToOpportunity(row));
     } catch (error) {
       console.error('Error getting volume-based opportunities:', error);
       return [];
     }
+  }
+
+  public async updateContractData(symbol: string, timestamp: number, data: ContractDataRecord): Promise<void> {
+    const sql = `
+      UPDATE arbitrage_opportunities
+      SET contract_address = $1,
+          chain_id = $2,
+          chain_name = $3,
+          is_verified = $4,
+          decimals = $5,
+          contract_data_extracted = TRUE
+      WHERE symbol = $6 AND timestamp = $7
+    `;
+
+    await this.db.query(sql, [
+      data.contractAddress,
+      data.chainId,
+      data.chainName,
+      data.isVerified,
+      data.decimals,
+      symbol,
+      timestamp
+    ]);
+  }
+
+  public async getLatestOpportunityBySymbol(symbol: string): Promise<ArbitrageOpportunity | null> {
+    const sql = `
+      SELECT * FROM arbitrage_opportunities
+      WHERE symbol = $1
+      ORDER BY timestamp DESC
+      LIMIT 1
+    `;
+
+    const result = await this.db.query(sql, [symbol]);
+    if (!result.rows.length) {
+      return null;
+    }
+
+    return this.mapRowToOpportunity(result.rows[0]);
   }
 
   public async getUserFilteredOpportunities(
@@ -338,19 +357,7 @@ export class PostgresArbitrageOpportunityModel {
     try {
       const result = await this.db.query(sql, params);
       
-      return result.rows.map(row => ({
-        symbol: row.symbol,
-        buyExchange: row.buy_exchange,
-        sellExchange: row.sell_exchange,
-        buyPrice: parseFloat(row.buy_price),
-        sellPrice: parseFloat(row.sell_price),
-        profitPercentage: parseFloat(row.profit_percentage),
-        profitAmount: parseFloat(row.profit_amount),
-        volume: parseFloat(row.volume),
-        volume_24h: row.volume_24h ? parseFloat(row.volume_24h) : undefined,
-        blockchain: row.blockchain || null, // Use actual blockchain from database, don't default to ethereum
-        timestamp: parseInt(row.timestamp)
-      }));
+      return result.rows.map(row => this.mapRowToOpportunity(row));
     } catch (error) {
       console.error('Error getting user-filtered opportunities:', error);
       return [];
@@ -429,6 +436,29 @@ export class PostgresArbitrageOpportunityModel {
     };
     
     return sanitized;
+  }
+
+  private mapRowToOpportunity(row: any): ArbitrageOpportunity {
+    return {
+      symbol: row.symbol,
+      buyExchange: row.buy_exchange,
+      sellExchange: row.sell_exchange,
+      buyPrice: parseFloat(row.buy_price),
+      sellPrice: parseFloat(row.sell_price),
+      profitPercentage: parseFloat(row.profit_percentage),
+      profitAmount: parseFloat(row.profit_amount),
+      volume: parseFloat(row.volume),
+      volume_24h: row.volume_24h ? parseFloat(row.volume_24h) : undefined,
+      blockchain: row.blockchain || undefined,
+      chainId: row.chain_id || undefined,
+      chainName: row.chain_name || undefined,
+      contractAddress: row.contract_address || row.token_address || undefined,
+      isContractVerified: row.is_verified === true || row.is_verified === 1,
+      decimals: row.decimals ?? undefined,
+      contractDataExtracted: row.contract_data_extracted === true || row.contract_data_extracted === 1,
+      logoUrl: row.logo_url || undefined,
+      timestamp: parseInt(row.timestamp)
+    };
   }
 
   private sanitizePercentage(percentage: number): number {

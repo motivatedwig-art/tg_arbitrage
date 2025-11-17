@@ -46,6 +46,13 @@ export interface EnvironmentConfig {
   claudeMaxTokens: number;
   claudeCacheTtl: number;
   
+  // Contract Data Configuration
+  contractData: {
+    enabled: boolean;
+    batchSize: number;
+    rateLimitDelay: number;
+  };
+  
   // Public API Endpoints
   publicApiEndpoints: {
     binance: {
@@ -217,6 +224,13 @@ export const config: EnvironmentConfig = {
   claudeModel: getEnvVar('CLAUDE_MODEL', 'claude-3-5-haiku-20241022'),
   claudeMaxTokens: getEnvNumber('CLAUDE_MAX_TOKENS', 100),
   claudeCacheTtl: getEnvNumber('CLAUDE_CACHE_TTL', 300),
+
+  // Contract Data Configuration
+  contractData: {
+    enabled: getEnvBoolean('CONTRACT_DATA_ENABLED', true),
+    batchSize: getEnvNumber('CONTRACT_DATA_BATCH_SIZE', 5),
+    rateLimitDelay: getEnvNumber('CONTRACT_DATA_DELAY_MS', 1000),
+  },
   
   // Public API Endpoints
   publicApiEndpoints: {

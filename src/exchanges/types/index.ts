@@ -41,6 +41,10 @@ export interface ArbitrageOpportunity {
   blockchain?: string; // e.g., 'ethereum', 'bsc', 'polygon', 'arbitrum', 'optimism', 'solana', 'tron'
   contractAddress?: string; // Token contract address for verification
   chainId?: string; // Chain ID for multi-chain support
+  chainName?: string; // Human-readable chain name
+  contractDataExtracted?: boolean;
+  isContractVerified?: boolean;
+  decimals?: number;
   logoUrl?: string;
   liquidityUsd?: number; // Liquidity in USD
   gasCostUsd?: number; // Estimated gas cost in USD
