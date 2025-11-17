@@ -19,7 +19,7 @@
     "migrate": "tsx scripts/migrate-to-postgres.ts"
   },
   "engines": {
-    "node": ">=18.0.0"
+    "node": ">=20.19.0"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.25.2",
