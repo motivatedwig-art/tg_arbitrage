@@ -22,7 +22,7 @@ export class ArbitrageCalculator {
   private iconResolver = IconResolver.getInstance();
   private tokenVerificationService = TokenVerificationService.getInstance();
 
-  constructor(minProfitThreshold: number = 0.5, maxProfitThreshold: number = 50, minVolumeThreshold: number = 100) {
+  constructor(minProfitThreshold: number = 0.5, maxProfitThreshold: number = 100, minVolumeThreshold: number = 100) {
     this.minProfitThreshold = minProfitThreshold;
     this.maxProfitThreshold = maxProfitThreshold;
     this.minVolumeThreshold = minVolumeThreshold;
