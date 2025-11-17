@@ -44,11 +44,11 @@ export class WebAppServer {
           'http://localhost:3000',
           'http://localhost:5173'
         ];
-        
+
         if (!origin || allowedOrigins.includes(origin) || origin.includes('.telegram.org')) {
           callback(null, true);
         } else {
-          callback(null, true); // Allow all origins for Telegram compatibility
+          callback(new Error('Not allowed by CORS'));
         }
       },
       credentials: true,
@@ -62,6 +62,31 @@ export class WebAppServer {
 
     // Static files
     this.app.use(express.static(path.join(__dirname, 'public')));
+  }
+
+  // Authentication middleware for admin endpoints
+  private requireAuth(req: express.Request, res: express.Response, next: express.NextFunction): void {
+    const apiKey = req.headers.authorization?.replace('Bearer ', '');
+
+    if (!config.adminApiKey || config.adminApiKey === '') {
+      console.warn('⚠️ ADMIN_API_KEY not set - denying access to admin endpoint');
+      res.status(401).json({
+        success: false,
+        error: 'Authentication required. Please set ADMIN_API_KEY environment variable.'
+      });
+      return;
+    }
+
+    if (!apiKey || apiKey !== config.adminApiKey) {
+      console.warn('🚫 Unauthorized access attempt to admin endpoint');
+      res.status(401).json({
+        success: false,
+        error: 'Unauthorized. Invalid or missing API key.'
+      });
+      return;
+    }
+
+    next();
   }
 
   private setupRoutes(): void {
@@ -563,21 +588,21 @@ export class WebAppServer {
       }
     });
 
-    // API route to clear all opportunities (for debugging)
-    this.app.post('/api/opportunities/clear', async (req, res) => {
+    // API route to clear all opportunities (for debugging) - REQUIRES AUTH
+    this.app.post('/api/opportunities/clear', this.requireAuth.bind(this), async (req, res) => {
       try {
-        console.log('🗑️ [CLEAR] User requested to clear all opportunities');
+        console.log('🗑️ [CLEAR] Authenticated user requested to clear all opportunities');
         await this.db.getArbitrageModel().clearAllOpportunities();
-        
-        res.json({ 
-          success: true, 
-          message: 'All opportunities cleared from database' 
+
+        res.json({
+          success: true,
+          message: 'All opportunities cleared from database'
         });
       } catch (error) {
         console.error('Clear opportunities error:', error);
-        res.status(500).json({ 
-          success: false, 
-          error: 'Failed to clear opportunities' 
+        res.status(500).json({
+          success: false,
+          error: 'Failed to clear opportunities'
         });
       }
     });

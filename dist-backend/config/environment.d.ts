@@ -43,6 +43,7 @@ export interface EnvironmentConfig {
         };
     };
     coinapiKey: string;
+    adminApiKey: string;
     claudeApiKey: string;
     claudeModel: string;
     claudeMaxTokens: number;

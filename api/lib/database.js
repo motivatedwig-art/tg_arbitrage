@@ -4,7 +4,7 @@ class DatabaseManager {
   constructor() {
     this.pool = new Pool({
       connectionString: process.env.DATABASE_URL,
-      ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
+      ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: true } : false,
       max: 5,
       idleTimeoutMillis: 30000,
       connectionTimeoutMillis: 2000,
@@ -78,13 +78,13 @@ class DatabaseManager {
     }
 
     const sql = `
-      SELECT * FROM arbitrage_opportunities 
-      WHERE timestamp > NOW() - INTERVAL '${minutes} minutes'
+      SELECT * FROM arbitrage_opportunities
+      WHERE timestamp > NOW() - INTERVAL $1
       ORDER BY profit_percentage DESC
       LIMIT 100
     `;
-    
-    const result = await this.query(sql);
+
+    const result = await this.query(sql, [`${minutes} minutes`]);
     console.log('🔍 Database query result sample:', result.rows[0]);
     console.log('🔍 Blockchain field value:', result.rows[0]?.blockchain);
     return result.rows.map(row => ({

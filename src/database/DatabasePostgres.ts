@@ -7,7 +7,7 @@ export class DatabaseManagerPostgres {
   private constructor() {
     this.pool = new Pool({
       connectionString: process.env.DATABASE_URL,
-      ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
+      ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: true } : false,
       max: 10,
       idleTimeoutMillis: 30000,
       connectionTimeoutMillis: 2000,
@@ -99,13 +99,13 @@ export class DatabaseManagerPostgres {
     const client = await this.pool.connect();
     try {
       const sql = `
-        SELECT * FROM arbitrage_opportunities 
-        WHERE timestamp > NOW() - INTERVAL '${minutes} minutes'
+        SELECT * FROM arbitrage_opportunities
+        WHERE timestamp > NOW() - INTERVAL $1
         ORDER BY profit_percentage DESC
         LIMIT 100
       `;
-      
-      const result = await client.query(sql);
+
+      const result = await client.query(sql, [`${minutes} minutes`]);
       return result.rows.map(row => ({
         symbol: row.symbol,
         buyExchange: row.buy_exchange,
@@ -151,10 +151,10 @@ export class DatabaseManagerPostgres {
     const client = await this.pool.connect();
     try {
       const sql = `
-        DELETE FROM arbitrage_opportunities 
-        WHERE timestamp < NOW() - INTERVAL '${hoursToKeep} hours'
+        DELETE FROM arbitrage_opportunities
+        WHERE timestamp < NOW() - INTERVAL $1
       `;
-      const result = await client.query(sql);
+      const result = await client.query(sql, [`${hoursToKeep} hours`]);
       console.log(`🧹 Cleaned up ${result.rowCount} old records`);
     } finally {
       client.release();

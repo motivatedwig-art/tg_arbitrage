@@ -40,6 +40,9 @@ export interface EnvironmentConfig {
   // CoinAPI Key for Metadata Lookup
   coinapiKey: string;
 
+  // Security
+  adminApiKey: string;
+
   // Claude AI Configuration
   claudeApiKey: string;
   claudeModel: string;
@@ -218,6 +221,9 @@ export const config: EnvironmentConfig = {
 
   // CoinAPI Key for Metadata Lookup
   coinapiKey: getEnvVar('COINAPI_KEY', getEnvVar('VITE_COINAPI_KEY', '')),
+
+  // Security
+  adminApiKey: getEnvVar('ADMIN_API_KEY', ''),
 
   // Claude AI Configuration
   claudeApiKey: getEnvVar('ANTHROPIC_API_KEY'),
