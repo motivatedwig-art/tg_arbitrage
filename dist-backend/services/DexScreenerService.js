@@ -1,4 +1,16 @@
 import axios, { AxiosError } from 'axios';
+/**
+ * DexScreenerService - SECONDARY DATA SOURCE
+ *
+ * IMPORTANT: This service is used ONLY for:
+ * - Token images/logos (imageUrl)
+ * - Price data
+ * - Liquidity information
+ * - Basic token discovery
+ *
+ * For PRIMARY contract metadata enrichment (contract address, chain ID, verification status),
+ * use ContractDataService which calls Claude AI (Anthropic API).
+ */
 export class DexScreenerService {
     constructor() {
         this.cache = new Map();

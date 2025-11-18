@@ -124,9 +124,13 @@ Gas (если DEX): $${opportunity.gas_cost_usd.toFixed(2)}
   }
 
   async analyzeOpportunity(opportunity: ArbitrageOpportunity): Promise<string> {
+    const requestId = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    const cacheKey = `${opportunity.chain}:${opportunity.symbol}`;
+
     // Check cache first
     const cachedAnalysis = this.getCachedAnalysis(opportunity);
     if (cachedAnalysis) {
+      console.log(`📦 [CLAUDE-ANALYZER][${requestId}] Cache hit for ${opportunity.symbol} (${opportunity.chain})`);
       return cachedAnalysis;
     }
 
@@ -137,7 +141,12 @@ ${opportunity.buy_exchange}: $${opportunity.buy_price.toFixed(4)} → ${opportun
 Ликвидность: $${opportunity.liquidity_usd.toLocaleString()}
 Gas: $${opportunity.gas_cost_usd.toFixed(2)}`;
 
+    console.log(`🤖 [CLAUDE-ANALYZER][${requestId}] Analyzing opportunity for ${opportunity.symbol}`);
+    console.log(`   Request: model=${this.config.model}, max_tokens=${this.config.max_tokens}, temp=${this.config.temperature}`);
+    console.log(`   Prompt: ${prompt.substring(0, 100)}...`);
+
     try {
+      const startTime = Date.now();
       const response = await this.client.messages.create({
         model: this.config.model,
         max_tokens: this.config.max_tokens,
@@ -145,27 +154,37 @@ Gas: $${opportunity.gas_cost_usd.toFixed(2)}`;
         system: this.analysisPrompt,
         messages: [{ role: "user", content: prompt }]
       });
+      const duration = Date.now() - startTime;
 
       const analysis = response.content[0].type === 'text' ? response.content[0].text : 'Ошибка анализа';
 
+      // Log response details
+      console.log(`✅ [CLAUDE-ANALYZER][${requestId}] Analysis completed in ${duration}ms`);
+      console.log(`   Response: ${analysis.substring(0, 150)}${analysis.length > 150 ? '...' : ''}`);
+      console.log(`   Usage: input_tokens=${response.usage?.input_tokens || 0}, output_tokens=${response.usage?.output_tokens || 0}`);
+
       // Cache the result
-      const cacheKey = `${opportunity.chain}:${opportunity.symbol}`;
       this.analysisCache.set(cacheKey, {
         analysis,
         timestamp: Date.now()
       });
 
-      // Record cost metrics
+      // Record cost metrics with actual token counts
       this.costMetrics.total_requests++;
-      // Rough cost estimation: ~150 input tokens + 50 output tokens
-      const inputCost = (150 / 1_000_000) * 0.25;
-      const outputCost = (50 / 1_000_000) * 1.25;
+      const inputTokens = response.usage?.input_tokens || 150;
+      const outputTokens = response.usage?.output_tokens || 50;
+      const inputCost = (inputTokens / 1_000_000) * 0.25;
+      const outputCost = (outputTokens / 1_000_000) * 1.25;
       this.costMetrics.estimated_cost += inputCost + outputCost;
+
+      console.log(`💰 [CLAUDE-ANALYZER][${requestId}] Cost: $${(inputCost + outputCost).toFixed(6)} (total: $${this.costMetrics.estimated_cost.toFixed(4)})`);
 
       return analysis;
 
     } catch (error) {
-      console.error('Claude API error:', error);
+      console.error(`❌ [CLAUDE-ANALYZER][${requestId}] API error for ${opportunity.symbol}:`, error);
+      console.error(`   Error type: ${error instanceof Error ? error.constructor.name : typeof error}`);
+      console.error(`   Error message: ${error instanceof Error ? error.message : String(error)}`);
       return `❌ Ошибка анализа: ${error instanceof Error ? error.message : 'Неизвестная ошибка'}`;
     }
   }
@@ -201,10 +220,14 @@ Gas: $${opportunity.gas_cost_usd.toFixed(2)}`;
   }
 
   async extractContractData(tokenSymbol: string, tokenDescription: string): Promise<ContractDataResponse> {
+    const requestId = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
     const cacheKey = `contract:${tokenSymbol.toUpperCase()}`;
+
+    // Check cache first
     const cached = this.analysisCache.get(cacheKey);
     if (cached && (Date.now() - cached.timestamp) < (this.cacheTtl * 1000)) {
       this.costMetrics.cached_requests++;
+      console.log(`📦 [CLAUDE-CONTRACT][${requestId}] Cache hit for ${tokenSymbol}`);
       return JSON.parse(cached.analysis) as ContractDataResponse;
     }
 
@@ -220,7 +243,12 @@ Gas: $${opportunity.gas_cost_usd.toFixed(2)}`;
   "decimals": "number|null"
 }`;
 
+    console.log(`🔍 [CLAUDE-CONTRACT][${requestId}] Extracting contract data for ${tokenSymbol}`);
+    console.log(`   Request: model=${this.config.model}, max_tokens=${this.config.max_tokens}`);
+    console.log(`   Description: ${tokenDescription.substring(0, 100)}...`);
+
     try {
+      const startTime = Date.now();
       const response = await this.client.messages.create({
         model: this.config.model,
         max_tokens: this.config.max_tokens,
@@ -228,23 +256,39 @@ Gas: $${opportunity.gas_cost_usd.toFixed(2)}`;
         system: this.contractPrompt,
         messages: [{ role: "user", content: prompt }]
       });
+      const duration = Date.now() - startTime;
 
       const raw = response.content[0]?.type === 'text' ? response.content[0].text : '{}';
       const parsed = this.parseContractData(raw);
 
+      // Log extraction results
+      console.log(`✅ [CLAUDE-CONTRACT][${requestId}] Extraction completed in ${duration}ms`);
+      console.log(`   Raw response: ${raw.substring(0, 200)}${raw.length > 200 ? '...' : ''}`);
+      console.log(`   Parsed data:`, JSON.stringify(parsed, null, 2));
+      console.log(`   Usage: input_tokens=${response.usage?.input_tokens || 0}, output_tokens=${response.usage?.output_tokens || 0}`);
+
+      // Cache the result
       this.analysisCache.set(cacheKey, {
         analysis: JSON.stringify(parsed),
         timestamp: Date.now()
       });
 
+      // Record cost metrics with actual token counts
       this.costMetrics.total_requests++;
-      const inputCost = (200 / 1_000_000) * 0.25;
-      const outputCost = (80 / 1_000_000) * 1.25;
+      const inputTokens = response.usage?.input_tokens || 200;
+      const outputTokens = response.usage?.output_tokens || 80;
+      const inputCost = (inputTokens / 1_000_000) * 0.25;
+      const outputCost = (outputTokens / 1_000_000) * 1.25;
       this.costMetrics.estimated_cost += inputCost + outputCost;
+
+      console.log(`💰 [CLAUDE-CONTRACT][${requestId}] Cost: $${(inputCost + outputCost).toFixed(6)} (total: $${this.costMetrics.estimated_cost.toFixed(4)})`);
 
       return parsed;
     } catch (error) {
-      console.error('Claude contract extraction error:', error);
+      console.error(`❌ [CLAUDE-CONTRACT][${requestId}] Extraction error for ${tokenSymbol}:`, error);
+      console.error(`   Error type: ${error instanceof Error ? error.constructor.name : typeof error}`);
+      console.error(`   Error message: ${error instanceof Error ? error.message : String(error)}`);
+
       return {
         contract_address: null,
         chain_id: null,
