@@ -56,12 +56,23 @@ export class DatabaseManagerPostgres {
         try {
             await client.query('BEGIN');
             const sql = `
-        INSERT INTO arbitrage_opportunities 
-        (symbol, buy_exchange, sell_exchange, buy_price, sell_price, profit_percentage, profit_amount, timestamp)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+        INSERT INTO arbitrage_opportunities
+        (symbol, buy_exchange, sell_exchange, buy_price, sell_price, profit_percentage, profit_amount,
+         volume, volume_24h, blockchain, chain_id, chain_name, contract_address, is_verified,
+         decimals, contract_data_extracted, timestamp)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
         ON CONFLICT DO NOTHING
       `;
             for (const opp of opportunities) {
+                console.log(`💾 [DATABASE] Inserting opportunity for ${opp.symbol} with enrichment data:`, {
+                    blockchain: opp.blockchain,
+                    chainId: opp.chainId,
+                    chainName: opp.chainName,
+                    contractAddress: opp.contractAddress,
+                    isVerified: opp.isContractVerified,
+                    decimals: opp.decimals,
+                    contractDataExtracted: opp.contractDataExtracted
+                });
                 await client.query(sql, [
                     opp.symbol,
                     opp.buyExchange,
@@ -70,13 +81,24 @@ export class DatabaseManagerPostgres {
                     opp.sellPrice,
                     opp.profitPercentage,
                     opp.profitAmount,
+                    opp.volume || 0,
+                    opp.volume24h || null,
+                    opp.blockchain || null,
+                    opp.chainId || null,
+                    opp.chainName || null,
+                    opp.contractAddress || null,
+                    opp.isContractVerified || false,
+                    opp.decimals || null,
+                    opp.contractDataExtracted || false,
                     new Date(opp.timestamp)
                 ]);
             }
             await client.query('COMMIT');
+            console.log(`✅ [DATABASE] Successfully inserted ${opportunities.length} opportunities with enrichment data`);
         }
         catch (error) {
             await client.query('ROLLBACK');
+            console.error(`❌ [DATABASE] Failed to insert opportunities:`, error);
             throw error;
         }
         finally {

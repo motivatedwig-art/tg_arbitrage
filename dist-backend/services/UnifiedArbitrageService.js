@@ -180,9 +180,21 @@ export class UnifiedArbitrageService {
                 console.warn('⚠️ [PRE-DB FILTER] No opportunities remaining after filtering');
                 return;
             }
-            await this.db.getArbitrageModel().insert(filtered);
-            console.log(`💾 Stored ${filtered.length}/${opportunities.length} opportunities in database with blockchain data`);
+            // CRITICAL: Extract contract data BEFORE inserting to database
+            // This ensures Claude AI enrichment happens first, not DexScreener
+            console.log('');
+            console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+            console.log('🤖 [ENRICHMENT PRIORITY] Claude AI is PRIMARY enrichment tool');
+            console.log('   DexScreener is used ONLY for images/logos/liquidity');
+            console.log('   Claude AI extracts ALL contract metadata');
+            console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+            console.log('');
+            console.log('🤖 [ENRICHMENT] Extracting contract data using Claude AI (PRIMARY ENRICHMENT TOOL)...');
             await this.contractDataService.processBatch(filtered);
+            console.log('✅ [ENRICHMENT] Claude AI enrichment complete');
+            // Now insert enriched opportunities
+            await this.db.getArbitrageModel().insert(filtered);
+            console.log(`💾 Stored ${filtered.length}/${opportunities.length} opportunities in database with Claude AI enrichment data`);
         }
         catch (error) {
             console.error('❌ Failed to store opportunities:', error);

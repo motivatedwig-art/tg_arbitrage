@@ -4,6 +4,18 @@ export interface DexScreenerTokenInfo {
     tokenAddress?: string;
     imageUrl?: string;
 }
+/**
+ * DexScreenerService - SECONDARY DATA SOURCE
+ *
+ * IMPORTANT: This service is used ONLY for:
+ * - Token images/logos (imageUrl)
+ * - Price data
+ * - Liquidity information
+ * - Basic token discovery
+ *
+ * For PRIMARY contract metadata enrichment (contract address, chain ID, verification status),
+ * use ContractDataService which calls Claude AI (Anthropic API).
+ */
 export declare class DexScreenerService {
     private static instance;
     private cache;
