@@ -122,7 +122,7 @@ class CryptoArbitrageApp {
       import('./jobs/BlockchainScannerJob.js').then(({ BlockchainScannerJob }) => {
         try {
           BlockchainScannerJob.schedule();
-          
+
           // Run initial scan (non-blocking)
           BlockchainScannerJob.runNow().catch((err: any) => {
             console.warn('⚠️ Initial blockchain scan failed:', err.message);
@@ -132,6 +132,20 @@ class CryptoArbitrageApp {
         }
       }).catch((error) => {
         console.warn('⚠️ Failed to load blockchain scanner job:', error);
+      });
+    }
+
+    // Start blockchain rescan job (every hour) - Identifies and fixes opportunities with unknown blockchain data
+    if (process.env.BLOCKCHAIN_RESCAN_ENABLED !== 'false') {
+      import('./jobs/BlockchainRescanJob.js').then(({ blockchainRescanJob }) => {
+        try {
+          blockchainRescanJob.schedule();
+          console.log('✅ Blockchain rescan job scheduled (runs every hour)');
+        } catch (error) {
+          console.warn('⚠️ Failed to start blockchain rescan job:', error);
+        }
+      }).catch((error) => {
+        console.warn('⚠️ Failed to load blockchain rescan job:', error);
       });
     }
 
