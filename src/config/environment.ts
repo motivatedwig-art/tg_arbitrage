@@ -55,6 +55,11 @@ export interface EnvironmentConfig {
     batchSize: number;
     rateLimitDelay: number;
   };
+
+  // DexScreener Configuration
+  dexScreener: {
+    enabled: boolean;
+  };
   
   // Public API Endpoints
   publicApiEndpoints: {
@@ -236,6 +241,11 @@ export const config: EnvironmentConfig = {
     enabled: getEnvBoolean('CONTRACT_DATA_ENABLED', true),
     batchSize: getEnvNumber('CONTRACT_DATA_BATCH_SIZE', 5),
     rateLimitDelay: getEnvNumber('CONTRACT_DATA_DELAY_MS', 1000),
+  },
+
+  // DexScreener Configuration (DISABLED by default - Claude AI is PRIMARY)
+  dexScreener: {
+    enabled: getEnvBoolean('DEXSCREENER_ENABLED', false),
   },
   
   // Public API Endpoints

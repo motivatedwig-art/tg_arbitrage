@@ -223,12 +223,23 @@ Gas: $${opportunity.gas_cost_usd.toFixed(2)}`;
     const requestId = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
     const cacheKey = `contract:${tokenSymbol.toUpperCase()}`;
 
+    console.log('');
+    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+    console.log(`🤖 [CLAUDE-CONTRACT][${requestId}] EXTRACTING CONTRACT DATA`);
+    console.log(`   Token: ${tokenSymbol}`);
+    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+
     // Check cache first
     const cached = this.analysisCache.get(cacheKey);
     if (cached && (Date.now() - cached.timestamp) < (this.cacheTtl * 1000)) {
       this.costMetrics.cached_requests++;
-      console.log(`📦 [CLAUDE-CONTRACT][${requestId}] Cache hit for ${tokenSymbol}`);
-      return JSON.parse(cached.analysis) as ContractDataResponse;
+      console.log(`📦 [CLAUDE-CONTRACT][${requestId}] ✅ CACHE HIT for ${tokenSymbol}`);
+      console.log(`   Returning cached data without API call`);
+      const cachedData = JSON.parse(cached.analysis) as ContractDataResponse;
+      console.log(`   Cached data:`, JSON.stringify(cachedData, null, 2));
+      console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+      console.log('');
+      return cachedData;
     }
 
     const prompt = `Извлеки данные контракта для токена: ${tokenSymbol}
@@ -243,12 +254,19 @@ Gas: $${opportunity.gas_cost_usd.toFixed(2)}`;
   "decimals": "number|null"
 }`;
 
-    console.log(`🔍 [CLAUDE-CONTRACT][${requestId}] Extracting contract data for ${tokenSymbol}`);
-    console.log(`   Request: model=${this.config.model}, max_tokens=${this.config.max_tokens}`);
-    console.log(`   Description: ${tokenDescription.substring(0, 100)}...`);
+    console.log(`🌐 [CLAUDE-CONTRACT][${requestId}] ⚡ CALLING ANTHROPIC API`);
+    console.log(`   Model: ${this.config.model}`);
+    console.log(`   Max Tokens: ${this.config.max_tokens}`);
+    console.log(`   Temperature: ${this.config.temperature}`);
+    console.log(`   Full Description:`);
+    console.log(`   ${tokenDescription.split('\n').join('\n   ')}`);
+    console.log(`   Full Prompt:`);
+    console.log(`   ${prompt.substring(0, 300)}...`);
 
     try {
       const startTime = Date.now();
+      console.log(`⏳ [CLAUDE-CONTRACT][${requestId}] Waiting for API response...`);
+
       const response = await this.client.messages.create({
         model: this.config.model,
         max_tokens: this.config.max_tokens,
@@ -261,17 +279,27 @@ Gas: $${opportunity.gas_cost_usd.toFixed(2)}`;
       const raw = response.content[0]?.type === 'text' ? response.content[0].text : '{}';
       const parsed = this.parseContractData(raw);
 
-      // Log extraction results
-      console.log(`✅ [CLAUDE-CONTRACT][${requestId}] Extraction completed in ${duration}ms`);
-      console.log(`   Raw response: ${raw.substring(0, 200)}${raw.length > 200 ? '...' : ''}`);
-      console.log(`   Parsed data:`, JSON.stringify(parsed, null, 2));
-      console.log(`   Usage: input_tokens=${response.usage?.input_tokens || 0}, output_tokens=${response.usage?.output_tokens || 0}`);
+      // Log extraction results with detailed formatting
+      console.log(`✅ [CLAUDE-CONTRACT][${requestId}] 🎉 EXTRACTION COMPLETED SUCCESSFULLY`);
+      console.log(`   ⏱️  Duration: ${duration}ms`);
+      console.log(`   📊 Token Usage:`);
+      console.log(`      Input Tokens:  ${response.usage?.input_tokens || 0}`);
+      console.log(`      Output Tokens: ${response.usage?.output_tokens || 0}`);
+      console.log(`   📝 Raw Claude Response:`);
+      console.log(`      ${raw}`);
+      console.log(`   ✨ Parsed Contract Data:`);
+      console.log(`      Contract Address: ${parsed.contract_address || 'NOT FOUND'}`);
+      console.log(`      Chain ID:         ${parsed.chain_id !== null ? parsed.chain_id : 'NOT FOUND'}`);
+      console.log(`      Chain Name:       ${parsed.chain_name || 'NOT FOUND'}`);
+      console.log(`      Is Verified:      ${parsed.is_verified !== null ? parsed.is_verified : 'NOT FOUND'}`);
+      console.log(`      Decimals:         ${parsed.decimals !== null ? parsed.decimals : 'NOT FOUND'}`);
 
       // Cache the result
       this.analysisCache.set(cacheKey, {
         analysis: JSON.stringify(parsed),
         timestamp: Date.now()
       });
+      console.log(`💾 [CLAUDE-CONTRACT][${requestId}] Result cached for ${this.cacheTtl}s`);
 
       // Record cost metrics with actual token counts
       this.costMetrics.total_requests++;
@@ -281,13 +309,26 @@ Gas: $${opportunity.gas_cost_usd.toFixed(2)}`;
       const outputCost = (outputTokens / 1_000_000) * 1.25;
       this.costMetrics.estimated_cost += inputCost + outputCost;
 
-      console.log(`💰 [CLAUDE-CONTRACT][${requestId}] Cost: $${(inputCost + outputCost).toFixed(6)} (total: $${this.costMetrics.estimated_cost.toFixed(4)})`);
+      console.log(`💰 [CLAUDE-CONTRACT][${requestId}] COST BREAKDOWN:`);
+      console.log(`   Input Cost:  $${inputCost.toFixed(6)} (${inputTokens} tokens @ $0.25/1M)`);
+      console.log(`   Output Cost: $${outputCost.toFixed(6)} (${outputTokens} tokens @ $1.25/1M)`);
+      console.log(`   This Call:   $${(inputCost + outputCost).toFixed(6)}`);
+      console.log(`   Total Cost:  $${this.costMetrics.estimated_cost.toFixed(6)} (${this.costMetrics.total_requests} requests, ${this.costMetrics.cached_requests} cached)`);
+      console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+      console.log('');
 
       return parsed;
     } catch (error) {
-      console.error(`❌ [CLAUDE-CONTRACT][${requestId}] Extraction error for ${tokenSymbol}:`, error);
-      console.error(`   Error type: ${error instanceof Error ? error.constructor.name : typeof error}`);
-      console.error(`   Error message: ${error instanceof Error ? error.message : String(error)}`);
+      console.log('');
+      console.error(`❌ [CLAUDE-CONTRACT][${requestId}] ⚠️  EXTRACTION FAILED`);
+      console.error(`   Error Type: ${error instanceof Error ? error.constructor.name : typeof error}`);
+      console.error(`   Error Message: ${error instanceof Error ? error.message : String(error)}`);
+      if (error instanceof Error && error.stack) {
+        console.error(`   Stack Trace: ${error.stack.split('\n').slice(0, 3).join('\n   ')}`);
+      }
+      console.error(`   Returning NULL values for all fields`);
+      console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+      console.log('');
 
       return {
         contract_address: null,
