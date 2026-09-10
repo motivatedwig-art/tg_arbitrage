@@ -37,11 +37,13 @@ export class OpportunityConfirmationService {
   }
 
   /**
-   * Validate opportunity using Claude AI data (DexScreener configurable via DEXSCREENER_ENABLED env var)
+   * Validate an opportunity against DexScreener (enabled by default).
    *
-   * IMPORTANT: DexScreener validation is DISABLED by default (config.dexScreener.enabled = false).
-   * Claude AI is the PRIMARY enrichment tool.
-   * Set DEXSCREENER_ENABLED=true to re-enable DexScreener validation.
+   * WARNING about the disabled branch below: with DEXSCREENER_ENABLED=false
+   * there is no independent source to validate against, so it checks only that
+   * the enriched fields are non-empty. That confirms the data exists, not that
+   * it is correct - a fabricated contract address passes. Treat the results of
+   * that branch as "present", never as "verified".
    */
   private async validateWithDexScreener(opportunity: ArbitrageOpportunity): Promise<{
     contractIdMatch: boolean;

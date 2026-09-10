@@ -1,6 +1,6 @@
 import { DatabaseManager } from '../database/Database.js';
 import { ArbitrageOpportunity } from '../exchanges/types/index.js';
-import { claudeAnalyzer } from './ClaudeAnalyzer.js';
+import { ContractDataService } from './ContractDataService.js';
 import { config } from '../config/environment.js';
 
 /**
@@ -75,40 +75,33 @@ export class BlockchainRescanService {
     console.log(`🔄 [RESCAN] Rescanning ${opportunity.symbol} (blockchain: ${opportunity.blockchain || 'UNKNOWN'})`);
 
     try {
-      // Build comprehensive description for Claude
-      const description = `Symbol: ${opportunity.symbol}
-Exchange Buy: ${opportunity.buyExchange} at price ${opportunity.buyPrice}
-Exchange Sell: ${opportunity.sellExchange} at price ${opportunity.sellPrice}
-Volume: ${opportunity.volume}
-Current Blockchain: ${opportunity.blockchain || 'UNKNOWN'}
-Profit: ${opportunity.profitPercentage}%
-Timestamp: ${opportunity.timestamp}
+      // Use the same source priority as the main enrichment path: DexScreener
+      // first, model recall only as a fallback. This used to call the model
+      // directly, so the rescan was the one place that wrote unverifiable
+      // addresses straight into the database.
+      const { record, source, failed } = await ContractDataService.getInstance().resolveContractData(opportunity);
 
-CRITICAL: Every cryptocurrency token MUST exist on a specific blockchain.
-Please identify the correct blockchain network, chain ID, and contract address for this token.`;
+      if (failed) {
+        console.warn(`⚠️ [RESCAN] Lookup failed for ${opportunity.symbol} - leaving it for the next pass`);
+        return false;
+      }
 
-      // Call Claude AI to extract blockchain data
-      const result = await claudeAnalyzer.extractContractData(opportunity.symbol, description);
-
-      // Check if we got valid data
-      const hasValidData = result.contract_address &&
-                          result.chain_id &&
-                          result.chain_name;
+      const hasValidData = record.contractAddress && record.chainId && record.chainName;
 
       if (hasValidData) {
-        console.log(`✅ [RESCAN] Successfully extracted blockchain data for ${opportunity.symbol}:`);
-        console.log(`   Contract: ${result.contract_address}`);
-        console.log(`   Chain ID: ${result.chain_id}`);
-        console.log(`   Chain Name: ${result.chain_name}`);
+        console.log(`✅ [RESCAN] Resolved blockchain data for ${opportunity.symbol} (source: ${source}):`);
+        console.log(`   Contract: ${record.contractAddress}`);
+        console.log(`   Chain ID: ${record.chainId}`);
+        console.log(`   Chain Name: ${record.chainName}`);
 
         // Update the opportunity in database
         const updated = await this.updateOpportunityBlockchainData(
           opportunity,
-          result.contract_address!,
-          String(result.chain_id!),
-          result.chain_name!,
-          result.is_verified || false,
-          result.decimals || 18
+          record.contractAddress!,
+          record.chainId!,
+          record.chainName!,
+          record.isVerified,
+          record.decimals
         );
 
         if (updated) {
@@ -119,8 +112,8 @@ Please identify the correct blockchain network, chain ID, and contract address f
           return false;
         }
       } else {
-        console.warn(`⚠️ [RESCAN] Claude AI could not find complete blockchain data for ${opportunity.symbol}`);
-        console.warn(`   Extracted: contract=${result.contract_address}, chain_id=${result.chain_id}, chain_name=${result.chain_name}`);
+        console.warn(`⚠️ [RESCAN] No complete blockchain data for ${opportunity.symbol} (source: ${source})`);
+        console.warn(`   Resolved: contract=${record.contractAddress}, chainId=${record.chainId}, chainName=${record.chainName}`);
         return false;
       }
     } catch (error) {
@@ -137,8 +130,11 @@ Please identify the correct blockchain network, chain ID, and contract address f
     contractAddress: string,
     chainId: string,
     chainName: string,
-    isVerified: boolean,
-    decimals: number
+    // Null means "not established". These used to default to `false` and `18`,
+    // which recorded two facts nobody had actually determined - a token with
+    // non-standard decimals would have been stored as 18 regardless.
+    isVerified: boolean | null,
+    decimals: number | null
   ): Promise<boolean> {
     try {
       const model: any = this.db.getArbitrageModel();

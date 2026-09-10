@@ -1,21 +1,50 @@
 import { ArbitrageOpportunity } from '../exchanges/types/index.js';
 import { DatabaseManager } from '../database/Database.js';
 import { claudeAnalyzer } from './ClaudeAnalyzer.js';
+import { DexScreenerService } from './DexScreenerService.js';
 import { ContractDataRecord } from '../database/types.js';
 import { config } from '../config/environment.js';
 
+/** Where a piece of contract metadata came from. Drives how much we trust it. */
+type ContractDataSource = 'dexscreener' | 'claude' | 'none';
+
 /**
- * ContractDataService - PRIMARY ENRICHMENT SERVICE
+ * DexScreener identifies chains by slug. Map the common ones to the numeric
+ * EVM chain ID and a display name so both resolution paths produce consistent
+ * values downstream instead of one storing "ethereum" and the other "1".
+ */
+const CHAIN_SLUGS: Record<string, { chainId: string; chainName: string }> = {
+  ethereum: { chainId: '1', chainName: 'Ethereum' },
+  bsc: { chainId: '56', chainName: 'BNB Smart Chain' },
+  polygon: { chainId: '137', chainName: 'Polygon' },
+  arbitrum: { chainId: '42161', chainName: 'Arbitrum One' },
+  optimism: { chainId: '10', chainName: 'Optimism' },
+  base: { chainId: '8453', chainName: 'Base' },
+  avalanche: { chainId: '43114', chainName: 'Avalanche C-Chain' },
+  fantom: { chainId: '250', chainName: 'Fantom' },
+  cronos: { chainId: '25', chainName: 'Cronos' },
+  celo: { chainId: '42220', chainName: 'Celo' },
+  linea: { chainId: '59144', chainName: 'Linea' },
+  scroll: { chainId: '534352', chainName: 'Scroll' },
+  zksync: { chainId: '324', chainName: 'zkSync Era' }
+};
+
+/**
+ * ContractDataService - contract metadata enrichment
  *
- * CRITICAL: This service uses Claude AI (Anthropic API) as the PRIMARY enrichment tool
- * for extracting contract metadata (contract address, chain ID, verification status, etc.)
+ * Source priority, highest trust first:
  *
- * DexScreener is used ONLY for:
- * - Token images/logos
- * - Price data
- * - Liquidity information
+ * 1. DexScreener - a real index lookup. Returns an address that actually
+ *    exists on a chain, and the answer is reproducible.
+ * 2. Claude - recall only. No web_search or web_fetch tool is attached to
+ *    these requests, so the model cannot consult Etherscan or any other
+ *    explorer; it can only remember or guess. Used when DexScreener has
+ *    nothing, and its output is never recorded as verified.
  *
- * Claude AI is used for ALL contract metadata extraction.
+ * This order was previously reversed: DexScreener was disabled by default and
+ * the model was described as the primary source. Because a wrong contract
+ * address costs a user real funds, an unknown address is preferred to a
+ * confident guess.
  */
 export class ContractDataService {
   private static instance: ContractDataService;
@@ -88,32 +117,28 @@ export class ContractDataService {
       return;
     }
 
-    console.log(`🎯 [CONTRACT-SERVICE] Building description for ${opportunity.symbol}`);
-    const description = this.buildDescription(opportunity);
-
-    console.log(`🤖 [CONTRACT-SERVICE] Calling Claude AI (PRIMARY ENRICHMENT) to extract contract data...`);
-    const result = await claudeAnalyzer.extractContractData(opportunity.symbol, description);
+    console.log(`🎯 [CONTRACT-SERVICE] Resolving contract data for ${opportunity.symbol}`);
+    const { record, source, failed } = await this.resolveContractData(opportunity);
 
     // A failed lookup teaches us nothing about this token. Marking it as
     // extracted anyway - which is what used to happen - meant a single rate
     // limit or network blip permanently excluded the opportunity from every
     // later enrichment pass, because the rescan filter skips anything already
     // flagged as extracted.
-    if (result.error) {
-      console.warn(`⚠️ [CONTRACT-SERVICE] Extraction FAILED for ${opportunity.symbol}: ${result.error.kind} - ${result.error.detail}`);
-      console.warn(`   Leaving contractDataExtracted=false so it is retried${result.error.retryable ? '' : ' once the cause is fixed'}.`);
+    if (failed) {
+      console.warn(`   Leaving contractDataExtracted=false for ${opportunity.symbol} so it is retried.`);
       return;
     }
 
     // CRITICAL: Enrich the opportunity object directly so it's inserted with enrichment data
-    opportunity.contractAddress = result.contract_address || undefined;
-    opportunity.chainId = result.chain_id !== null && result.chain_id !== undefined ? String(result.chain_id) : (result.chain_name || opportunity.chainId || undefined);
-    opportunity.chainName = result.chain_name || undefined;
-    opportunity.isContractVerified = result.is_verified || undefined;
-    opportunity.decimals = result.decimals || undefined;
+    opportunity.contractAddress = record.contractAddress || undefined;
+    opportunity.chainId = record.chainId || opportunity.chainId || undefined;
+    opportunity.chainName = record.chainName || undefined;
+    opportunity.isContractVerified = record.isVerified ?? undefined;
+    opportunity.decimals = record.decimals ?? undefined;
     opportunity.contractDataExtracted = true;
 
-    console.log(`✅ [CONTRACT-SERVICE] Opportunity enriched with Claude AI data:`, {
+    console.log(`✅ [CONTRACT-SERVICE] Opportunity enriched (source: ${source}):`, {
       symbol: opportunity.symbol,
       contractAddress: opportunity.contractAddress,
       chainId: opportunity.chainId,
@@ -129,28 +154,16 @@ export class ContractDataService {
       return null;
     }
 
-    console.log(`🎯 [CONTRACT-SERVICE] Building description for ${opportunity.symbol}`);
-    const description = this.buildDescription(opportunity);
-
-    console.log(`🤖 [CONTRACT-SERVICE] Calling Claude AI to extract contract data...`);
-    const result = await claudeAnalyzer.extractContractData(opportunity.symbol, description);
+    console.log(`🎯 [CONTRACT-SERVICE] Resolving contract data for ${opportunity.symbol}`);
+    const { record, source, failed } = await this.resolveContractData(opportunity);
 
     // Do not overwrite stored data with nulls produced by a failed lookup.
-    if (result.error) {
-      console.warn(`⚠️ [CONTRACT-SERVICE] Extraction FAILED for ${opportunity.symbol}: ${result.error.kind} - ${result.error.detail}`);
-      console.warn(`   Nothing written to the database; existing data is left intact.`);
+    if (failed) {
+      console.warn(`   Nothing written to the database for ${opportunity.symbol}; existing data is left intact.`);
       return null;
     }
 
-    const record: ContractDataRecord = {
-      contractAddress: result.contract_address,
-      chainId: result.chain_id !== null && result.chain_id !== undefined ? String(result.chain_id) : (result.chain_name || opportunity.chainId || null),
-      chainName: result.chain_name,
-      isVerified: result.is_verified,
-      decimals: result.decimals
-    };
-
-    console.log(`💾 [CONTRACT-SERVICE] Storing extracted data:`, {
+    console.log(`💾 [CONTRACT-SERVICE] Storing data (source: ${source}):`, {
       symbol: opportunity.symbol,
       contractAddress: record.contractAddress,
       chainId: record.chainId,
@@ -181,6 +194,85 @@ export class ContractDataService {
       chainName: opportunity.chainName || null,
       isVerified: opportunity.isContractVerified ?? null,
       decimals: opportunity.decimals ?? null
+    };
+  }
+
+  /**
+   * Resolve contract metadata, preferring a source that can actually be checked.
+   *
+   * Order matters. DexScreener queries a real index and returns an address that
+   * exists on a chain. A language model has no network access here - no
+   * web_search or web_fetch tool is attached - so it can only recall or invent
+   * one, and an invented contract address is worse than no address at all.
+   * Claude therefore runs only when DexScreener has nothing.
+   */
+  public async resolveContractData(
+    opportunity: ArbitrageOpportunity
+  ): Promise<{ record: ContractDataRecord; source: ContractDataSource; failed: boolean }> {
+    const empty: ContractDataRecord = {
+      contractAddress: null,
+      chainId: null,
+      chainName: null,
+      isVerified: null,
+      decimals: null
+    };
+
+    // 1. Real, verifiable source.
+    if (config.dexScreener.enabled) {
+      try {
+        const dex = await DexScreenerService.getInstance().resolveBySymbol(opportunity.symbol);
+        if (dex?.tokenAddress && dex?.chainId) {
+          const slug = dex.chainId.toLowerCase();
+          const mapped = CHAIN_SLUGS[slug];
+          console.log(`🔗 [CONTRACT-SERVICE] ${opportunity.symbol}: resolved from DexScreener (${slug})`);
+          return {
+            source: 'dexscreener',
+            failed: false,
+            record: {
+              contractAddress: dex.tokenAddress,
+              chainId: mapped?.chainId ?? slug,
+              chainName: mapped?.chainName ?? dex.chainId,
+              // DexScreener indexes liquidity, not explorer source verification,
+              // so it cannot answer this. Unknown, rather than a guess.
+              isVerified: null,
+              decimals: null
+            }
+          };
+        }
+        console.log(`ℹ️ [CONTRACT-SERVICE] ${opportunity.symbol}: no DexScreener match, falling back to Claude`);
+      } catch (error) {
+        console.warn(`⚠️ [CONTRACT-SERVICE] DexScreener lookup failed for ${opportunity.symbol}:`, error);
+      }
+    }
+
+    // 2. Fallback: model recall. Treated as a hint, never as verified fact.
+    if (!claudeAnalyzer.isEnabled()) {
+      console.warn(`⚠️ [CONTRACT-SERVICE] ${opportunity.symbol}: no contract data (DexScreener found nothing, Claude disabled)`);
+      return { record: empty, source: 'none', failed: false };
+    }
+
+    const description = this.buildDescription(opportunity);
+    const result = await claudeAnalyzer.extractContractData(opportunity.symbol, description);
+
+    if (result.error) {
+      console.warn(`⚠️ [CONTRACT-SERVICE] Claude lookup FAILED for ${opportunity.symbol}: ${result.error.kind} - ${result.error.detail}`);
+      return { record: empty, source: 'none', failed: true };
+    }
+
+    return {
+      source: result.contract_address ? 'claude' : 'none',
+      failed: false,
+      record: {
+        contractAddress: result.contract_address,
+        chainId: result.chain_id !== null ? String(result.chain_id) : (result.chain_name || opportunity.chainId || null),
+        chainName: result.chain_name,
+        // Never inherit is_verified from the model. "Verified on the explorer"
+        // is a fact about a block explorer that the model cannot observe, and
+        // recording a guess as verification is what made hallucinated
+        // addresses look trustworthy downstream.
+        isVerified: null,
+        decimals: result.decimals
+      }
     };
   }
 

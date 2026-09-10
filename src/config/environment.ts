@@ -287,9 +287,15 @@ export const config: EnvironmentConfig = {
     rateLimitDelay: getEnvNumber('CONTRACT_DATA_DELAY_MS', 1000),
   },
 
-  // DexScreener Configuration (DISABLED by default - Claude AI is PRIMARY)
+  // DexScreener Configuration
+  //
+  // Enabled by default: DexScreener returns an actual on-chain token address
+  // and chain from a real API, which a language model cannot do - it has no
+  // network access and can only recall or guess. Disabling this left contract
+  // metadata sourced entirely from guesses, and the "validation" step then
+  // checked those guesses against themselves.
   dexScreener: {
-    enabled: getEnvBoolean('DEXSCREENER_ENABLED', false),
+    enabled: getEnvBoolean('DEXSCREENER_ENABLED', true),
   },
   
   // Public API Endpoints
