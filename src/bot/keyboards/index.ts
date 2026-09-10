@@ -3,7 +3,24 @@ import { i18n } from '../../utils/i18n.js';
 import { config } from '../../config/environment.js';
 
 export class KeyboardManager {
-  
+
+  /**
+   * Telegram rejects a web_app button whose url is empty, which would fail the
+   * whole sendMessage call rather than just that button. config.webappUrl is ''
+   * when WEBAPP_URL is unset and no Railway domain was detected, so the button
+   * is omitted instead of being sent broken.
+   */
+  private static webAppButtonRows(lng: string): TelegramBot.InlineKeyboardButton[][] {
+    if (!config.webappUrl) {
+      console.warn('⚠️ [KEYBOARD] WEBAPP_URL is not configured - omitting the web app button');
+      return [];
+    }
+    return [[
+      { text: i18n.t('buttons.web_application', lng), web_app: { url: config.webappUrl } }
+    ]];
+  }
+
+
   public static getMainMenuKeyboard(lng: string = 'en'): TelegramBot.InlineKeyboardMarkup {
     // Debug logging to see what language is being used
     console.log(`🌐 Generating main menu keyboard for language: ${lng}`);
@@ -19,9 +36,7 @@ export class KeyboardManager {
         [
           { text: i18n.t('buttons.language', lng), callback_data: 'language' }
         ],
-        [
-          { text: i18n.t('buttons.web_application', lng), web_app: { url: config.webappUrl } }
-        ]
+        ...KeyboardManager.webAppButtonRows(lng)
       ]
     };
   }
@@ -71,11 +86,16 @@ export class KeyboardManager {
   }
 
   public static getWebAppKeyboard(lng: string = 'en'): TelegramBot.InlineKeyboardMarkup {
+    if (!config.webappUrl) {
+      console.warn('⚠️ [KEYBOARD] WEBAPP_URL is not configured - web app keyboard will be empty');
+      return { inline_keyboard: [] };
+    }
+
     return {
       inline_keyboard: [
         [
-          { 
-            text: i18n.t('buttons.webapp', lng), 
+          {
+            text: i18n.t('buttons.webapp', lng),
             web_app: { url: config.webappUrl }
           }
         ]

@@ -37,13 +37,15 @@ export class WebAppServer {
     // Configure CORS for Telegram and your domains
     this.app.use(cors({
       origin: (origin, callback) => {
+        // config.webappUrl is '' when the deployment URL is unknown; filter it
+        // out so an empty string never becomes an allowed origin.
         const allowedOrigins = [
           'https://web.telegram.org',
           'https://telegram.org',
           config.webappUrl,
           'http://localhost:3000',
           'http://localhost:5173'
-        ];
+        ].filter(Boolean);
 
         if (!origin || allowedOrigins.includes(origin) || origin.includes('.telegram.org')) {
           callback(null, true);

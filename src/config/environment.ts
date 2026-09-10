@@ -137,46 +137,32 @@ const getEnvVar = (key: string, defaultValue?: string): string => {
   throw new Error(`Environment variable ${key} is required`);
 };
 
-// Get webapp URL with Railway auto-detection
+// Get webapp URL, auto-detecting the Railway-assigned domain.
+//
+// Reads through readRawEnv so it does not touch process.env directly in a
+// browser bundle, where `process` is undefined.
+//
+// Returns '' when nothing identifies the deployment. That is deliberate: the
+// previous code fell back to a specific hardcoded deployment
+// (webapp-production-c779.up.railway.app) for every unknown environment, so a
+// fork or a new Railway project silently pointed its Telegram mini-app button
+// at somebody else's instance. Callers must treat '' as "not configured".
 const getWebappUrl = (): string => {
-  const isBrowser = typeof window !== 'undefined';
-  const envValue = isBrowser
-    ? (import.meta as any).env?.WEBAPP_URL || process.env.WEBAPP_URL
-    : process.env.WEBAPP_URL;
-
-  // If WEBAPP_URL is explicitly set, use it
-  if (envValue) {
-    return envValue;
+  const explicit = readRawEnv('WEBAPP_URL');
+  if (explicit) {
+    return explicit;
   }
 
-  // Check if we're on Railway
-  // Railway typically sets these environment variables or we can detect by:
-  // - RAILWAY_ENVIRONMENT, RAILWAY_SERVICE_NAME (Railway-specific)
-  // - PORT is set (typical for Railway)
-  // - NODE_ENV is production (typical for Railway)
-  const isRailway = process.env.RAILWAY_ENVIRONMENT ||
-                    process.env.RAILWAY_SERVICE_NAME ||
-                    process.env.RAILWAY_PUBLIC_DOMAIN ||
-                    (process.env.NODE_ENV === 'production' && process.env.PORT);
+  // Railway exposes the public domain without a scheme.
+  const railwayDomain = readRawEnv('RAILWAY_PUBLIC_DOMAIN')
+    || readRawEnv('RAILWAY_STATIC_URL')
+    || readRawEnv('RAILWAY_URL');
 
-  if (isRailway) {
-    // Try to get Railway public domain
-    const railwayDomain = process.env.RAILWAY_PUBLIC_DOMAIN ||
-                          process.env.RAILWAY_STATIC_URL ||
-                          process.env.RAILWAY_URL;
-
-    if (railwayDomain) {
-      // Ensure it starts with https://
-      const url = railwayDomain.startsWith('http') ? railwayDomain : `https://${railwayDomain}`;
-      return url;
-    }
-
-    // Fallback to default Railway URL
-    return 'https://webapp-production-c779.up.railway.app';
+  if (railwayDomain) {
+    return railwayDomain.startsWith('http') ? railwayDomain : `https://${railwayDomain}`;
   }
 
-  // Default Railway URL
-  return 'https://webapp-production-c779.up.railway.app';
+  return '';
 };
 
 // Get environment variable as number.
@@ -232,8 +218,12 @@ export const config: EnvironmentConfig = {
   webappUrl: getWebappUrl(),
   
   // API Configuration
-  apiBaseUrl: getEnvVar('VITE_API_BASE_URL', 'https://web.telegram.org'),
-  apiUrl: getEnvVar('VITE_API_URL', 'https://web.telegram.org'),
+  // Empty means "not configured, use a same-origin relative path" - which is
+  // what the frontend does. The previous default was https://web.telegram.org,
+  // which is Telegram's own website and never serves this app's API; anything
+  // that trusted it would have sent every request to the wrong host.
+  apiBaseUrl: getEnvVar('VITE_API_BASE_URL', ''),
+  apiUrl: getEnvVar('VITE_API_URL', ''),
   
   // Application Settings
   // Truncated: a port must be a whole number.

@@ -1,25 +1,28 @@
 import axios, { AxiosError } from 'axios';
 import { ApiResponse, Exchange, ArbitrageOpportunity } from '../types';
 
-// Get API base URL with fallback
+// Get API base URL.
+//
+// Only import.meta.env is consulted. This used to also read
+// process.env.WEBAPP_URL, but `process` does not exist in a browser bundle and
+// vite.config.ts defines no shim for it, so whenever neither VITE_ variable was
+// set this threw "ReferenceError: process is not defined" and took the whole
+// app down before a single request was made.
+//
+// The fallback is a same-origin relative path rather than a hardcoded
+// deployment host: the Express server serves both the mini app and /api, so
+// '/api' is correct on any domain it is deployed to. In dev, vite.config.ts
+// proxies /api to localhost:3000, so the same value works there. A separately
+// hosted frontend sets VITE_API_BASE_URL, which takes priority.
 const getAPIBaseURL = (): string => {
-  // Check for different environment variable names
-  const envUrl = import.meta.env.VITE_API_BASE_URL || 
-                 import.meta.env.VITE_API_URL || 
-                 process.env.WEBAPP_URL;
-                 
+  const envUrl = import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_API_URL;
+
   if (envUrl) {
-    // Ensure it ends with /api
-    return envUrl.endsWith('/api') ? envUrl : `${envUrl}/api`;
+    const trimmed = String(envUrl).replace(/\/+$/, '');
+    return trimmed.endsWith('/api') ? trimmed : `${trimmed}/api`;
   }
-  
-  // Development fallback
-  if (import.meta.env.DEV) {
-    return 'http://localhost:3000/api';
-  }
-  
-  // Production fallback
-  return 'https://webapp-production-c779.up.railway.app/api';
+
+  return '/api';
 };
 
 const API_BASE_URL = getAPIBaseURL();
