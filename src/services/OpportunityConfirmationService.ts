@@ -8,10 +8,18 @@ export interface ConfirmedOpportunity {
   opportunity: ArbitrageOpportunity;
   isConfirmed: boolean;
   confirmationData: {
+    /** True only when an independent source agreed on the contract address. */
     contractIdMatch: boolean;
+    /** True only when an independent source agreed on the chain. */
     chainIdMatch: boolean;
     liquidityValid: boolean;
     volumeValid: boolean;
+    /**
+     * Whether contract and chain were checked against anything at all.
+     * False when DexScreener is switched off, in which case the two match
+     * flags above are not evidence - they are simply unknown.
+     */
+    contractChecked: boolean;
     dexScreenerData: any;
   };
   aiAnalysis?: string;
@@ -39,47 +47,39 @@ export class OpportunityConfirmationService {
   /**
    * Validate an opportunity against DexScreener (enabled by default).
    *
-   * WARNING about the disabled branch below: with DEXSCREENER_ENABLED=false
-   * there is no independent source to validate against, so it checks only that
-   * the enriched fields are non-empty. That confirms the data exists, not that
-   * it is correct - a fabricated contract address passes. Treat the results of
-   * that branch as "present", never as "verified".
+   * contractIdMatch and chainIdMatch mean "an independent source agreed" and
+   * nothing else. With DEXSCREENER_ENABLED=false, or when DexScreener returns
+   * no data, there is nothing to agree with, so both stay false and
+   * contractChecked records that no comparison happened - rather than the
+   * enriched data being compared against itself.
    */
-  private async validateWithDexScreener(opportunity: ArbitrageOpportunity): Promise<{
-    contractIdMatch: boolean;
-    chainIdMatch: boolean;
-    liquidityValid: boolean;
-    volumeValid: boolean;
-    dexScreenerData: any;
-  }> {
-    const result = {
+  private async validateWithDexScreener(opportunity: ArbitrageOpportunity): Promise<ConfirmedOpportunity['confirmationData']> {
+    const result: ConfirmedOpportunity['confirmationData'] = {
       contractIdMatch: false,
       chainIdMatch: false,
       liquidityValid: false,
       volumeValid: false,
+      contractChecked: false,
       dexScreenerData: null
     };
 
+    // Liquidity and volume come from the exchange tickers, so they are the same
+    // evidence either way.
+    result.liquidityValid = opportunity.volume > 1000; // Minimum $1000 liquidity
+    result.volumeValid = opportunity.volume > 500;     // Minimum $500 volume
+
     // Check if DexScreener is enabled
     if (!config.dexScreener.enabled) {
-      console.log(`🚫 [VALIDATION] DexScreener validation DISABLED (config.dexScreener.enabled = false)`);
-      console.log(`   Using Claude AI data exclusively for validation`);
-      console.log(`   Token: ${opportunity.symbol}`);
-      console.log(`   Contract Address (from Claude): ${opportunity.contractAddress || 'NOT SET'}`);
-      console.log(`   Chain ID (from Claude): ${opportunity.chainId || 'NOT SET'}`);
-      console.log(`   Chain Name (from Claude): ${opportunity.chainName || 'NOT SET'}`);
-
-      // Use Claude AI extracted data for validation
-      result.contractIdMatch = !!opportunity.contractAddress && opportunity.contractAddress !== 'NOT FOUND';
-      result.chainIdMatch = !!opportunity.chainId && opportunity.chainId !== 'NOT FOUND';
-      result.liquidityValid = opportunity.volume > 1000; // Minimum $1000 liquidity
-      result.volumeValid = opportunity.volume > 500; // Minimum $500 volume
-
-      console.log(`   ✅ Validation Results (Claude-based):`);
-      console.log(`      Contract ID Match: ${result.contractIdMatch ? '✓' : '✗'}`);
-      console.log(`      Chain ID Match:    ${result.chainIdMatch ? '✓' : '✗'}`);
-      console.log(`      Liquidity Valid:   ${result.liquidityValid ? '✓' : '✗'} (${opportunity.volume.toFixed(2)} > 1000)`);
-      console.log(`      Volume Valid:      ${result.volumeValid ? '✓' : '✗'} (${opportunity.volume.toFixed(2)} > 500)`);
+      // Nothing independent to compare against, so contract and chain stay
+      // unmatched. They previously became true whenever the enriched fields
+      // were merely non-empty - the enriched data confirming itself - which
+      // meant a fabricated address scored two of the four criteria and passed
+      // the >= 2 threshold on its own.
+      console.log(`🚫 [VALIDATION] DexScreener disabled - contract and chain cannot be verified for ${opportunity.symbol}`);
+      console.log(`   Enriched values (unverified): contract=${opportunity.contractAddress || 'NOT SET'}, chain=${opportunity.chainId || 'NOT SET'}`);
+      console.log(`   Liquidity Valid: ${result.liquidityValid ? '✓' : '✗'} (${opportunity.volume.toFixed(2)} > 1000)`);
+      console.log(`   Volume Valid:    ${result.volumeValid ? '✓' : '✗'} (${opportunity.volume.toFixed(2)} > 500)`);
+      console.log(`   Set DEXSCREENER_ENABLED=true to verify the address against a real index.`);
 
       return result;
     }
@@ -93,9 +93,12 @@ export class OpportunityConfirmationService {
       result.dexScreenerData = dexData;
 
       if (!dexData) {
-        console.log(`   ⚠️  No DexScreener data found for ${opportunity.symbol}`);
+        // No independent data arrived, so nothing was actually compared.
+        console.log(`   ⚠️  No DexScreener data found for ${opportunity.symbol} - contract left unverified`);
         return result;
       }
+
+      result.contractChecked = true;
 
       // Check contract ID match if available
       if (opportunity.contractAddress && dexData.tokenAddress) {
@@ -108,10 +111,6 @@ export class OpportunityConfirmationService {
         result.chainIdMatch = this.normalizeChainId(opportunity.chainId) ===
                               this.normalizeChainId(dexData.chainId);
       }
-
-      // Validate liquidity and volume (basic checks)
-      result.liquidityValid = opportunity.volume > 1000; // Minimum $1000 liquidity
-      result.volumeValid = opportunity.volume > 500; // Minimum $500 volume
 
       console.log(`   ✅ DexScreener Validation Results:`);
       console.log(`      Contract ID Match: ${result.contractIdMatch ? '✓' : '✗'}`);
@@ -134,18 +133,36 @@ export class OpportunityConfirmationService {
   }
 
   /**
-   * Check if opportunity is confirmed based on validation criteria
+   * Decide whether an opportunity counts as confirmed.
+   *
+   * This used to count "at least 2 of 4 criteria", which did not work as a
+   * threshold for two reasons. liquidityValid and volumeValid are the same
+   * measurement compared against two thresholds - volume > 1000 implies
+   * volume > 500 - so any liquid token scored 2 on its own and passed without
+   * anything being verified. And because a contradicted address simply scored
+   * 0 on the two match flags rather than disqualifying anything, an
+   * opportunity whose contract DexScreener explicitly disagreed with was
+   * confirmed anyway.
+   *
+   * The rule now: adequate volume is necessary, and a contract that was
+   * actually checked must not have been contradicted.
    */
-  private isOpportunityConfirmed(validationResult: any): boolean {
-    // Require at least 2 out of 4 validation criteria
-    const validCriteria = [
-      validationResult.contractIdMatch,
-      validationResult.chainIdMatch,
-      validationResult.liquidityValid,
-      validationResult.volumeValid
-    ].filter(Boolean).length;
+  private isOpportunityConfirmed(
+    validationResult: ConfirmedOpportunity['confirmationData']
+  ): boolean {
+    // One measurement, so it counts once.
+    if (!validationResult.liquidityValid || !validationResult.volumeValid) {
+      return false;
+    }
 
-    return validCriteria >= 2;
+    // Where an independent source was consulted, it has to agree. Chain alone
+    // is enough when the address itself was not available on both sides.
+    if (validationResult.contractChecked) {
+      return validationResult.contractIdMatch || validationResult.chainIdMatch;
+    }
+
+    // Nothing was verifiable; volume is all the evidence there is.
+    return true;
   }
 
   /**

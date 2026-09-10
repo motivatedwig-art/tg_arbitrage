@@ -3,10 +3,18 @@ export interface ConfirmedOpportunity {
     opportunity: ArbitrageOpportunity;
     isConfirmed: boolean;
     confirmationData: {
+        /** True only when an independent source agreed on the contract address. */
         contractIdMatch: boolean;
+        /** True only when an independent source agreed on the chain. */
         chainIdMatch: boolean;
         liquidityValid: boolean;
         volumeValid: boolean;
+        /**
+         * Whether contract and chain were checked against anything at all.
+         * False when DexScreener is switched off, in which case the two match
+         * flags above are not evidence - they are simply unknown.
+         */
+        contractChecked: boolean;
         dexScreenerData: any;
     };
     aiAnalysis?: string;
@@ -21,11 +29,11 @@ export declare class OpportunityConfirmationService {
     /**
      * Validate an opportunity against DexScreener (enabled by default).
      *
-     * WARNING about the disabled branch below: with DEXSCREENER_ENABLED=false
-     * there is no independent source to validate against, so it checks only that
-     * the enriched fields are non-empty. That confirms the data exists, not that
-     * it is correct - a fabricated contract address passes. Treat the results of
-     * that branch as "present", never as "verified".
+     * contractIdMatch and chainIdMatch mean "an independent source agreed" and
+     * nothing else. With DEXSCREENER_ENABLED=false, or when DexScreener returns
+     * no data, there is nothing to agree with, so both stay false and
+     * contractChecked records that no comparison happened - rather than the
+     * enriched data being compared against itself.
      */
     private validateWithDexScreener;
     /**
@@ -33,7 +41,19 @@ export declare class OpportunityConfirmationService {
      */
     private normalizeChainId;
     /**
-     * Check if opportunity is confirmed based on validation criteria
+     * Decide whether an opportunity counts as confirmed.
+     *
+     * This used to count "at least 2 of 4 criteria", which did not work as a
+     * threshold for two reasons. liquidityValid and volumeValid are the same
+     * measurement compared against two thresholds - volume > 1000 implies
+     * volume > 500 - so any liquid token scored 2 on its own and passed without
+     * anything being verified. And because a contradicted address simply scored
+     * 0 on the two match flags rather than disqualifying anything, an
+     * opportunity whose contract DexScreener explicitly disagreed with was
+     * confirmed anyway.
+     *
+     * The rule now: adequate volume is necessary, and a contract that was
+     * actually checked must not have been contradicted.
      */
     private isOpportunityConfirmed;
     /**
