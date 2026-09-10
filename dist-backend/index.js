@@ -1,12 +1,15 @@
-import dotenv from 'dotenv';
+// MUST be the first import: ES modules are evaluated depth-first in the order
+// their imports are declared, so every module below is fully evaluated before
+// any statement in this file body runs. Calling dotenv.config() in the body
+// (as this file used to) loads .env AFTER config/environment.ts and
+// ClaudeAnalyzer.ts have already read process.env - i.e. too late.
+import 'dotenv/config';
 import { CryptoArbitrageBot } from './bot/TelegramBot.js';
 import { UnifiedArbitrageService } from './services/UnifiedArbitrageService.js';
 import { DatabaseManager } from './database/Database.js';
 import { WebAppServer } from './webapp/server.js';
 import { DexScreenerService } from './services/DexScreenerService.js';
 import cron from 'node-cron';
-// Load environment variables
-dotenv.config();
 // Validate environment
 if (process.env.NODE_ENV === 'production') {
     process.env.USE_MOCK_DATA = 'false'; // Force disable mock data in production
@@ -117,6 +120,20 @@ class CryptoArbitrageApp {
                 }
             }).catch((error) => {
                 console.warn('⚠️ Failed to load blockchain scanner job:', error);
+            });
+        }
+        // Start blockchain rescan job (every hour) - Identifies and fixes opportunities with unknown blockchain data
+        if (process.env.BLOCKCHAIN_RESCAN_ENABLED !== 'false') {
+            import('./jobs/BlockchainRescanJob.js').then(({ blockchainRescanJob }) => {
+                try {
+                    blockchainRescanJob.schedule();
+                    console.log('✅ Blockchain rescan job scheduled (runs every hour)');
+                }
+                catch (error) {
+                    console.warn('⚠️ Failed to start blockchain rescan job:', error);
+                }
+            }).catch((error) => {
+                console.warn('⚠️ Failed to load blockchain rescan job:', error);
             });
         }
         console.log('✅ Application startup sequence completed!');

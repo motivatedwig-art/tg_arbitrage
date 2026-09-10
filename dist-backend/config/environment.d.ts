@@ -53,6 +53,9 @@ export interface EnvironmentConfig {
         batchSize: number;
         rateLimitDelay: number;
     };
+    dexScreener: {
+        enabled: boolean;
+    };
     publicApiEndpoints: {
         binance: {
             price: string;

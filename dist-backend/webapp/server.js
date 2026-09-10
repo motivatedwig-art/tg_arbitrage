@@ -27,13 +27,15 @@ export class WebAppServer {
         // Configure CORS for Telegram and your domains
         this.app.use(cors({
             origin: (origin, callback) => {
+                // config.webappUrl is '' when the deployment URL is unknown; filter it
+                // out so an empty string never becomes an allowed origin.
                 const allowedOrigins = [
                     'https://web.telegram.org',
                     'https://telegram.org',
                     config.webappUrl,
                     'http://localhost:3000',
                     'http://localhost:5173'
-                ];
+                ].filter(Boolean);
                 if (!origin || allowedOrigins.includes(origin) || origin.includes('.telegram.org')) {
                     callback(null, true);
                 }
@@ -716,6 +718,62 @@ export class WebAppServer {
                     success: false,
                     error: 'Internal server error',
                     details: error.message
+                });
+            }
+        });
+        // Blockchain rescan endpoints - Identify and fix opportunities with unknown blockchain data
+        this.app.get('/api/rescan/status', async (req, res) => {
+            try {
+                const { blockchainRescanService } = await import('../services/BlockchainRescanService.js');
+                const unknownCount = await blockchainRescanService.getUnknownCount();
+                const isRunning = blockchainRescanService.isRescanRunning();
+                res.json({
+                    success: true,
+                    unknownOpportunities: unknownCount,
+                    rescanInProgress: isRunning,
+                    message: unknownCount > 0
+                        ? `Found ${unknownCount} opportunities with unknown/missing blockchain data`
+                        : 'All opportunities have valid blockchain data'
+                });
+            }
+            catch (error) {
+                console.error('Rescan status error:', error);
+                res.status(500).json({
+                    success: false,
+                    error: error.message || 'Failed to get rescan status'
+                });
+            }
+        });
+        this.app.post('/api/rescan/trigger', async (req, res) => {
+            try {
+                const { blockchainRescanService } = await import('../services/BlockchainRescanService.js');
+                console.log('🔄 [RESCAN-API] Manual rescan triggered via API');
+                // Check if rescan is already running
+                if (blockchainRescanService.isRescanRunning()) {
+                    res.json({
+                        success: false,
+                        message: 'Rescan is already in progress. Please wait for it to complete.',
+                        error: 'RESCAN_IN_PROGRESS'
+                    });
+                    return;
+                }
+                // Start rescan in background
+                blockchainRescanService.runRescan().then(result => {
+                    console.log(`✅ [RESCAN-API] Rescan completed: ${result.successful}/${result.total} successful`);
+                }).catch(error => {
+                    console.error('❌ [RESCAN-API] Rescan failed:', error);
+                });
+                res.json({
+                    success: true,
+                    message: 'Blockchain rescan started! This will identify and fix opportunities with unknown blockchain data using Claude AI.',
+                    timestamp: new Date().toISOString()
+                });
+            }
+            catch (error) {
+                console.error('❌ [RESCAN-API] Error:', error);
+                res.status(500).json({
+                    success: false,
+                    error: error.message || 'Failed to trigger rescan'
                 });
             }
         });
