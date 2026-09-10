@@ -29,7 +29,12 @@ interface CostMetrics {
 }
 
 export class ClaudeAnalyzer {
-  private client: Anthropic;
+  // Created on first use, not in the constructor. This module exports a
+  // singleton, so throwing during construction aborted the import of every
+  // module that depends on it - which meant a missing ANTHROPIC_API_KEY took
+  // down the entire bot instead of just disabling AI enrichment.
+  private client: Anthropic | null = null;
+  private missingKeyWarningLogged: boolean = false;
   private analysisPrompt: string;
   private contractPrompt: string;
   private config: {
@@ -49,15 +54,6 @@ export class ClaudeAnalyzer {
   };
 
   constructor() {
-    const apiKey = process.env.ANTHROPIC_API_KEY;
-    if (!apiKey) {
-      throw new Error('ANTHROPIC_API_KEY environment variable is required');
-    }
-
-    this.client = new Anthropic({
-      apiKey: apiKey,
-    });
-
     // Prompt for legacy opportunity analysis
     this.analysisPrompt = `Ты - эксперт по криптовалютному арбитражу. Анализируешь возможности и объясняешь рыночные неэффективности.
 
@@ -99,6 +95,46 @@ export class ClaudeAnalyzer {
     };
   }
 
+  /**
+   * Resolve the API key at call time rather than at construction time, so that
+   * a key exported after this module was first imported is still picked up.
+   */
+  private resolveApiKey(): string {
+    return (process.env.ANTHROPIC_API_KEY || '').trim();
+  }
+
+  /**
+   * True when AI enrichment can actually run. Callers should check this and
+   * fall back to a non-AI path instead of relying on the request failing.
+   */
+  public isEnabled(): boolean {
+    return this.resolveApiKey() !== '';
+  }
+
+  /**
+   * Lazily construct the SDK client. Returns null - never throws - when no key
+   * is configured, so a missing key degrades AI enrichment instead of taking
+   * down whatever imported this module.
+   */
+  private getClient(): Anthropic | null {
+    if (this.client) {
+      return this.client;
+    }
+
+    const apiKey = this.resolveApiKey();
+    if (!apiKey) {
+      if (!this.missingKeyWarningLogged) {
+        console.warn('⚠️ [CLAUDE-ANALYZER] ANTHROPIC_API_KEY is not set - AI enrichment is disabled.');
+        console.warn('   Set ANTHROPIC_API_KEY to enable opportunity analysis and contract extraction.');
+        this.missingKeyWarningLogged = true;
+      }
+      return null;
+    }
+
+    this.client = new Anthropic({ apiKey });
+    return this.client;
+  }
+
   private createAnalysisPrompt(opportunity: ArbitrageOpportunity): string {
     return `Token: ${opportunity.symbol}
 Chain: ${opportunity.chain}
@@ -134,6 +170,12 @@ Gas (если DEX): $${opportunity.gas_cost_usd.toFixed(2)}
       return cachedAnalysis;
     }
 
+    // Cached results are still served above; only live calls need a client.
+    const client = this.getClient();
+    if (!client) {
+      return '⚠️ AI-анализ недоступен: не задан ANTHROPIC_API_KEY';
+    }
+
     // Format compact data for analysis
     const prompt = `Token: ${opportunity.symbol} (${opportunity.chain})
 Спред: ${opportunity.spread_percentage.toFixed(2)}%
@@ -147,7 +189,7 @@ Gas: $${opportunity.gas_cost_usd.toFixed(2)}`;
 
     try {
       const startTime = Date.now();
-      const response = await this.client.messages.create({
+      const response = await client.messages.create({
         model: this.config.model,
         max_tokens: this.config.max_tokens,
         temperature: this.config.temperature,
@@ -242,6 +284,15 @@ Gas: $${opportunity.gas_cost_usd.toFixed(2)}`;
       return cachedData;
     }
 
+    // Cached results are still served above; only live calls need a client.
+    const client = this.getClient();
+    if (!client) {
+      console.warn(`⚠️ [CLAUDE-CONTRACT][${requestId}] Skipped for ${tokenSymbol} - AI enrichment disabled (no ANTHROPIC_API_KEY)`);
+      console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+      console.log('');
+      return this.emptyContractData();
+    }
+
     const prompt = `Извлеки данные контракта для токена: ${tokenSymbol}
 Описание: ${tokenDescription}
 
@@ -267,7 +318,7 @@ Gas: $${opportunity.gas_cost_usd.toFixed(2)}`;
       const startTime = Date.now();
       console.log(`⏳ [CLAUDE-CONTRACT][${requestId}] Waiting for API response...`);
 
-      const response = await this.client.messages.create({
+      const response = await client.messages.create({
         model: this.config.model,
         max_tokens: this.config.max_tokens,
         temperature: this.config.temperature,
@@ -330,14 +381,22 @@ Gas: $${opportunity.gas_cost_usd.toFixed(2)}`;
       console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
       console.log('');
 
-      return {
-        contract_address: null,
-        chain_id: null,
-        chain_name: null,
-        is_verified: null,
-        decimals: null
-      };
+      return this.emptyContractData();
     }
+  }
+
+  /**
+   * The "we could not determine anything" result. Callers treat every field
+   * being null as "no contract data", which is the safe outcome.
+   */
+  private emptyContractData(): ContractDataResponse {
+    return {
+      contract_address: null,
+      chain_id: null,
+      chain_name: null,
+      is_verified: null,
+      decimals: null
+    };
   }
 
   private parseContractData(raw: string): ContractDataResponse {
@@ -352,13 +411,7 @@ Gas: $${opportunity.gas_cost_usd.toFixed(2)}`;
       };
     } catch (error) {
       console.warn('Failed to parse Claude contract data response:', raw);
-      return {
-        contract_address: null,
-        chain_id: null,
-        chain_name: null,
-        is_verified: null,
-        decimals: null
-      };
+      return this.emptyContractData();
     }
   }
 }
