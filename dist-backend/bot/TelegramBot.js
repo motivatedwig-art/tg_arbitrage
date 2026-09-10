@@ -5,27 +5,20 @@ import { CallbackHandler } from './handlers/CallbackHandler.js';
 import { ClaudeCommandHandler } from './handlers/ClaudeCommandHandler.js';
 import { i18n } from '../utils/i18n.js';
 import { config } from '../config/environment.js';
-// Optional: SummaryService (may not be available in all deployments)
-let SummaryService = null;
-try {
-    const summaryModule = require('../services/SummaryService.js');
-    SummaryService = summaryModule.SummaryService;
-}
-catch (error) {
-    console.log('⚠️  SummaryService not available (optional feature)');
-}
-// Optional: Contracts command handler (requires Python)
-let ContractsCommandHandler = null;
-try {
-    const contractsModule = require('./handlers/ContractsCommandHandler.js');
-    ContractsCommandHandler = contractsModule.ContractsCommandHandler;
-}
-catch (error) {
-    console.log('⚠️  ContractsCommandHandler not available (Python integration optional)');
-}
+// These were previously loaded with require() inside a try/catch. This package
+// is ESM ("type": "module"), where `require` is not defined at all, so both
+// loads threw on every startup and logged "not available" as if the features
+// had merely been switched off. They had never run.
+//
+// ContractsCommandHandler shells out to Python, but only when a command is
+// invoked - importing it has no side effects - so its real availability is
+// checked at runtime below rather than by whether the module can be loaded.
+import { SummaryService } from '../services/SummaryService.js';
+import { ContractsCommandHandler } from './handlers/ContractsCommandHandler.js';
 export class CryptoArbitrageBot {
     constructor(token) {
-        this.contractsHandler = null; // Optional Python integration
+        // Created in start() only when the Python bridge is actually usable.
+        this.contractsHandler = null;
         this.isRunning = false;
         this.summaryInterval = null;
         this.highProfitDeals = [];
@@ -36,16 +29,6 @@ export class CryptoArbitrageBot {
         this.commandHandler = new CommandHandler(this.bot);
         this.callbackHandler = new CallbackHandler(this.bot);
         this.claudeHandler = new ClaudeCommandHandler(this.bot);
-        // Initialize contracts handler if available
-        if (ContractsCommandHandler) {
-            try {
-                this.contractsHandler = new ContractsCommandHandler(this.bot);
-                console.log('✅ Contracts command handler initialized');
-            }
-            catch (error) {
-                console.warn('⚠️  Failed to initialize contracts handler:', error);
-            }
-        }
         this.setupErrorHandling();
     }
     setupEnvironmentLogging() {
@@ -75,9 +58,12 @@ export class CryptoArbitrageBot {
             this.commandHandler.registerCommands();
             this.callbackHandler.registerCallbacks();
             this.claudeHandler.registerCommands();
-            // Register contracts commands if available
-            if (this.contractsHandler) {
+            // Register contract commands only where the Python bridge can run.
+            // Registering them without it would leave users with commands that
+            // always answer with a connection error.
+            if (await ContractsCommandHandler.isAvailable()) {
                 try {
+                    this.contractsHandler = new ContractsCommandHandler(this.bot);
                     this.contractsHandler.registerCommands();
                 }
                 catch (error) {
@@ -214,10 +200,6 @@ export class CryptoArbitrageBot {
     // Method to send 4-hour summary to subscribed users
     async send4HourSummary() {
         try {
-            if (!SummaryService) {
-                console.log('⚠️  SummaryService not available, skipping summary');
-                return;
-            }
             const users = await this.db.getUserModel().getAllActiveUsers();
             const subscribedUsers = users.filter(user => user.preferences.notifications);
             if (subscribedUsers.length === 0) {
