@@ -179,22 +179,46 @@ const getWebappUrl = (): string => {
   return 'https://webapp-production-c779.up.railway.app';
 };
 
-// Get environment variable as number
+// Get environment variable as number.
+//
+// Uses Number(), not parseInt(): parseInt('0.5', 10) is 0, so
+// MIN_PROFIT_THRESHOLD=0.5 silently became a threshold of 0 and every
+// near-zero spread was reported as an opportunity. parseInt also accepted
+// '12abc' as 12; Number() rejects it, and an unparseable value now falls back
+// to the default with a warning rather than poisoning the config with NaN.
+//
+// Callers that need a whole number (a port, a token count) should truncate at
+// the point of use - see `port` and `claudeMaxTokens` below.
 const getEnvNumber = (key: string, defaultValue: number): number => {
-  const isBrowser = typeof window !== 'undefined';
-  const value = isBrowser 
-    ? (import.meta as any).env?.[key] || process.env[key]
-    : process.env[key];
-  return value ? parseInt(value, 10) : defaultValue;
+  const raw = readRawEnv(key);
+  if (raw === undefined) {
+    return defaultValue;
+  }
+
+  const parsed = Number(raw);
+  if (!Number.isFinite(parsed)) {
+    console.warn(`⚠️ [CONFIG] ${key}="${raw}" is not a number - using default ${defaultValue}`);
+    return defaultValue;
+  }
+
+  return parsed;
 };
 
-// Get environment variable as boolean
+// Get environment variable as boolean.
+// Accepts the common spellings rather than only "true", so DEBUG=1 and
+// DEXSCREENER_ENABLED=yes behave as written instead of silently reading false.
 const getEnvBoolean = (key: string, defaultValue: boolean): boolean => {
-  const isBrowser = typeof window !== 'undefined';
-  const value = isBrowser 
-    ? (import.meta as any).env?.[key] || process.env[key]
-    : process.env[key];
-  return value ? value.toLowerCase() === 'true' : defaultValue;
+  const raw = readRawEnv(key);
+  if (raw === undefined) {
+    return defaultValue;
+  }
+
+  const value = raw.toLowerCase();
+  if (['true', '1', 'yes', 'on'].includes(value)) return true;
+  if (['false', '0', 'no', 'off'].includes(value)) return false;
+
+  console.warn(`⚠️ [CONFIG] ${key}="${raw}" is not a boolean - using default ${defaultValue}`);
+  return defaultValue;
 };
 
 // Environment configuration
@@ -212,7 +236,8 @@ export const config: EnvironmentConfig = {
   apiUrl: getEnvVar('VITE_API_URL', 'https://web.telegram.org'),
   
   // Application Settings
-  port: getEnvNumber('PORT', 3000),
+  // Truncated: a port must be a whole number.
+  port: Math.trunc(getEnvNumber('PORT', 3000)),
   nodeEnv: getEnvVar('NODE_ENV', 'development'),
   updateInterval: getEnvNumber('UPDATE_INTERVAL', 600000),
   minProfitThreshold: getEnvNumber('MIN_PROFIT_THRESHOLD', 0.5),
@@ -277,7 +302,8 @@ export const config: EnvironmentConfig = {
   claudeModel: getEnvVar('CLAUDE_MODEL', 'claude-haiku-4-5'),
   // 100 was not enough for the contract-extraction JSON to finish rendering,
   // so responses were being truncated and failing to parse.
-  claudeMaxTokens: getEnvNumber('CLAUDE_MAX_TOKENS', 1024),
+  // Truncated: the API rejects a non-integer max_tokens.
+  claudeMaxTokens: Math.trunc(getEnvNumber('CLAUDE_MAX_TOKENS', 1024)),
   claudeCacheTtl: getEnvNumber('CLAUDE_CACHE_TTL', 300),
 
   // Contract Data Configuration
