@@ -1,4 +1,22 @@
 import Anthropic from '@anthropic-ai/sdk';
+import { config as appConfig } from '../config/environment.js';
+
+/**
+ * Published per-million-token prices, used only for the cost estimate in the
+ * logs. Matched by prefix so dated snapshots resolve to their base model.
+ * Longest prefix wins, so more specific entries take precedence.
+ */
+const MODEL_PRICING: Array<{ prefix: string; input: number; output: number }> = [
+  { prefix: 'claude-fable-5', input: 10.0, output: 50.0 },
+  { prefix: 'claude-mythos-5', input: 10.0, output: 50.0 },
+  { prefix: 'claude-opus-5', input: 5.0, output: 25.0 },
+  { prefix: 'claude-opus-4', input: 5.0, output: 25.0 },
+  { prefix: 'claude-sonnet-5', input: 2.0, output: 10.0 },
+  { prefix: 'claude-sonnet-4', input: 3.0, output: 15.0 },
+  { prefix: 'claude-haiku-4', input: 1.0, output: 5.0 },
+  { prefix: 'claude-3-5-haiku', input: 0.8, output: 4.0 },
+  { prefix: 'claude-3-haiku', input: 0.25, output: 1.25 }
+];
 
 interface ArbitrageOpportunity {
   symbol: string;
@@ -43,7 +61,10 @@ export class ClaudeAnalyzer {
     temperature: number;
   };
   private analysisCache: Map<string, { analysis: string; timestamp: number }> = new Map();
-  private cacheTtl: number = 300; // 5 minutes
+  // Seconds. Driven by CLAUDE_CACHE_TTL - was previously hardcoded here, which
+  // silently overrode the configured value.
+  private cacheTtl: number;
+  private pricing: { input: number; output: number };
 
   // Cost tracking
   private costMetrics: CostMetrics = {
@@ -87,12 +108,37 @@ export class ClaudeAnalyzer {
 4. НИКАКОГО анализа или комментариев - только данные
 5. Используй официальные источники: Etherscan, BscScan, Polygonscan`;
 
-    // Cost optimization settings shared across prompts
+    // Request settings shared across prompts. These come from the environment
+    // (CLAUDE_MODEL / CLAUDE_MAX_TOKENS / CLAUDE_CACHE_TTL) rather than being
+    // hardcoded here - previously the config fields existed but were never
+    // read, so setting those variables had no effect on the request at all.
     this.config = {
-      model: "claude-3-5-haiku-20241022",
-      max_tokens: 200, // More tokens for JSON response
-      temperature: 0,   // Deterministic responses
+      model: appConfig.claudeModel,
+      max_tokens: appConfig.claudeMaxTokens,
+      temperature: 0, // Deterministic responses - extraction must not vary
     };
+    this.cacheTtl = appConfig.claudeCacheTtl;
+    this.pricing = ClaudeAnalyzer.resolvePricing(this.config.model);
+
+    console.log(`🔧 [CLAUDE-ANALYZER] model=${this.config.model} max_tokens=${this.config.max_tokens} cache_ttl=${this.cacheTtl}s`);
+  }
+
+  /**
+   * Look up per-million-token pricing for the configured model.
+   * Falls back to the Haiku tier and says so, rather than silently reporting
+   * costs computed from a price that belongs to a different model.
+   */
+  private static resolvePricing(model: string): { input: number; output: number } {
+    const match = MODEL_PRICING
+      .filter(entry => model.startsWith(entry.prefix))
+      .sort((a, b) => b.prefix.length - a.prefix.length)[0];
+
+    if (match) {
+      return { input: match.input, output: match.output };
+    }
+
+    console.warn(`⚠️ [CLAUDE-ANALYZER] No pricing entry for model "${model}" - cost estimates will be approximate.`);
+    return { input: 1.0, output: 5.0 };
   }
 
   /**
@@ -215,8 +261,8 @@ Gas: $${opportunity.gas_cost_usd.toFixed(2)}`;
       this.costMetrics.total_requests++;
       const inputTokens = response.usage?.input_tokens || 150;
       const outputTokens = response.usage?.output_tokens || 50;
-      const inputCost = (inputTokens / 1_000_000) * 0.25;
-      const outputCost = (outputTokens / 1_000_000) * 1.25;
+      const inputCost = (inputTokens / 1_000_000) * this.pricing.input;
+      const outputCost = (outputTokens / 1_000_000) * this.pricing.output;
       this.costMetrics.estimated_cost += inputCost + outputCost;
 
       console.log(`💰 [CLAUDE-ANALYZER][${requestId}] Cost: $${(inputCost + outputCost).toFixed(6)} (total: $${this.costMetrics.estimated_cost.toFixed(4)})`);
@@ -356,13 +402,13 @@ Gas: $${opportunity.gas_cost_usd.toFixed(2)}`;
       this.costMetrics.total_requests++;
       const inputTokens = response.usage?.input_tokens || 200;
       const outputTokens = response.usage?.output_tokens || 80;
-      const inputCost = (inputTokens / 1_000_000) * 0.25;
-      const outputCost = (outputTokens / 1_000_000) * 1.25;
+      const inputCost = (inputTokens / 1_000_000) * this.pricing.input;
+      const outputCost = (outputTokens / 1_000_000) * this.pricing.output;
       this.costMetrics.estimated_cost += inputCost + outputCost;
 
       console.log(`💰 [CLAUDE-CONTRACT][${requestId}] COST BREAKDOWN:`);
-      console.log(`   Input Cost:  $${inputCost.toFixed(6)} (${inputTokens} tokens @ $0.25/1M)`);
-      console.log(`   Output Cost: $${outputCost.toFixed(6)} (${outputTokens} tokens @ $1.25/1M)`);
+      console.log(`   Input Cost:  $${inputCost.toFixed(6)} (${inputTokens} tokens @ $${this.pricing.input}/1M)`);
+      console.log(`   Output Cost: $${outputCost.toFixed(6)} (${outputTokens} tokens @ $${this.pricing.output}/1M)`);
       console.log(`   This Call:   $${(inputCost + outputCost).toFixed(6)}`);
       console.log(`   Total Cost:  $${this.costMetrics.estimated_cost.toFixed(6)} (${this.costMetrics.total_requests} requests, ${this.costMetrics.cached_requests} cached)`);
       console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');

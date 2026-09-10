@@ -270,8 +270,14 @@ export const config: EnvironmentConfig = {
   // Optional at import time: a missing key must disable AI enrichment,
   // not crash the bot. ClaudeAnalyzer reports the missing key when first used.
   claudeApiKey: getEnvVar('ANTHROPIC_API_KEY', ''),
-  claudeModel: getEnvVar('CLAUDE_MODEL', 'claude-3-5-haiku-20241022'),
-  claudeMaxTokens: getEnvNumber('CLAUDE_MAX_TOKENS', 100),
+  // Keeps this project's deliberate choice of the Haiku tier for high-volume
+  // extraction, moved to the current generation (claude-3-5-haiku-20241022 is
+  // previous-generation). Set CLAUDE_MODEL=claude-opus-5 for markedly better
+  // extraction accuracy at a higher per-token price.
+  claudeModel: getEnvVar('CLAUDE_MODEL', 'claude-haiku-4-5'),
+  // 100 was not enough for the contract-extraction JSON to finish rendering,
+  // so responses were being truncated and failing to parse.
+  claudeMaxTokens: getEnvNumber('CLAUDE_MAX_TOKENS', 1024),
   claudeCacheTtl: getEnvNumber('CLAUDE_CACHE_TTL', 300),
 
   // Contract Data Configuration
