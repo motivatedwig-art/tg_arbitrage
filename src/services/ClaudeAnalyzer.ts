@@ -74,12 +74,29 @@ interface ArbitrageOpportunity {
   gas_cost_usd: number;
 }
 
+/** Why a lookup could not be completed, as opposed to completing and finding nothing. */
+export interface ContractDataError {
+  kind: 'auth' | 'permission' | 'model_not_found' | 'rate_limit' | 'bad_request'
+      | 'server' | 'timeout' | 'connection' | 'truncated' | 'refused'
+      | 'unreadable' | 'disabled' | 'unknown';
+  detail: string;
+  /** True when trying the same request again later could succeed. */
+  retryable: boolean;
+}
+
 interface ContractDataResponse {
   contract_address: string | null;
   chain_id: number | null;
   chain_name: string | null;
   is_verified: boolean | null;
   decimals: number | null;
+  /**
+   * Present only when the lookup failed. All-null fields with no `error` means
+   * the lookup succeeded and genuinely found nothing - a real answer that can
+   * be cached and stored. All-null fields WITH an `error` means we learned
+   * nothing, and callers must not record that as "already extracted".
+   */
+  error?: ContractDataError;
 }
 
 interface CostMetrics {
@@ -331,10 +348,13 @@ Gas: $${opportunity.gas_cost_usd.toFixed(2)}`;
       return analysis;
 
     } catch (error) {
-      console.error(`❌ [CLAUDE-ANALYZER][${requestId}] API error for ${opportunity.symbol}:`, error);
+      const classified = ClaudeAnalyzer.describeApiError(error, this.config.model);
+      console.error(`❌ [CLAUDE-ANALYZER][${requestId}] API error for ${opportunity.symbol}`);
       console.error(`   Error type: ${error instanceof Error ? error.constructor.name : typeof error}`);
-      console.error(`   Error message: ${error instanceof Error ? error.message : String(error)}`);
-      return `❌ Ошибка анализа: ${error instanceof Error ? error.message : 'Неизвестная ошибка'}`;
+      console.error(`   Classified as: ${classified.kind} (retryable=${classified.retryable})`);
+      console.error(`   ${classified.detail}`);
+      // Not cached - a transient failure must not suppress analysis for the TTL.
+      return `❌ Ошибка анализа (${classified.kind}): ${classified.detail}`;
     }
   }
 
@@ -397,7 +417,11 @@ Gas: $${opportunity.gas_cost_usd.toFixed(2)}`;
       console.warn(`⚠️ [CLAUDE-CONTRACT][${requestId}] Skipped for ${tokenSymbol} - AI enrichment disabled (no ANTHROPIC_API_KEY)`);
       console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
       console.log('');
-      return this.emptyContractData();
+      return this.emptyContractData({
+        kind: 'disabled',
+        detail: 'ANTHROPIC_API_KEY is not set - AI enrichment is disabled',
+        retryable: false
+      });
     }
 
     // The field list is expressed as concrete example VALUES, not as type
@@ -443,7 +467,11 @@ Gas: $${opportunity.gas_cost_usd.toFixed(2)}`;
         console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
         console.log('');
         // Not cached: this is a failure to obtain data, not a finding of "none".
-        return this.emptyContractData();
+        return this.emptyContractData({
+          kind: response.stop_reason === 'refusal' ? 'refused' : 'truncated',
+          detail: incomplete,
+          retryable: response.stop_reason !== 'refusal'
+        });
       }
 
       const raw = ClaudeAnalyzer.extractTextContent(response.content as Array<{ type: string; text?: string }>);
@@ -455,7 +483,11 @@ Gas: $${opportunity.gas_cost_usd.toFixed(2)}`;
         console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
         console.log('');
         // Not cached, for the same reason as above.
-        return this.emptyContractData();
+        return this.emptyContractData({
+          kind: 'unreadable',
+          detail: 'Response did not contain a readable JSON object',
+          retryable: true
+        });
       }
 
       // Log extraction results with detailed formatting
@@ -505,11 +537,14 @@ Gas: $${opportunity.gas_cost_usd.toFixed(2)}`;
       if (error instanceof Error && error.stack) {
         console.error(`   Stack Trace: ${error.stack.split('\n').slice(0, 3).join('\n   ')}`);
       }
+      const classified = ClaudeAnalyzer.describeApiError(error, this.config.model);
+      console.error(`   Classified as: ${classified.kind} (retryable=${classified.retryable})`);
+      console.error(`   ${classified.detail}`);
       console.error(`   Returning NULL values for all fields`);
       console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
       console.log('');
 
-      return this.emptyContractData();
+      return this.emptyContractData(classified);
     }
   }
 
@@ -517,13 +552,71 @@ Gas: $${opportunity.gas_cost_usd.toFixed(2)}`;
    * The "we could not determine anything" result. Callers treat every field
    * being null as "no contract data", which is the safe outcome.
    */
-  private emptyContractData(): ContractDataResponse {
+  private emptyContractData(error?: ContractDataError): ContractDataResponse {
     return {
       contract_address: null,
       chain_id: null,
       chain_name: null,
       is_verified: null,
-      decimals: null
+      decimals: null,
+      ...(error ? { error } : {})
+    };
+  }
+
+  /**
+   * Classify an SDK error into something a caller can act on.
+   *
+   * Both call sites previously used a single broad catch, so a bad API key, a
+   * 429, a network blip and a genuinely absent token all produced the same
+   * all-null result. That made "we are rate limited" indistinguishable from
+   * "this token has no contract", both in the logs and in the database.
+   *
+   * Ordered most-specific first: the timeout and 5xx classes are subclasses of
+   * APIConnectionError and APIError respectively.
+   */
+  private static describeApiError(error: unknown, model: string): ContractDataError {
+    if (error instanceof Anthropic.AuthenticationError) {
+      return { kind: 'auth', detail: 'ANTHROPIC_API_KEY is invalid, revoked, or lacks credit (401)', retryable: false };
+    }
+    if (error instanceof Anthropic.PermissionDeniedError) {
+      return { kind: 'permission', detail: `API key is not permitted to use model "${model}" (403)`, retryable: false };
+    }
+    if (error instanceof Anthropic.NotFoundError) {
+      return { kind: 'model_not_found', detail: `Model "${model}" does not exist (404) - check CLAUDE_MODEL`, retryable: false };
+    }
+    if (error instanceof Anthropic.RateLimitError) {
+      const retryAfter = error.headers?.get('retry-after');
+      return {
+        kind: 'rate_limit',
+        detail: `Rate limited (429)${retryAfter ? ` - retry after ${retryAfter}s` : ''}`,
+        retryable: true
+      };
+    }
+    if (error instanceof Anthropic.BadRequestError) {
+      return { kind: 'bad_request', detail: `Request rejected (400): ${error.message}`, retryable: false };
+    }
+    if (error instanceof Anthropic.InternalServerError) {
+      return { kind: 'server', detail: `Anthropic server error (${error.status})`, retryable: true };
+    }
+    if (error instanceof Anthropic.APIConnectionTimeoutError) {
+      return { kind: 'timeout', detail: 'Request to the Anthropic API timed out', retryable: true };
+    }
+    if (error instanceof Anthropic.APIConnectionError) {
+      return { kind: 'connection', detail: 'Could not reach the Anthropic API - check network or egress rules', retryable: true };
+    }
+    if (error instanceof Anthropic.APIError) {
+      const status = error.status;
+      return {
+        kind: 'unknown',
+        detail: `Anthropic API error${status ? ` (${status})` : ''}: ${error.message}`,
+        // Anything at or above 500 that is not already matched is worth retrying.
+        retryable: typeof status === 'number' && status >= 500
+      };
+    }
+    return {
+      kind: 'unknown',
+      detail: error instanceof Error ? error.message : String(error),
+      retryable: false
     };
   }
 

@@ -94,6 +94,17 @@ export class ContractDataService {
     console.log(`🤖 [CONTRACT-SERVICE] Calling Claude AI (PRIMARY ENRICHMENT) to extract contract data...`);
     const result = await claudeAnalyzer.extractContractData(opportunity.symbol, description);
 
+    // A failed lookup teaches us nothing about this token. Marking it as
+    // extracted anyway - which is what used to happen - meant a single rate
+    // limit or network blip permanently excluded the opportunity from every
+    // later enrichment pass, because the rescan filter skips anything already
+    // flagged as extracted.
+    if (result.error) {
+      console.warn(`⚠️ [CONTRACT-SERVICE] Extraction FAILED for ${opportunity.symbol}: ${result.error.kind} - ${result.error.detail}`);
+      console.warn(`   Leaving contractDataExtracted=false so it is retried${result.error.retryable ? '' : ' once the cause is fixed'}.`);
+      return;
+    }
+
     // CRITICAL: Enrich the opportunity object directly so it's inserted with enrichment data
     opportunity.contractAddress = result.contract_address || undefined;
     opportunity.chainId = result.chain_id !== null && result.chain_id !== undefined ? String(result.chain_id) : (result.chain_name || opportunity.chainId || undefined);
@@ -123,6 +134,13 @@ export class ContractDataService {
 
     console.log(`🤖 [CONTRACT-SERVICE] Calling Claude AI to extract contract data...`);
     const result = await claudeAnalyzer.extractContractData(opportunity.symbol, description);
+
+    // Do not overwrite stored data with nulls produced by a failed lookup.
+    if (result.error) {
+      console.warn(`⚠️ [CONTRACT-SERVICE] Extraction FAILED for ${opportunity.symbol}: ${result.error.kind} - ${result.error.detail}`);
+      console.warn(`   Nothing written to the database; existing data is left intact.`);
+      return null;
+    }
 
     const record: ContractDataRecord = {
       contractAddress: result.contract_address,
