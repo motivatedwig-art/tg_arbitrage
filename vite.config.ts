@@ -1,9 +1,9 @@
 import { defineConfig } from 'vite';
-import react from '@vitejs/plugin-react';
 import path from 'path';
 
+// The mini app is public/index.html - a standalone page with an inline script.
+// There is no JSX to transform, so no React plugin is needed.
 export default defineConfig({
-  plugins: [react()],
   root: '.',
   publicDir: 'public',
   build: {

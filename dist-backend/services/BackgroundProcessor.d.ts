@@ -1,3 +1,4 @@
+import 'dotenv/config';
 export declare class BackgroundProcessor {
     private db;
     private arbitrageScanner;

@@ -27,13 +27,15 @@ export class WebAppServer {
         // Configure CORS for Telegram and your domains
         this.app.use(cors({
             origin: (origin, callback) => {
+                // config.webappUrl is '' when the deployment URL is unknown; filter it
+                // out so an empty string never becomes an allowed origin.
                 const allowedOrigins = [
                     'https://web.telegram.org',
                     'https://telegram.org',
                     config.webappUrl,
                     'http://localhost:3000',
                     'http://localhost:5173'
-                ];
+                ].filter(Boolean);
                 if (!origin || allowedOrigins.includes(origin) || origin.includes('.telegram.org')) {
                     callback(null, true);
                 }
@@ -48,8 +50,10 @@ export class WebAppServer {
         // JSON middleware
         this.app.use(express.json());
         this.app.use(express.urlencoded({ extended: true }));
-        // Static files
-        this.app.use(express.static(path.join(__dirname, 'public')));
+        // Note: there is deliberately no express.static for __dirname/'public'.
+        // tsc emits only .js, so nothing is ever copied to dist-backend/webapp/public
+        // and that mount could only ever serve an empty directory. The mini app and
+        // its assets are served from dist/ below, where vite writes them.
     }
     // Authentication middleware for admin endpoints
     requireAuth(req, res, next) {
@@ -73,30 +77,30 @@ export class WebAppServer {
         next();
     }
     setupRoutes() {
-        // Serve React mini app (updated to serve from dist/index.html)
+        // Serve the mini app. `vite build` copies public/index.html to dist/index.html.
         this.app.get('/', (req, res) => {
             const miniappPath = path.join(__dirname, '../../dist/index.html');
             if (fs.existsSync(miniappPath)) {
                 res.sendFile(miniappPath);
             }
             else {
-                res.status(404).send('Mini app not found. Please build the React app first.');
+                res.status(404).send('Mini app not found - run `npm run build`. Health check at /api/health');
             }
         });
-        // Serve React mini app static assets
+        // Static assets emitted by the build
         this.app.use('/assets', express.static(path.join(__dirname, '../../dist/assets')));
         // Serve other static files
         this.app.use('/favicon.svg', express.static(path.join(__dirname, '../../dist/favicon.svg')));
         this.app.use('/manifest.webmanifest', express.static(path.join(__dirname, '../../dist/manifest.webmanifest')));
         this.app.use('/telegram-init.js', express.static(path.join(__dirname, '../../dist/telegram-init.js')));
-        // Fallback for React mini app routing
+        // Same page under /miniapp*, for links that use that prefix
         this.app.get('/miniapp*', (req, res) => {
             const miniappPath = path.join(__dirname, '../../dist/index.html');
             if (fs.existsSync(miniappPath)) {
                 res.sendFile(miniappPath);
             }
             else {
-                res.status(404).send('Mini app not found. Please build the React app first.');
+                res.status(404).send('Mini app not found - run `npm run build`. Health check at /api/health');
             }
         });
         // API Routes
@@ -719,6 +723,62 @@ export class WebAppServer {
                 });
             }
         });
+        // Blockchain rescan endpoints - Identify and fix opportunities with unknown blockchain data
+        this.app.get('/api/rescan/status', async (req, res) => {
+            try {
+                const { blockchainRescanService } = await import('../services/BlockchainRescanService.js');
+                const unknownCount = await blockchainRescanService.getUnknownCount();
+                const isRunning = blockchainRescanService.isRescanRunning();
+                res.json({
+                    success: true,
+                    unknownOpportunities: unknownCount,
+                    rescanInProgress: isRunning,
+                    message: unknownCount > 0
+                        ? `Found ${unknownCount} opportunities with unknown/missing blockchain data`
+                        : 'All opportunities have valid blockchain data'
+                });
+            }
+            catch (error) {
+                console.error('Rescan status error:', error);
+                res.status(500).json({
+                    success: false,
+                    error: error.message || 'Failed to get rescan status'
+                });
+            }
+        });
+        this.app.post('/api/rescan/trigger', async (req, res) => {
+            try {
+                const { blockchainRescanService } = await import('../services/BlockchainRescanService.js');
+                console.log('🔄 [RESCAN-API] Manual rescan triggered via API');
+                // Check if rescan is already running
+                if (blockchainRescanService.isRescanRunning()) {
+                    res.json({
+                        success: false,
+                        message: 'Rescan is already in progress. Please wait for it to complete.',
+                        error: 'RESCAN_IN_PROGRESS'
+                    });
+                    return;
+                }
+                // Start rescan in background
+                blockchainRescanService.runRescan().then(result => {
+                    console.log(`✅ [RESCAN-API] Rescan completed: ${result.successful}/${result.total} successful`);
+                }).catch(error => {
+                    console.error('❌ [RESCAN-API] Rescan failed:', error);
+                });
+                res.json({
+                    success: true,
+                    message: 'Blockchain rescan started! This will identify and fix opportunities with unknown blockchain data using Claude AI.',
+                    timestamp: new Date().toISOString()
+                });
+            }
+            catch (error) {
+                console.error('❌ [RESCAN-API] Error:', error);
+                res.status(500).json({
+                    success: false,
+                    error: error.message || 'Failed to trigger rescan'
+                });
+            }
+        });
         // Health check endpoint (simple, always works)
         this.app.get('/api/health', (req, res) => {
             try {
@@ -735,18 +795,19 @@ export class WebAppServer {
                 });
             }
         });
-        // Serve React app for all other routes (fallback)
+        // Serve the mini app for all other routes.
+        // dist/index.html is written by `vite build` (public/index.html is copied
+        // there as a publicDir asset). The previous second branch pointed at
+        // dist-backend/webapp/public/index.html, which tsc never produces, so it
+        // could not fire - and the file behind it was a stale 31KB copy of a page
+        // that is now 51KB. Both are gone; a missing build says so plainly.
         this.app.get('*', (req, res) => {
             const miniappPath = path.join(__dirname, '../../dist/index.html');
-            const fallbackPath = path.join(__dirname, 'public', 'index.html');
             if (fs.existsSync(miniappPath)) {
                 res.sendFile(miniappPath);
             }
-            else if (fs.existsSync(fallbackPath)) {
-                res.sendFile(fallbackPath);
-            }
             else {
-                res.status(404).send('Application not ready. Health check at /api/health');
+                res.status(404).send('Application not ready - run `npm run build`. Health check at /api/health');
             }
         });
     }

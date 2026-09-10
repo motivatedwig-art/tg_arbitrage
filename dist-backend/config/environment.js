@@ -1,76 +1,124 @@
-// Get environment variable with fallback
+// Read process.env without assuming `process` exists.
+// In a Vite browser bundle `process` is not defined at all, so touching it
+// directly throws a ReferenceError instead of returning undefined.
+const readProcessEnv = (key) => {
+    if (typeof process === 'undefined' || !process.env) {
+        return undefined;
+    }
+    return process.env[key];
+};
+// Read a raw environment value from Vite (browser) or process.env (Node).
+// A variable that is unset, empty, or whitespace-only is treated as absent:
+// Railway and .env files both represent "not configured" as an empty value.
+// The returned value is trimmed - every consumer here is a key, URL, number or
+// boolean, and a stray trailing newline in a dashboard-entered secret is a far
+// more likely bug than a value that legitimately ends in whitespace.
+const readRawEnv = (key) => {
+    const fromVite = import.meta?.env?.[key];
+    const raw = typeof fromVite === 'string' && fromVite !== '' ? fromVite : readProcessEnv(key);
+    if (typeof raw !== 'string') {
+        return undefined;
+    }
+    const trimmed = raw.trim();
+    return trimmed === '' ? undefined : trimmed;
+};
+// Get environment variable with fallback.
+//
+// Throws ONLY when the variable is absent and no default was supplied.
+// Passing an empty string as the default is how this codebase marks an optional
+// variable (e.g. getEnvVar('BINANCE_API_KEY', '')), so '' must be returned as a
+// legitimate value rather than treated as a missing variable.
 const getEnvVar = (key, defaultValue) => {
-    // Check if we're in a browser environment (Vite)
-    const isBrowser = typeof window !== 'undefined';
-    const value = isBrowser
-        ? import.meta.env?.[key] || process.env[key] || defaultValue
-        : process.env[key] || defaultValue;
-    if (!value) {
-        throw new Error(`Environment variable ${key} is required`);
+    const value = readRawEnv(key);
+    if (value !== undefined) {
+        return value;
     }
-    return value;
+    if (defaultValue !== undefined) {
+        return defaultValue;
+    }
+    throw new Error(`Environment variable ${key} is required`);
 };
-// Get webapp URL with Railway auto-detection
+// Get webapp URL, auto-detecting the Railway-assigned domain.
+//
+// Reads through readRawEnv so it does not touch process.env directly in a
+// browser bundle, where `process` is undefined.
+//
+// Returns '' when nothing identifies the deployment. That is deliberate: the
+// previous code fell back to a specific hardcoded deployment
+// (webapp-production-c779.up.railway.app) for every unknown environment, so a
+// fork or a new Railway project silently pointed its Telegram mini-app button
+// at somebody else's instance. Callers must treat '' as "not configured".
 const getWebappUrl = () => {
-    const isBrowser = typeof window !== 'undefined';
-    const envValue = isBrowser
-        ? import.meta.env?.WEBAPP_URL || process.env.WEBAPP_URL
-        : process.env.WEBAPP_URL;
-    // If WEBAPP_URL is explicitly set, use it
-    if (envValue) {
-        return envValue;
+    const explicit = readRawEnv('WEBAPP_URL');
+    if (explicit) {
+        return explicit;
     }
-    // Check if we're on Railway
-    // Railway typically sets these environment variables or we can detect by:
-    // - RAILWAY_ENVIRONMENT, RAILWAY_SERVICE_NAME (Railway-specific)
-    // - PORT is set (typical for Railway)
-    // - NODE_ENV is production (typical for Railway)
-    const isRailway = process.env.RAILWAY_ENVIRONMENT ||
-        process.env.RAILWAY_SERVICE_NAME ||
-        process.env.RAILWAY_PUBLIC_DOMAIN ||
-        (process.env.NODE_ENV === 'production' && process.env.PORT);
-    if (isRailway) {
-        // Try to get Railway public domain
-        const railwayDomain = process.env.RAILWAY_PUBLIC_DOMAIN ||
-            process.env.RAILWAY_STATIC_URL ||
-            process.env.RAILWAY_URL;
-        if (railwayDomain) {
-            // Ensure it starts with https://
-            const url = railwayDomain.startsWith('http') ? railwayDomain : `https://${railwayDomain}`;
-            return url;
-        }
-        // Fallback to default Railway URL
-        return 'https://webapp-production-c779.up.railway.app';
+    // Railway exposes the public domain without a scheme.
+    const railwayDomain = readRawEnv('RAILWAY_PUBLIC_DOMAIN')
+        || readRawEnv('RAILWAY_STATIC_URL')
+        || readRawEnv('RAILWAY_URL');
+    if (railwayDomain) {
+        return railwayDomain.startsWith('http') ? railwayDomain : `https://${railwayDomain}`;
     }
-    // Default Railway URL
-    return 'https://webapp-production-c779.up.railway.app';
+    return '';
 };
-// Get environment variable as number
+// Get environment variable as number.
+//
+// Uses Number(), not parseInt(): parseInt('0.5', 10) is 0, so
+// MIN_PROFIT_THRESHOLD=0.5 silently became a threshold of 0 and every
+// near-zero spread was reported as an opportunity. parseInt also accepted
+// '12abc' as 12; Number() rejects it, and an unparseable value now falls back
+// to the default with a warning rather than poisoning the config with NaN.
+//
+// Callers that need a whole number (a port, a token count) should truncate at
+// the point of use - see `port` and `claudeMaxTokens` below.
 const getEnvNumber = (key, defaultValue) => {
-    const isBrowser = typeof window !== 'undefined';
-    const value = isBrowser
-        ? import.meta.env?.[key] || process.env[key]
-        : process.env[key];
-    return value ? parseInt(value, 10) : defaultValue;
+    const raw = readRawEnv(key);
+    if (raw === undefined) {
+        return defaultValue;
+    }
+    const parsed = Number(raw);
+    if (!Number.isFinite(parsed)) {
+        console.warn(`⚠️ [CONFIG] ${key}="${raw}" is not a number - using default ${defaultValue}`);
+        return defaultValue;
+    }
+    return parsed;
 };
-// Get environment variable as boolean
+// Get environment variable as boolean.
+// Accepts the common spellings rather than only "true", so DEBUG=1 and
+// DEXSCREENER_ENABLED=yes behave as written instead of silently reading false.
 const getEnvBoolean = (key, defaultValue) => {
-    const isBrowser = typeof window !== 'undefined';
-    const value = isBrowser
-        ? import.meta.env?.[key] || process.env[key]
-        : process.env[key];
-    return value ? value.toLowerCase() === 'true' : defaultValue;
+    const raw = readRawEnv(key);
+    if (raw === undefined) {
+        return defaultValue;
+    }
+    const value = raw.toLowerCase();
+    if (['true', '1', 'yes', 'on'].includes(value))
+        return true;
+    if (['false', '0', 'no', 'off'].includes(value))
+        return false;
+    console.warn(`⚠️ [CONFIG] ${key}="${raw}" is not a boolean - using default ${defaultValue}`);
+    return defaultValue;
 };
 // Environment configuration
 export const config = {
     // Telegram Bot
-    telegramBotToken: getEnvVar('TELEGRAM_BOT_TOKEN'),
+    // Optional at import time on purpose: index.ts is written to start the web app
+    // without a bot token, and webapp/server.ts imports this module. Throwing here
+    // would kill the whole process before that fallback can run.
+    // Use validateConfig() to assert it where a token is actually required.
+    telegramBotToken: getEnvVar('TELEGRAM_BOT_TOKEN', ''),
     webappUrl: getWebappUrl(),
     // API Configuration
-    apiBaseUrl: getEnvVar('VITE_API_BASE_URL', 'https://web.telegram.org'),
-    apiUrl: getEnvVar('VITE_API_URL', 'https://web.telegram.org'),
+    // Empty means "not configured, use a same-origin relative path" - which is
+    // what the frontend does. The previous default was https://web.telegram.org,
+    // which is Telegram's own website and never serves this app's API; anything
+    // that trusted it would have sent every request to the wrong host.
+    apiBaseUrl: getEnvVar('VITE_API_BASE_URL', ''),
+    apiUrl: getEnvVar('VITE_API_URL', ''),
     // Application Settings
-    port: getEnvNumber('PORT', 3000),
+    // Truncated: a port must be a whole number.
+    port: Math.trunc(getEnvNumber('PORT', 3000)),
     nodeEnv: getEnvVar('NODE_ENV', 'development'),
     updateInterval: getEnvNumber('UPDATE_INTERVAL', 600000),
     minProfitThreshold: getEnvNumber('MIN_PROFIT_THRESHOLD', 0.5),
@@ -118,15 +166,34 @@ export const config = {
     // Security
     adminApiKey: getEnvVar('ADMIN_API_KEY', ''),
     // Claude AI Configuration
-    claudeApiKey: getEnvVar('ANTHROPIC_API_KEY'),
-    claudeModel: getEnvVar('CLAUDE_MODEL', 'claude-3-5-haiku-20241022'),
-    claudeMaxTokens: getEnvNumber('CLAUDE_MAX_TOKENS', 100),
+    // Optional at import time: a missing key must disable AI enrichment,
+    // not crash the bot. ClaudeAnalyzer reports the missing key when first used.
+    claudeApiKey: getEnvVar('ANTHROPIC_API_KEY', ''),
+    // Keeps this project's deliberate choice of the Haiku tier for high-volume
+    // extraction, moved to the current generation (claude-3-5-haiku-20241022 is
+    // previous-generation). Set CLAUDE_MODEL=claude-opus-5 for markedly better
+    // extraction accuracy at a higher per-token price.
+    claudeModel: getEnvVar('CLAUDE_MODEL', 'claude-haiku-4-5'),
+    // 100 was not enough for the contract-extraction JSON to finish rendering,
+    // so responses were being truncated and failing to parse.
+    // Truncated: the API rejects a non-integer max_tokens.
+    claudeMaxTokens: Math.trunc(getEnvNumber('CLAUDE_MAX_TOKENS', 1024)),
     claudeCacheTtl: getEnvNumber('CLAUDE_CACHE_TTL', 300),
     // Contract Data Configuration
     contractData: {
         enabled: getEnvBoolean('CONTRACT_DATA_ENABLED', true),
         batchSize: getEnvNumber('CONTRACT_DATA_BATCH_SIZE', 5),
         rateLimitDelay: getEnvNumber('CONTRACT_DATA_DELAY_MS', 1000),
+    },
+    // DexScreener Configuration
+    //
+    // Enabled by default: DexScreener returns an actual on-chain token address
+    // and chain from a real API, which a language model cannot do - it has no
+    // network access and can only recall or guess. Disabling this left contract
+    // metadata sourced entirely from guesses, and the "validation" step then
+    // checked those guesses against themselves.
+    dexScreener: {
+        enabled: getEnvBoolean('DEXSCREENER_ENABLED', true),
     },
     // Public API Endpoints
     publicApiEndpoints: {

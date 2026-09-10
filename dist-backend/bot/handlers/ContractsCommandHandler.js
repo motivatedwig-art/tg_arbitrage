@@ -1,12 +1,42 @@
 import { exec } from 'child_process';
+import { existsSync } from 'fs';
 import { promisify } from 'util';
 import { DatabaseManager } from '../../database/Database.js';
 import { i18n } from '../../utils/i18n.js';
 const execAsync = promisify(exec);
+/** Python entry point this handler shells out to, relative to the repo root. */
+const PYTHON_BRIDGE = 'app/integration_bridge.py';
 export class ContractsCommandHandler {
     constructor(bot) {
         this.bot = bot;
         this.db = DatabaseManager.getInstance();
+    }
+    /**
+     * Whether the Python side this handler depends on can actually run.
+     *
+     * The commands are only worth registering if they can succeed. The deploy
+     * image installs Node alone (nixpacks.toml lists nodejs_20 and nothing runs
+     * pip), so on Railway this is expected to be false and the commands stay
+     * unregistered rather than failing in front of a user.
+     */
+    static async isAvailable() {
+        if (!existsSync(PYTHON_BRIDGE)) {
+            console.log(`ℹ️  Contract commands disabled: ${PYTHON_BRIDGE} not found`);
+            return false;
+        }
+        for (const interpreter of ['python3', 'python']) {
+            try {
+                await execAsync(`${interpreter} --version`, { timeout: 5000 });
+                ContractsCommandHandler.interpreter = interpreter;
+                console.log(`✅ Contract commands enabled (${interpreter} available)`);
+                return true;
+            }
+            catch {
+                // Try the next interpreter name.
+            }
+        }
+        console.log('ℹ️  Contract commands disabled: no Python interpreter on PATH');
+        return false;
     }
     registerCommands() {
         console.log('🔧 Registering contract commands...');
@@ -49,8 +79,7 @@ export class ContractsCommandHandler {
             // Send "processing" message
             const processingMsg = await this.bot.sendMessage(msg.chat.id, lng === 'ru' ? '🔍 Поиск контрактов...' : '🔍 Searching contracts...');
             // Call Python bridge
-            const pythonScript = 'app/integration_bridge.py';
-            const command = `python ${pythonScript} contracts "${pair}" ${blockchain} ${lng}`;
+            const command = `${ContractsCommandHandler.interpreter} ${PYTHON_BRIDGE} contracts "${pair}" ${blockchain} ${lng}`;
             try {
                 const { stdout, stderr } = await execAsync(command, {
                     timeout: 10000, // 10 second timeout
@@ -100,8 +129,7 @@ export class ContractsCommandHandler {
             // Send "processing" message
             const processingMsg = await this.bot.sendMessage(msg.chat.id, lng === 'ru' ? '📊 Загрузка статистики...' : '📊 Loading statistics...');
             // Call Python bridge
-            const pythonScript = 'app/integration_bridge.py';
-            const command = `python ${pythonScript} api_stats ${hours} ${lng}`;
+            const command = `${ContractsCommandHandler.interpreter} ${PYTHON_BRIDGE} api_stats ${hours} ${lng}`;
             try {
                 const { stdout, stderr } = await execAsync(command, {
                     timeout: 10000,
@@ -146,4 +174,6 @@ export class ContractsCommandHandler {
         }
     }
 }
+/** Interpreter name resolved by isAvailable(); used by every invocation. */
+ContractsCommandHandler.interpreter = 'python3';
 //# sourceMappingURL=ContractsCommandHandler.js.map
