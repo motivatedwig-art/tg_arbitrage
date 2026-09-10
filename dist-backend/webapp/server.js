@@ -50,8 +50,10 @@ export class WebAppServer {
         // JSON middleware
         this.app.use(express.json());
         this.app.use(express.urlencoded({ extended: true }));
-        // Static files
-        this.app.use(express.static(path.join(__dirname, 'public')));
+        // Note: there is deliberately no express.static for __dirname/'public'.
+        // tsc emits only .js, so nothing is ever copied to dist-backend/webapp/public
+        // and that mount could only ever serve an empty directory. The mini app and
+        // its assets are served from dist/ below, where vite writes them.
     }
     // Authentication middleware for admin endpoints
     requireAuth(req, res, next) {
@@ -75,30 +77,30 @@ export class WebAppServer {
         next();
     }
     setupRoutes() {
-        // Serve React mini app (updated to serve from dist/index.html)
+        // Serve the mini app. `vite build` copies public/index.html to dist/index.html.
         this.app.get('/', (req, res) => {
             const miniappPath = path.join(__dirname, '../../dist/index.html');
             if (fs.existsSync(miniappPath)) {
                 res.sendFile(miniappPath);
             }
             else {
-                res.status(404).send('Mini app not found. Please build the React app first.');
+                res.status(404).send('Mini app not found - run `npm run build`. Health check at /api/health');
             }
         });
-        // Serve React mini app static assets
+        // Static assets emitted by the build
         this.app.use('/assets', express.static(path.join(__dirname, '../../dist/assets')));
         // Serve other static files
         this.app.use('/favicon.svg', express.static(path.join(__dirname, '../../dist/favicon.svg')));
         this.app.use('/manifest.webmanifest', express.static(path.join(__dirname, '../../dist/manifest.webmanifest')));
         this.app.use('/telegram-init.js', express.static(path.join(__dirname, '../../dist/telegram-init.js')));
-        // Fallback for React mini app routing
+        // Same page under /miniapp*, for links that use that prefix
         this.app.get('/miniapp*', (req, res) => {
             const miniappPath = path.join(__dirname, '../../dist/index.html');
             if (fs.existsSync(miniappPath)) {
                 res.sendFile(miniappPath);
             }
             else {
-                res.status(404).send('Mini app not found. Please build the React app first.');
+                res.status(404).send('Mini app not found - run `npm run build`. Health check at /api/health');
             }
         });
         // API Routes
@@ -793,18 +795,19 @@ export class WebAppServer {
                 });
             }
         });
-        // Serve React app for all other routes (fallback)
+        // Serve the mini app for all other routes.
+        // dist/index.html is written by `vite build` (public/index.html is copied
+        // there as a publicDir asset). The previous second branch pointed at
+        // dist-backend/webapp/public/index.html, which tsc never produces, so it
+        // could not fire - and the file behind it was a stale 31KB copy of a page
+        // that is now 51KB. Both are gone; a missing build says so plainly.
         this.app.get('*', (req, res) => {
             const miniappPath = path.join(__dirname, '../../dist/index.html');
-            const fallbackPath = path.join(__dirname, 'public', 'index.html');
             if (fs.existsSync(miniappPath)) {
                 res.sendFile(miniappPath);
             }
-            else if (fs.existsSync(fallbackPath)) {
-                res.sendFile(fallbackPath);
-            }
             else {
-                res.status(404).send('Application not ready. Health check at /api/health');
+                res.status(404).send('Application not ready - run `npm run build`. Health check at /api/health');
             }
         });
     }

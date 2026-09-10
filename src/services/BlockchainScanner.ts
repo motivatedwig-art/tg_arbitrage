@@ -527,7 +527,7 @@ export class BlockchainScanner {
     // Aggregate networks
     const aggregatedNetworks: NetworkInfo[] = [];
     
-    for (const [blockchain, networks] of networkMap.entries()) {
+    for (const networks of networkMap.values()) {
       // Use the most common network info
       const bestNetwork = this.selectBestNetwork(networks);
       aggregatedNetworks.push(bestNetwork);
