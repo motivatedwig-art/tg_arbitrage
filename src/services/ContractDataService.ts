@@ -2,11 +2,12 @@ import { ArbitrageOpportunity } from '../exchanges/types/index.js';
 import { DatabaseManager } from '../database/Database.js';
 import { claudeAnalyzer } from './ClaudeAnalyzer.js';
 import { DexScreenerService } from './DexScreenerService.js';
+import { BlockchainScanner } from './BlockchainScanner.js';
 import { ContractDataRecord } from '../database/types.js';
 import { config } from '../config/environment.js';
 
 /** Where a piece of contract metadata came from. Drives how much we trust it. */
-type ContractDataSource = 'dexscreener' | 'claude' | 'none';
+type ContractDataSource = 'exchange' | 'dexscreener' | 'claude' | 'none';
 
 /**
  * DexScreener identifies chains by slug. Map the common ones to the numeric
@@ -34,17 +35,22 @@ const CHAIN_SLUGS: Record<string, { chainId: string; chainName: string }> = {
  *
  * Source priority, highest trust first:
  *
- * 1. DexScreener - a real index lookup. Returns an address that actually
- *    exists on a chain, and the answer is reproducible.
- * 2. Claude - recall only. No web_search or web_fetch tool is attached to
+ * 1. Exchange withdrawal configuration (ccxt fetchCurrencies). The venue
+ *    states the chain and contract address it will actually move funds on -
+ *    which is precisely what an arbitrage transfer depends on. Available
+ *    without credentials on KuCoin and Gate.io; Binance, OKX, Bybit and MEXC
+ *    serve this endpoint only to authenticated callers.
+ * 2. DexScreener - a real index lookup. Returns an address that exists on a
+ *    chain, and the answer is reproducible.
+ * 3. Claude - recall only. No web_search or web_fetch tool is attached to
  *    these requests, so the model cannot consult Etherscan or any other
- *    explorer; it can only remember or guess. Used when DexScreener has
- *    nothing, and its output is never recorded as verified.
+ *    explorer; it can only remember or guess. Used when both real sources come
+ *    up empty, and its output is never recorded as verified.
  *
- * This order was previously reversed: DexScreener was disabled by default and
- * the model was described as the primary source. Because a wrong contract
- * address costs a user real funds, an unknown address is preferred to a
- * confident guess.
+ * This order was previously inverted: DexScreener was disabled by default, the
+ * exchange scanner was a placeholder that returned nothing, and the model was
+ * described as the primary source. Because a wrong contract address costs a
+ * user real funds, an unknown address is preferred to a confident guess.
  */
 export class ContractDataService {
   private static instance: ContractDataService;
@@ -217,7 +223,33 @@ export class ContractDataService {
       decimals: null
     };
 
-    // 1. Real, verifiable source.
+    // 1. The exchanges' own withdrawal configuration - the strongest source
+    // available. If Binance says it withdraws this token on BSC at address X,
+    // that is the contract an arbitrage transfer will actually touch, stated
+    // by the venue doing the transfer.
+    try {
+      const fromExchange = await BlockchainScanner.getInstance().resolveSymbolFresh(opportunity.symbol);
+      if (fromExchange?.contractAddress) {
+        console.log(`🔗 [CONTRACT-SERVICE] ${opportunity.symbol}: resolved from ${fromExchange.exchange} withdrawal config (${fromExchange.blockchain})`);
+        return {
+          source: 'exchange',
+          failed: false,
+          record: {
+            contractAddress: fromExchange.contractAddress,
+            chainId: fromExchange.chainId !== undefined ? String(fromExchange.chainId) : fromExchange.blockchain,
+            chainName: CHAIN_SLUGS[fromExchange.blockchain]?.chainName ?? fromExchange.blockchain,
+            // The exchange states the address it uses, not whether the source
+            // is verified on an explorer. Unknown rather than assumed.
+            isVerified: null,
+            decimals: null
+          }
+        };
+      }
+    } catch (error) {
+      console.warn(`⚠️ [CONTRACT-SERVICE] Exchange network lookup failed for ${opportunity.symbol}:`, error);
+    }
+
+    // 2. Real, verifiable source.
     if (config.dexScreener.enabled) {
       try {
         const dex = await DexScreenerService.getInstance().resolveBySymbol(opportunity.symbol);
@@ -245,7 +277,7 @@ export class ContractDataService {
       }
     }
 
-    // 2. Fallback: model recall. Treated as a hint, never as verified fact.
+    // 3. Fallback: model recall. Treated as a hint, never as verified fact.
     if (!claudeAnalyzer.isEnabled()) {
       console.warn(`⚠️ [CONTRACT-SERVICE] ${opportunity.symbol}: no contract data (DexScreener found nothing, Claude disabled)`);
       return { record: empty, source: 'none', failed: false };

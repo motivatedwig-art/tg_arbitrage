@@ -1,23 +1,28 @@
 import { ArbitrageOpportunity } from '../exchanges/types/index.js';
 import { ContractDataRecord } from '../database/types.js';
 /** Where a piece of contract metadata came from. Drives how much we trust it. */
-type ContractDataSource = 'dexscreener' | 'claude' | 'none';
+type ContractDataSource = 'exchange' | 'dexscreener' | 'claude' | 'none';
 /**
  * ContractDataService - contract metadata enrichment
  *
  * Source priority, highest trust first:
  *
- * 1. DexScreener - a real index lookup. Returns an address that actually
- *    exists on a chain, and the answer is reproducible.
- * 2. Claude - recall only. No web_search or web_fetch tool is attached to
+ * 1. Exchange withdrawal configuration (ccxt fetchCurrencies). The venue
+ *    states the chain and contract address it will actually move funds on -
+ *    which is precisely what an arbitrage transfer depends on. Available
+ *    without credentials on KuCoin and Gate.io; Binance, OKX, Bybit and MEXC
+ *    serve this endpoint only to authenticated callers.
+ * 2. DexScreener - a real index lookup. Returns an address that exists on a
+ *    chain, and the answer is reproducible.
+ * 3. Claude - recall only. No web_search or web_fetch tool is attached to
  *    these requests, so the model cannot consult Etherscan or any other
- *    explorer; it can only remember or guess. Used when DexScreener has
- *    nothing, and its output is never recorded as verified.
+ *    explorer; it can only remember or guess. Used when both real sources come
+ *    up empty, and its output is never recorded as verified.
  *
- * This order was previously reversed: DexScreener was disabled by default and
- * the model was described as the primary source. Because a wrong contract
- * address costs a user real funds, an unknown address is preferred to a
- * confident guess.
+ * This order was previously inverted: DexScreener was disabled by default, the
+ * exchange scanner was a placeholder that returned nothing, and the model was
+ * described as the primary source. Because a wrong contract address costs a
+ * user real funds, an unknown address is preferred to a confident guess.
  */
 export declare class ContractDataService {
     private static instance;

@@ -6,6 +6,98 @@
 import { ExchangeManager } from '../exchanges/ExchangeManager.js';
 import { ExchangeAdapter } from '../exchanges/types/index.js';
 import { BLOCKCHAIN_CONFIG } from '../config/blockchain.config.js';
+import { normalizeChain } from '../utils/chainNormalizer.js';
+
+/**
+ * Field names carrying a token contract address in the raw payload, which
+ * differs per exchange (KuCoin uses contractAddress, others vary). Checked in
+ * order; the first plausible value wins.
+ */
+const CONTRACT_ADDRESS_FIELDS = [
+  'contractAddress',
+  'contract_address',
+  'contract',
+  'tokenContractAddress',
+  'contractAddr',
+  'address'
+];
+
+/**
+ * Exchange network codes mapped to chain names.
+ *
+ * Exchanges label networks by token standard ("ERC20", "TRC20", "BEP20")
+ * rather than by chain, and chainNormalizer does not know those spellings.
+ * Without this table the two exchanges that serve fetchCurrencies without
+ * credentials - KuCoin and Gate.io - would have every network dropped, which
+ * is exactly the data available out of the box.
+ */
+const NETWORK_CODE_TO_CHAIN: Record<string, string> = {
+  erc20: 'ethereum',
+  eth: 'ethereum',
+  ethereum: 'ethereum',
+  trc20: 'tron',
+  trx: 'tron',
+  tron: 'tron',
+  bep20: 'bsc',
+  bep2: 'bsc',
+  bsc: 'bsc',
+  bnb: 'bsc',
+  'bnb smart chain': 'bsc',
+  matic: 'polygon',
+  polygon: 'polygon',
+  arbitrum: 'arbitrum',
+  arbitrumone: 'arbitrum',
+  arb: 'arbitrum',
+  optimism: 'optimism',
+  op: 'optimism',
+  base: 'base',
+  avaxc: 'avalanche',
+  'avax-c': 'avalanche',
+  avalanche: 'avalanche',
+  cavax: 'avalanche',
+  sol: 'solana',
+  solana: 'solana',
+  spl: 'solana',
+  ftm: 'fantom',
+  fantom: 'fantom',
+  cro: 'cronos',
+  cronos: 'cronos',
+  zksync: 'zksync',
+  zksyncera: 'zksync',
+  linea: 'linea',
+  scroll: 'scroll',
+  celo: 'celo',
+  btc: 'bitcoin',
+  bitcoin: 'bitcoin'
+};
+
+/** Resolve an exchange network label to a chain name. */
+function resolveChainFromNetworkCode(code: string | undefined | null): string | null {
+  if (!code) {
+    return null;
+  }
+  const key = code.toLowerCase().trim().replace(/[\s_-]+/g, '');
+  return NETWORK_CODE_TO_CHAIN[key]
+    ?? NETWORK_CODE_TO_CHAIN[code.toLowerCase().trim()]
+    ?? normalizeChain(code);
+}
+
+/** Numeric chain IDs for the EVM networks this project reports. */
+const EVM_CHAIN_IDS: Record<string, number> = {
+  ethereum: 1,
+  optimism: 10,
+  cronos: 25,
+  bsc: 56,
+  polygon: 137,
+  zksync: 324,
+  base: 8453,
+  arbitrum: 42161,
+  avalanche: 43114,
+  celo: 42220,
+  linea: 59144,
+  scroll: 534352,
+  fantom: 250
+};
 
 export interface NetworkInfo {
   network: string;        // Exchange-specific network code (e.g., 'ETH', 'BSC', 'SOL')
@@ -31,13 +123,61 @@ export interface ExchangeNetworkInfo {
 }
 
 export class BlockchainScanner {
+  private static instance: BlockchainScanner | null = null;
+
   private exchangeManager: ExchangeManager;
   private networkCache: Map<string, ExchangeNetworkInfo[]> = new Map();
   private contractToChain: Map<string, string> = new Map();
   private lastScanTime: Date | null = null;
+  /** In-flight scan, so concurrent callers share one pass over the exchanges. */
+  private scanInFlight: Promise<unknown> | null = null;
+
+  /** Withdrawal configurations change rarely; re-reading them hourly is plenty. */
+  private static readonly CACHE_TTL_MS = 6 * 60 * 60 * 1000;
 
   constructor() {
     this.exchangeManager = ExchangeManager.getInstance();
+  }
+
+  public static getInstance(): BlockchainScanner {
+    if (!BlockchainScanner.instance) {
+      BlockchainScanner.instance = new BlockchainScanner();
+    }
+    return BlockchainScanner.instance;
+  }
+
+  /**
+   * Make sure the cache holds a recent scan, running one if not.
+   *
+   * Concurrent callers await the same pass rather than each hammering every
+   * exchange, and a failed scan is not cached as success.
+   */
+  public async ensureFresh(): Promise<void> {
+    const age = this.lastScanTime ? Date.now() - this.lastScanTime.getTime() : Infinity;
+    if (this.networkCache.size > 0 && age < BlockchainScanner.CACHE_TTL_MS) {
+      return;
+    }
+
+    if (!this.scanInFlight) {
+      this.scanInFlight = this.scanAllExchanges()
+        .catch(error => {
+          console.warn('⚠️ [BLOCKCHAIN-SCAN] Scan failed:', error instanceof Error ? error.message : error);
+        })
+        .finally(() => {
+          this.scanInFlight = null;
+        });
+    }
+
+    await this.scanInFlight;
+  }
+
+  /**
+   * Resolve a symbol against exchange withdrawal data, scanning first if the
+   * cache is cold or stale.
+   */
+  public async resolveSymbolFresh(symbol: string): Promise<ReturnType<BlockchainScanner['resolveSymbol']>> {
+    await this.ensureFresh();
+    return this.resolveSymbol(symbol);
   }
 
   /**
@@ -62,9 +202,12 @@ export class BlockchainScanner {
         
         if (networkInfo && networkInfo.length > 0) {
           results.set(exchangeName, networkInfo);
-          console.log(`   ✅ ${exchangeName}: Found network info for ${networkInfo.length} tokens`);
+          // Keyed by exchange so resolveSymbol() can read it. The previous key
+          // included Date.now(), so every write landed under a key nothing
+          // would ever look up again.
+          this.networkCache.set(exchangeName, networkInfo);
         }
-        
+
         return networkInfo;
       } catch (error) {
         console.error(`   ❌ Failed to scan ${exchangeName}:`, error);
@@ -85,105 +228,219 @@ export class BlockchainScanner {
   /**
    * Scan a specific exchange for network information
    */
+  /**
+   * Read withdrawal networks for every currency an exchange lists.
+   *
+   * This replaces a placeholder that walked loadMarkets(). Markets describe
+   * trading pairs and carry no chain or contract data at all, so the old code
+   * could only ever return null - which it did, on every exchange.
+   *
+   * fetchCurrencies() is the endpoint that actually answers the question:
+   * it returns, per currency, the networks the exchange will deposit and
+   * withdraw on, and for token networks the contract address it uses. That is
+   * the exchange stating which contract it will actually move - the same fact
+   * an arbitrage transfer depends on.
+   *
+   * On Binance, OKX, Bybit and MEXC this endpoint requires API credentials;
+   * ccxt returns undefined rather than throwing when they are absent. KuCoin
+   * and Gate.io serve it publicly, so useful data arrives even with no keys
+   * configured at all.
+   */
   private async scanExchangeNetworks(
     exchange: string,
     adapter: ExchangeAdapter
   ): Promise<ExchangeNetworkInfo[] | null> {
-    // Check cache first
-    const cacheKey = `${exchange}-${Date.now()}`;
-    const cached = this.networkCache.get(cacheKey);
-    if (cached) {
-      return cached;
+    const ccxtExchange = (adapter as any).exchange;
+
+    if (!ccxtExchange || typeof ccxtExchange.fetchCurrencies !== 'function') {
+      console.log(`   ⚠️ ${exchange}: no ccxt instance available`);
+      return null;
     }
 
-    // Exchange-specific implementation
-    // For now, we'll use the exchange adapters with enhanced blockchain detection
-    // TODO: Implement exchange-specific API calls when blockchain adapters are created
-    
-    // This is a placeholder - will be enhanced with exchange-specific adapters
-    const networks: ExchangeNetworkInfo[] = [];
-    
-    // Try to get network info from exchange if available
+    if (ccxtExchange.has && ccxtExchange.has['fetchCurrencies'] === false) {
+      console.log(`   ⚠️ ${exchange}: does not support fetchCurrencies`);
+      return null;
+    }
+
+    let currencies: Record<string, any> | undefined;
     try {
-      // Access the underlying CCXT exchange if available
-      const ccxtExchange = (adapter as any).exchange;
-      if (ccxtExchange && typeof ccxtExchange.loadMarkets === 'function') {
-        await ccxtExchange.loadMarkets();
-        
-        // Extract network information from markets if available
-        // This is exchange-specific and will be enhanced later
-        for (const [symbol, market] of Object.entries(ccxtExchange.markets)) {
-          const marketData = market as any;
-          if (marketData.active && marketData.type === 'spot') {
-            // Some exchanges include network info in market data
-            const networkInfo = this.extractNetworkFromMarket(marketData, exchange);
-            if (networkInfo) {
-              networks.push(networkInfo);
-            }
-          }
-        }
-      }
+      currencies = await ccxtExchange.fetchCurrencies();
     } catch (error) {
-      console.warn(`Could not extract network info from ${exchange}:`, error);
+      console.warn(`   ❌ ${exchange}: fetchCurrencies failed -`, error instanceof Error ? error.message : error);
+      return null;
     }
 
-    // Cache results
-    if (networks.length > 0) {
-      this.networkCache.set(cacheKey, networks);
+    // ccxt returns undefined (not an error) when the endpoint needs keys the
+    // exchange was not given. Say so plainly - it is the actionable case.
+    if (!currencies || Object.keys(currencies).length === 0) {
+      const authenticated = Boolean(ccxtExchange.apiKey && ccxtExchange.secret);
+      console.log(
+        authenticated
+          ? `   ⚠️ ${exchange}: fetchCurrencies returned nothing`
+          : `   ⚠️ ${exchange}: fetchCurrencies needs API credentials - set ${exchange.toUpperCase()}_API_KEY/_API_SECRET to include it`
+      );
+      return null;
     }
 
-    return networks.length > 0 ? networks : null;
+    const results: ExchangeNetworkInfo[] = [];
+    let withContract = 0;
+
+    for (const [code, currency] of Object.entries(currencies)) {
+      const networks = this.parseCurrencyNetworks(currency);
+      if (networks.length === 0) {
+        continue;
+      }
+
+      withContract += networks.filter(n => n.contractAddress).length;
+
+      const primary = networks.find(n => n.isDefault) || networks[0];
+      results.push({
+        symbol: code,
+        networks,
+        mainNetwork: primary.blockchain,
+        timestamp: new Date(),
+        exchange,
+        // Straight from the exchange's own withdrawal configuration.
+        confidence: 95
+      });
+    }
+
+    console.log(`   ✅ ${exchange}: ${results.length} currencies, ${withContract} network entries carry a contract address`);
+    return results.length > 0 ? results : null;
   }
 
   /**
-   * Extract network information from CCXT market object
+   * Turn one ccxt currency's `networks` map into our NetworkInfo list.
+   *
+   * ccxt normalises the common fields but leaves the raw exchange payload in
+   * `info`, which is where contract addresses live under a different name on
+   * each venue - hence the candidate list rather than one field.
    */
-  private extractNetworkFromMarket(market: any, exchange: string): ExchangeNetworkInfo | null {
-    // Market may have network info depending on exchange
-    // This is a basic implementation - will be enhanced per exchange
-    
-    if (!market || !market.base) {
-      return null;
+  private parseCurrencyNetworks(currency: any): NetworkInfo[] {
+    const networksMap = currency?.networks;
+    if (!networksMap || typeof networksMap !== 'object') {
+      return [];
     }
 
-    const symbol = market.symbol;
-    const networks: NetworkInfo[] = [];
+    const parsed: NetworkInfo[] = [];
 
-    // Try to infer from market structure
-    // Some exchanges store network info in market.info
-    if (market.info) {
-      // Exchange-specific parsing will be handled by blockchain adapters
-      // For now, return null and let adapters handle it
-      return null;
-    }
+    for (const [networkCode, raw] of Object.entries<any>(networksMap)) {
+      const blockchain = resolveChainFromNetworkCode(networkCode)
+        || resolveChainFromNetworkCode(raw?.network)
+        || resolveChainFromNetworkCode(raw?.id)
+        || resolveChainFromNetworkCode(raw?.info?.chain)
+        || resolveChainFromNetworkCode(raw?.info?.chainId);
 
-    // Fallback: use symbol-based detection
-    const blockchain = this.detectBlockchainFromSymbol(symbol);
-    if (blockchain) {
-      networks.push({
-        network: blockchain,
-        blockchain: blockchain,
-        depositEnabled: market.active,
-        withdrawEnabled: market.active,
-        isDefault: true,
-        withdrawFee: 0,
-        minWithdraw: 0,
-        confirmations: 0
+      if (!blockchain) {
+        continue;
+      }
+
+      const contractAddress = BlockchainScanner.extractContractAddress(raw?.info);
+
+      parsed.push({
+        network: networkCode,
+        blockchain,
+        contractAddress,
+        chainId: EVM_CHAIN_IDS[blockchain],
+        depositEnabled: raw?.deposit !== false,
+        withdrawEnabled: raw?.withdraw !== false,
+        isDefault: false,
+        withdrawFee: Number(raw?.fee) || 0,
+        minWithdraw: Number(raw?.limits?.withdraw?.min) || 0,
+        confirmations: Number(raw?.info?.confirms ?? raw?.info?.minConfirm) || 0,
+        name: raw?.info?.name || networkCode
       });
-
-      return {
-        symbol,
-        networks,
-        mainNetwork: blockchain,
-        timestamp: new Date(),
-        exchange,
-        confidence: 50 // Low confidence for symbol-based detection
-      };
     }
 
-    return null;
+    // Prefer a network that can actually move funds and names a contract.
+    const preferred = parsed.find(n => n.depositEnabled && n.withdrawEnabled && n.contractAddress)
+      || parsed.find(n => n.depositEnabled && n.withdrawEnabled)
+      || parsed[0];
+    if (preferred) {
+      preferred.isDefault = true;
+    }
+
+    return parsed;
   }
 
+  /**
+   * Pull a contract address out of a raw exchange network payload.
+   *
+   * Returns undefined unless the value actually looks like an address, so an
+   * empty string or a placeholder does not get stored as if it were one.
+   */
+  private static extractContractAddress(info: any): string | undefined {
+    if (!info || typeof info !== 'object') {
+      return undefined;
+    }
+
+    for (const field of CONTRACT_ADDRESS_FIELDS) {
+      const value = info[field];
+      if (typeof value !== 'string') {
+        continue;
+      }
+
+      const trimmed = value.trim();
+      if (trimmed.length < 20 || trimmed.length > 120) {
+        continue; // too short or too long to be a token address
+      }
+      if (/^(null|none|n\/a|-)$/i.test(trimmed)) {
+        continue;
+      }
+      if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
+        continue; // explorer link, not the address itself
+      }
+
+      return trimmed;
+    }
+
+    return undefined;
+  }
+
+  /**
+   * Look up what the exchanges said about one ticker symbol.
+   *
+   * Reads the last scan's results. Returns the network that a transfer would
+   * actually use - deposit and withdrawal both open - preferring one that
+   * names a contract address.
+   */
+  public resolveSymbol(symbol: string): { blockchain: string; contractAddress?: string; chainId?: number; exchange: string } | null {
+    const base = (symbol || '').split('/')[0].trim().toUpperCase();
+    if (!base) {
+      return null;
+    }
+
+    let fallback: { blockchain: string; contractAddress?: string; chainId?: number; exchange: string } | null = null;
+
+    for (const [exchange, entries] of this.networkCache.entries()) {
+      for (const entry of entries) {
+        if (entry.symbol.toUpperCase() !== base) {
+          continue;
+        }
+
+        for (const network of entry.networks) {
+          if (!network.depositEnabled || !network.withdrawEnabled) {
+            continue;
+          }
+
+          const candidate = {
+            blockchain: network.blockchain,
+            contractAddress: network.contractAddress,
+            chainId: network.chainId,
+            exchange
+          };
+
+          // An answer carrying a contract address wins outright.
+          if (network.contractAddress) {
+            return candidate;
+          }
+          fallback = fallback || candidate;
+        }
+      }
+    }
+
+    return fallback;
+  }
   /**
    * Detect blockchain from contract address format
    */
@@ -209,26 +466,6 @@ export class BlockchainScanner {
       return 'tron';
     }
 
-    return null;
-  }
-
-  /**
-   * Basic blockchain detection from symbol (fallback)
-   */
-  private detectBlockchainFromSymbol(symbol: string): string | null {
-    const cleanSymbol = symbol.replace(/[\/\-_]/g, '').replace(/USDT$|USDC$/i, '').toUpperCase();
-    
-    // Native tokens
-    if (cleanSymbol === 'BTC') return 'bitcoin';
-    if (cleanSymbol === 'ETH') return 'ethereum';
-    if (cleanSymbol === 'BNB') return 'bsc';
-    if (cleanSymbol === 'SOL') return 'solana';
-    if (cleanSymbol === 'TRX') return 'tron';
-    if (cleanSymbol === 'MATIC') return 'polygon';
-    if (cleanSymbol === 'AVAX') return 'avalanche';
-    if (cleanSymbol === 'ARB') return 'arbitrum';
-    if (cleanSymbol === 'OP') return 'optimism';
-    
     return null;
   }
 
