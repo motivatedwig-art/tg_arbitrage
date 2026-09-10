@@ -23,17 +23,6 @@
   "exclude": [
     "node_modules",
     "dist",
-    "miniapp",
-    "src/App.tsx",
-    "src/main.tsx",
-    "src/screens/**/*",
-    "src/hooks/useArbitrageData.ts",
-    "src/hooks/useTelegramTheme.ts",
-    "src/hooks/useTelegramWebApp.ts",
-    "src/services/api.ts",
-    "src/styles/**/*",
-    "src/vite-env.d.ts",
-    "src/components/**/*",
-    "src/i18n/**/*"
+    "miniapp"
   ]
 }
