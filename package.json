@@ -22,7 +22,7 @@
     "node": ">=20.19.0"
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "^0.25.2",
+    "@anthropic-ai/sdk": "^0.124.0",
     "@telegram-apps/sdk": "^1.0.0",
     "@types/pg": "^8.15.5",
     "axios": "^1.13.1",

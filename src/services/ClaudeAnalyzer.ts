@@ -18,6 +18,49 @@ const MODEL_PRICING: Array<{ prefix: string; input: number; output: number }> = 
   { prefix: 'claude-3-haiku', input: 0.25, output: 1.25 }
 ];
 
+/**
+ * Schema handed to the API via output_config.format, which constrains the
+ * model's output so it cannot come back as prose, a fenced code block, or a
+ * half-finished object. The prompt-only approach this replaces produced all
+ * three, and every one of them failed JSON.parse and was reported as
+ * "no contract data found".
+ */
+const CONTRACT_DATA_SCHEMA: { [key: string]: unknown } = {
+  type: 'object',
+  properties: {
+    contract_address: {
+      type: ['string', 'null'],
+      description: 'On-chain token contract address, or null if not known'
+    },
+    chain_id: {
+      type: ['integer', 'null'],
+      description: 'EVM chain ID (1 Ethereum, 56 BSC, 137 Polygon), or null'
+    },
+    chain_name: {
+      type: ['string', 'null'],
+      description: 'Human-readable network name, or null'
+    },
+    is_verified: {
+      type: ['boolean', 'null'],
+      description: 'Whether the contract source is verified on the explorer'
+    },
+    decimals: {
+      type: ['integer', 'null'],
+      description: 'Token decimals, or null if not known'
+    }
+  },
+  required: ['contract_address', 'chain_id', 'chain_name', 'is_verified', 'decimals'],
+  additionalProperties: false
+};
+
+// Values that mean "the model echoed the schema instead of answering".
+// The previous prompt asked for `"chain_id": "number|null"`, which invited
+// exactly this, and the placeholders were then stored as if they were data.
+const PLACEHOLDER_VALUES = new Set([
+  'string', 'number', 'boolean', 'null', 'none', 'n/a', 'na', 'unknown',
+  'string|null', 'number|null', 'boolean|null', '0x...', '0x', '-', ''
+]);
+
 interface ArbitrageOpportunity {
   symbol: string;
   chain: string;
@@ -65,6 +108,9 @@ export class ClaudeAnalyzer {
   // silently overrode the configured value.
   private cacheTtl: number;
   private pricing: { input: number; output: number };
+  // Cleared permanently if the API rejects output_config, so we stop paying a
+  // failed request on every extraction.
+  private structuredOutputsEnabled: boolean = true;
 
   // Cost tracking
   private costMetrics: CostMetrics = {
@@ -244,7 +290,22 @@ Gas: $${opportunity.gas_cost_usd.toFixed(2)}`;
       });
       const duration = Date.now() - startTime;
 
-      const analysis = response.content[0].type === 'text' ? response.content[0].text : 'Ошибка анализа';
+      const analysis = ClaudeAnalyzer.extractTextContent(response.content as Array<{ type: string; text?: string }>);
+
+      // A refusal or an empty body is not a usable analysis; do not cache it.
+      const incomplete = ClaudeAnalyzer.describeIncompleteStop(response.stop_reason);
+      if (incomplete && response.stop_reason !== 'max_tokens') {
+        console.error(`❌ [CLAUDE-ANALYZER][${requestId}] Incomplete analysis for ${opportunity.symbol}: ${incomplete}`);
+        return `⚠️ Анализ недоступен: ${incomplete}`;
+      }
+      if (!analysis) {
+        console.error(`❌ [CLAUDE-ANALYZER][${requestId}] Empty analysis body for ${opportunity.symbol} (stop_reason=${response.stop_reason})`);
+        return '⚠️ Анализ недоступен: пустой ответ модели';
+      }
+      // A max_tokens cut-off still leaves usable prose, so it is kept - but say so.
+      if (response.stop_reason === 'max_tokens') {
+        console.warn(`⚠️ [CLAUDE-ANALYZER][${requestId}] Analysis truncated at max_tokens=${this.config.max_tokens} - raise CLAUDE_MAX_TOKENS`);
+      }
 
       // Log response details
       console.log(`✅ [CLAUDE-ANALYZER][${requestId}] Analysis completed in ${duration}ms`);
@@ -339,17 +400,23 @@ Gas: $${opportunity.gas_cost_usd.toFixed(2)}`;
       return this.emptyContractData();
     }
 
+    // The field list is expressed as concrete example VALUES, not as type
+    // names. The previous wording ("chain_id": "number|null") asked for a type
+    // name in the value position and the model sometimes returned exactly that.
     const prompt = `Извлеки данные контракта для токена: ${tokenSymbol}
 Описание: ${tokenDescription}
 
-Верни ТОЛЬКО JSON в формате:
+Верни ТОЛЬКО JSON-объект с этими пятью полями. Пример корректного ответа:
 {
-  "contract_address": "string|null",
-  "chain_id": "number|null",
-  "chain_name": "string|null",
-  "is_verified": "boolean|null",
-  "decimals": "number|null"
-}`;
+  "contract_address": "0xdac17f958d2ee523a2206206994597c13d831ec7",
+  "chain_id": 1,
+  "chain_name": "Ethereum",
+  "is_verified": true,
+  "decimals": 6
+}
+
+Если какое-то значение неизвестно - поставь null именно для этого поля.
+Не выдумывай адрес контракта: неверный адрес хуже, чем null.`;
 
     console.log(`🌐 [CLAUDE-CONTRACT][${requestId}] ⚡ CALLING ANTHROPIC API`);
     console.log(`   Model: ${this.config.model}`);
@@ -364,17 +431,32 @@ Gas: $${opportunity.gas_cost_usd.toFixed(2)}`;
       const startTime = Date.now();
       console.log(`⏳ [CLAUDE-CONTRACT][${requestId}] Waiting for API response...`);
 
-      const response = await client.messages.create({
-        model: this.config.model,
-        max_tokens: this.config.max_tokens,
-        temperature: this.config.temperature,
-        system: this.contractPrompt,
-        messages: [{ role: "user", content: prompt }]
-      });
+      const response = await this.createContractMessage(client, prompt, requestId);
       const duration = Date.now() - startTime;
 
-      const raw = response.content[0]?.type === 'text' ? response.content[0].text : '{}';
+      // A truncated or refused response arrives as a normal 200. Detect it here
+      // rather than letting it fall through as "no contract data found".
+      const incomplete = ClaudeAnalyzer.describeIncompleteStop(response.stop_reason);
+      if (incomplete) {
+        console.error(`❌ [CLAUDE-CONTRACT][${requestId}] Incomplete response for ${tokenSymbol}: ${incomplete}`);
+        console.error(`   stop_reason=${response.stop_reason}, output_tokens=${response.usage?.output_tokens ?? 0}, max_tokens=${this.config.max_tokens}`);
+        console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+        console.log('');
+        // Not cached: this is a failure to obtain data, not a finding of "none".
+        return this.emptyContractData();
+      }
+
+      const raw = ClaudeAnalyzer.extractTextContent(response.content as Array<{ type: string; text?: string }>);
       const parsed = this.parseContractData(raw);
+
+      if (parsed === null) {
+        console.error(`❌ [CLAUDE-CONTRACT][${requestId}] Could not read a JSON object from the response for ${tokenSymbol}`);
+        console.error(`   Raw response: ${JSON.stringify(raw)}`);
+        console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+        console.log('');
+        // Not cached, for the same reason as above.
+        return this.emptyContractData();
+      }
 
       // Log extraction results with detailed formatting
       console.log(`✅ [CLAUDE-CONTRACT][${requestId}] 🎉 EXTRACTION COMPLETED SUCCESSFULLY`);
@@ -445,20 +527,247 @@ Gas: $${opportunity.gas_cost_usd.toFixed(2)}`;
     };
   }
 
-  private parseContractData(raw: string): ContractDataResponse {
-    try {
-      const parsed = JSON.parse(raw);
-      return {
-        contract_address: parsed.contract_address ?? null,
-        chain_id: parsed.chain_id ?? null,
-        chain_name: parsed.chain_name ?? null,
-        is_verified: parsed.is_verified ?? null,
-        decimals: parsed.decimals ?? null
-      };
-    } catch (error) {
-      console.warn('Failed to parse Claude contract data response:', raw);
-      return this.emptyContractData();
+  /**
+   * Issue the contract-extraction request with a JSON schema attached, so the
+   * API constrains the output shape instead of relying on the prompt alone.
+   *
+   * Structured outputs are not available on every model or account. If the API
+   * rejects output_config, this falls back to a plain request for the rest of
+   * the process lifetime - the prompt still asks for JSON and the parser still
+   * handles fences and surrounding prose, so the fallback path is functional,
+   * just less strongly guaranteed.
+   */
+  private async createContractMessage(
+    client: Anthropic,
+    prompt: string,
+    requestId: string
+  ): Promise<Anthropic.Message> {
+    const baseParams = {
+      model: this.config.model,
+      max_tokens: this.config.max_tokens,
+      temperature: this.config.temperature,
+      system: this.contractPrompt,
+      messages: [{ role: 'user' as const, content: prompt }]
+    };
+
+    if (!this.structuredOutputsEnabled) {
+      return client.messages.create(baseParams);
     }
+
+    try {
+      return await client.messages.create({
+        ...baseParams,
+        output_config: {
+          format: { type: 'json_schema', schema: CONTRACT_DATA_SCHEMA }
+        }
+      });
+    } catch (error) {
+      if (!ClaudeAnalyzer.isStructuredOutputRejection(error)) {
+        throw error;
+      }
+
+      this.structuredOutputsEnabled = false;
+      console.warn(`⚠️ [CLAUDE-CONTRACT][${requestId}] Structured outputs rejected for model "${this.config.model}" - falling back to prompt-only JSON for the rest of this process.`);
+      console.warn(`   Reason: ${error instanceof Error ? error.message : String(error)}`);
+      return client.messages.create(baseParams);
+    }
+  }
+
+  /**
+   * Distinguish "this account/model does not support output_config" from a
+   * genuine request error, so a real bug is not silently downgraded.
+   */
+  private static isStructuredOutputRejection(error: unknown): boolean {
+    if (!(error instanceof Anthropic.APIError) || error.status !== 400) {
+      return false;
+    }
+    const message = (error.message || '').toLowerCase();
+    return message.includes('output_config')
+      || message.includes('output format')
+      || message.includes('json_schema')
+      || message.includes('structured output');
+  }
+
+  /**
+   * Concatenate every text block in the response.
+   *
+   * Reading content[0] blindly (as this class used to) breaks as soon as the
+   * response leads with a non-text block, and drops content when the model
+   * emits more than one text block.
+   */
+  private static extractTextContent(content: Array<{ type: string; text?: string }>): string {
+    return (content || [])
+      .filter(block => block.type === 'text' && typeof block.text === 'string')
+      .map(block => block.text as string)
+      .join('')
+      .trim();
+  }
+
+  /**
+   * Decide whether a response finished cleanly.
+   *
+   * A truncated or refused response is HTTP 200 with a normal body, so without
+   * this check it looked like a successful call that happened to contain
+   * unparseable content - the failure mode that made every symptom here look
+   * like "the token has no contract data".
+   */
+  private static describeIncompleteStop(stopReason: string | null | undefined): string | null {
+    switch (stopReason) {
+      case 'max_tokens':
+        return 'response hit the max_tokens limit and was cut off - raise CLAUDE_MAX_TOKENS';
+      case 'refusal':
+        return 'the model declined to answer this request';
+      case 'model_context_window_exceeded':
+        return 'the request exceeded the model context window';
+      case 'pause_turn':
+        return 'the model paused the turn before finishing';
+      default:
+        return null;
+    }
+  }
+
+  /**
+   * Pull the first complete JSON object out of a model response.
+   *
+   * Handles the two shapes that used to break JSON.parse outright: a
+   * ```json fenced block, and a bare object with explanatory prose around it.
+   * Brace counting is string- and escape-aware so a '}' inside a value does
+   * not terminate the scan early. Returns null when no complete object is
+   * present - notably when the response was truncated mid-object.
+   */
+  private static extractJsonObject(raw: string): string | null {
+    if (!raw) {
+      return null;
+    }
+
+    // Drop markdown fences (```json ... ``` or ``` ... ```)
+    const withoutFences = raw.replace(/```(?:json)?\s*([\s\S]*?)\s*```/gi, '$1');
+
+    const start = withoutFences.indexOf('{');
+    if (start === -1) {
+      return null;
+    }
+
+    // If a '[' opens before the first '{', the model returned an array. Rather
+    // than silently picking its first element - which would mean guessing which
+    // chain a token is on - treat that as unreadable and let the caller report
+    // no data. Guessing a contract address wrong is worse than returning none.
+    const arrayStart = withoutFences.indexOf('[');
+    if (arrayStart !== -1 && arrayStart < start) {
+      return null;
+    }
+
+    let depth = 0;
+    let inString = false;
+    let escaped = false;
+
+    for (let i = start; i < withoutFences.length; i++) {
+      const char = withoutFences[i];
+
+      if (escaped) {
+        escaped = false;
+        continue;
+      }
+      if (char === '\\') {
+        escaped = true;
+        continue;
+      }
+      if (char === '"') {
+        inString = !inString;
+        continue;
+      }
+      if (inString) {
+        continue;
+      }
+
+      if (char === '{') {
+        depth++;
+      } else if (char === '}') {
+        depth--;
+        if (depth === 0) {
+          return withoutFences.slice(start, i + 1);
+        }
+      }
+    }
+
+    // Unbalanced braces - the object never closed (truncated response).
+    return null;
+  }
+
+  /** Reject schema placeholders and empty strings that are not real values. */
+  private static cleanString(value: unknown): string | null {
+    if (typeof value !== 'string') {
+      return null;
+    }
+    const trimmed = value.trim();
+    if (PLACEHOLDER_VALUES.has(trimmed.toLowerCase())) {
+      return null;
+    }
+    return trimmed === '' ? null : trimmed;
+  }
+
+  /** Accept a number or a numeric string; reject anything else. */
+  private static cleanNumber(value: unknown): number | null {
+    if (typeof value === 'number') {
+      return Number.isFinite(value) ? value : null;
+    }
+    const asString = ClaudeAnalyzer.cleanString(value);
+    if (asString === null) {
+      return null;
+    }
+    const parsed = Number(asString);
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+
+  /** Accept a real boolean or the strings "true"/"false"; reject anything else. */
+  private static cleanBoolean(value: unknown): boolean | null {
+    if (typeof value === 'boolean') {
+      return value;
+    }
+    const asString = ClaudeAnalyzer.cleanString(value);
+    if (asString === null) {
+      return null;
+    }
+    if (asString.toLowerCase() === 'true') return true;
+    if (asString.toLowerCase() === 'false') return false;
+    return null;
+  }
+
+  /**
+   * Parse a contract-data response.
+   *
+   * Returns null when the response could not be read at all, as distinct from
+   * a successfully-read response that simply found nothing (all fields null).
+   * Callers need that distinction: the first must not be cached or trusted,
+   * the second is a legitimate answer.
+   */
+  private parseContractData(raw: string): ContractDataResponse | null {
+    const json = ClaudeAnalyzer.extractJsonObject(raw);
+    if (json === null) {
+      console.warn('⚠️ [CLAUDE-ANALYZER] No complete JSON object in Claude response:', JSON.stringify(raw));
+      return null;
+    }
+
+    let parsed: any;
+    try {
+      parsed = JSON.parse(json);
+    } catch (error) {
+      console.warn('⚠️ [CLAUDE-ANALYZER] Failed to parse Claude contract data response:', JSON.stringify(json));
+      return null;
+    }
+
+    if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
+      console.warn('⚠️ [CLAUDE-ANALYZER] Claude contract response was not a JSON object:', JSON.stringify(json));
+      return null;
+    }
+
+    return {
+      contract_address: ClaudeAnalyzer.cleanString(parsed.contract_address),
+      chain_id: ClaudeAnalyzer.cleanNumber(parsed.chain_id),
+      chain_name: ClaudeAnalyzer.cleanString(parsed.chain_name),
+      is_verified: ClaudeAnalyzer.cleanBoolean(parsed.is_verified),
+      decimals: ClaudeAnalyzer.cleanNumber(parsed.decimals)
+    };
   }
 }
 
