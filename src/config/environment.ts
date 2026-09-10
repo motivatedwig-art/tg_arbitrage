@@ -92,17 +92,49 @@ export interface EnvironmentConfig {
   };
 }
 
-// Get environment variable with fallback
-const getEnvVar = (key: string, defaultValue?: string): string => {
-  // Check if we're in a browser environment (Vite)
-  const isBrowser = typeof window !== 'undefined';
-  const value = isBrowser 
-    ? (import.meta as any).env?.[key] || process.env[key] || defaultValue
-    : process.env[key] || defaultValue;
-  if (!value) {
-    throw new Error(`Environment variable ${key} is required`);
+// Read process.env without assuming `process` exists.
+// In a Vite browser bundle `process` is not defined at all, so touching it
+// directly throws a ReferenceError instead of returning undefined.
+const readProcessEnv = (key: string): string | undefined => {
+  if (typeof process === 'undefined' || !process.env) {
+    return undefined;
   }
-  return value;
+  return process.env[key];
+};
+
+// Read a raw environment value from Vite (browser) or process.env (Node).
+// A variable that is unset, empty, or whitespace-only is treated as absent:
+// Railway and .env files both represent "not configured" as an empty value.
+// The returned value is trimmed - every consumer here is a key, URL, number or
+// boolean, and a stray trailing newline in a dashboard-entered secret is a far
+// more likely bug than a value that legitimately ends in whitespace.
+const readRawEnv = (key: string): string | undefined => {
+  const fromVite = (import.meta as any)?.env?.[key];
+  const raw = typeof fromVite === 'string' && fromVite !== '' ? fromVite : readProcessEnv(key);
+
+  if (typeof raw !== 'string') {
+    return undefined;
+  }
+
+  const trimmed = raw.trim();
+  return trimmed === '' ? undefined : trimmed;
+};
+
+// Get environment variable with fallback.
+//
+// Throws ONLY when the variable is absent and no default was supplied.
+// Passing an empty string as the default is how this codebase marks an optional
+// variable (e.g. getEnvVar('BINANCE_API_KEY', '')), so '' must be returned as a
+// legitimate value rather than treated as a missing variable.
+const getEnvVar = (key: string, defaultValue?: string): string => {
+  const value = readRawEnv(key);
+  if (value !== undefined) {
+    return value;
+  }
+  if (defaultValue !== undefined) {
+    return defaultValue;
+  }
+  throw new Error(`Environment variable ${key} is required`);
 };
 
 // Get webapp URL with Railway auto-detection
@@ -168,7 +200,11 @@ const getEnvBoolean = (key: string, defaultValue: boolean): boolean => {
 // Environment configuration
 export const config: EnvironmentConfig = {
   // Telegram Bot
-  telegramBotToken: getEnvVar('TELEGRAM_BOT_TOKEN'),
+  // Optional at import time on purpose: index.ts is written to start the web app
+  // without a bot token, and webapp/server.ts imports this module. Throwing here
+  // would kill the whole process before that fallback can run.
+  // Use validateConfig() to assert it where a token is actually required.
+  telegramBotToken: getEnvVar('TELEGRAM_BOT_TOKEN', ''),
   webappUrl: getWebappUrl(),
   
   // API Configuration
@@ -231,7 +267,9 @@ export const config: EnvironmentConfig = {
   adminApiKey: getEnvVar('ADMIN_API_KEY', ''),
 
   // Claude AI Configuration
-  claudeApiKey: getEnvVar('ANTHROPIC_API_KEY'),
+  // Optional at import time: a missing key must disable AI enrichment,
+  // not crash the bot. ClaudeAnalyzer reports the missing key when first used.
+  claudeApiKey: getEnvVar('ANTHROPIC_API_KEY', ''),
   claudeModel: getEnvVar('CLAUDE_MODEL', 'claude-3-5-haiku-20241022'),
   claudeMaxTokens: getEnvNumber('CLAUDE_MAX_TOKENS', 100),
   claudeCacheTtl: getEnvNumber('CLAUDE_CACHE_TTL', 300),

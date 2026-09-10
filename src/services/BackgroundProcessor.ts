@@ -1,8 +1,8 @@
-import dotenv from 'dotenv';
+// Must precede every other import - see the note in src/index.ts.
+import 'dotenv/config';
+
 import { DatabaseManager } from '../database/Database.js';
 import { ArbitrageScanner } from './ArbitrageScanner.js';
-
-dotenv.config();
 
 export class BackgroundProcessor {
   private db: DatabaseManager;
